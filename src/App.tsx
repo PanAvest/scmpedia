@@ -1910,8 +1910,14 @@ function useAI() {
     if (!hasHtml) {
       text = escapeHtml(text).replace(/\r?\n+/g, '\n')
     }
-    text = text.replace(/Concept:/i, '<b>Concept:</b>').replace(/Real-World Example:/i, '<b>Real-World Example:</b>')
-    if (!text.includes('<b>Concept:</b>')) text = `<b>Concept:</b> ${text}`
+    text = text
+      .replace(/Concept Overview:/i, '<b>Concept Overview:</b>')
+      .replace(/Why It Matters:/i, '<b>Why It Matters:</b>')
+      .replace(/Concept:/i, '<b>Concept:</b>')
+      .replace(/Real-World Example:/i, '<b>Real-World Example:</b>')
+    if (!text.includes('<b>Concept:</b>') && !text.includes('<b>Concept Overview:</b>')) {
+      text = `<b>Concept Overview:</b> ${text}`
+    }
     if (!text.includes('<b>Real-World Example:</b>')) {
       text += `<br/><br/><b>Real-World Example:</b> ${escapeHtml(anchor.examples || 'A practical example can be observed in day-to-day supply chain operations.')}`
     } else {

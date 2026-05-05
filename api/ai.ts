@@ -3,6 +3,10 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 const API_KEY = process.env.LLAMA_API_KEY
 const BASE_URL = (process.env.LLAMA_BASE_URL || 'https://openrouter.ai/api/v1').replace(/\/$/, '')
 const MODEL = process.env.LLAMA_MODEL || 'meta-llama/llama-4-maverick:free'
+const OLLAMA_BASE_URL = (process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434').replace(/\/$/, '')
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama3:8b'
+const SYSTEM_PROMPT =
+  "You are scmpedia AI, a precise supply chain management tutor. Explain terms using the authority, clarity, and practical orientation of Prof. Douglas Boateng's Executive Insight Series. Be accurate, concise, globally aware, and useful to professionals, students, policy makers, and business leaders. Return clean HTML only. Use <b> labels and no markdown."
 
 const extractText = (data: any) => {
   const content = data?.choices?.[0]?.message?.content
@@ -31,32 +35,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
-  if (!API_KEY) {
-    res.status(500).json({ error: 'Missing LLAMA_API_KEY' })
-    return
-  }
-
   try {
-    const response = await fetch(`${BASE_URL}/chat/completions`, {
+    const response = API_KEY
+      ? await fetch(`${BASE_URL}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${API_KEY}`,
+            'HTTP-Referer': 'https://scmpedia.vercel.app',
+            'X-Title': 'scmpedia',
+          },
+          body: JSON.stringify({
+            model: MODEL,
+            messages: [
+              {
+                role: 'system',
+                content: SYSTEM_PROMPT,
+              },
+              { role: 'user', content: String(prompt) },
+            ],
+            temperature: 0.25,
+            max_tokens: 520,
+          }),
+        })
+      : await fetch(`${OLLAMA_BASE_URL}/api/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${API_KEY}`,
-        'HTTP-Referer': 'https://scmpedia.vercel.app',
-        'X-Title': 'scmpedia',
       },
       body: JSON.stringify({
-        model: MODEL,
+        model: OLLAMA_MODEL,
         messages: [
           {
             role: 'system',
-            content:
-              "You are scmpedia AI, a precise supply chain management tutor. Explain terms using the authority, clarity, and practical orientation of Prof. Douglas Boateng's Executive Insight Series. Be accurate, concise, globally aware, and useful to professionals, students, policy makers, and business leaders. Return clean HTML only. Use <b> labels and no markdown.",
+            content: SYSTEM_PROMPT,
           },
           { role: 'user', content: String(prompt) },
         ],
+        stream: false,
         temperature: 0.25,
-        max_tokens: 520,
+        options: { num_predict: 520 },
       }),
     })
 
@@ -73,7 +91,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       throw new Error(message)
     }
 
-    const text = extractText(data)
+    const text = API_KEY ? extractText(data) : data?.message?.content || data?.response || ''
     if (!text.trim()) {
       res.status(502).json({ error: 'Llama returned an empty response' })
       return

@@ -7,6 +7,10 @@ export default defineConfig(({ mode }) => {
   const llamaKey = env.LLAMA_API_KEY
   const llamaBaseUrl = (env.LLAMA_BASE_URL || 'https://openrouter.ai/api/v1').replace(/\/$/, '')
   const llamaModel = env.LLAMA_MODEL || 'meta-llama/llama-4-maverick:free'
+  const ollamaBaseUrl = (env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434').replace(/\/$/, '')
+  const ollamaModel = env.OLLAMA_MODEL || 'llama3:8b'
+  const aiSystemPrompt =
+    "You are scmpedia AI, a precise supply chain management tutor. Explain terms using the authority, clarity, and practical orientation of Prof. Douglas Boateng's Executive Insight Series. Be accurate, concise, globally aware, and useful to professionals, students, policy makers, and business leaders. Return clean HTML only. Use <b> labels and no markdown."
   const cseKey = env.GOOGLE_CSE_API_KEY
   const cseCx = env.GOOGLE_CSE_CX
   const elevenLabsKey = env.ELEVENLABS_API_KEY
@@ -44,35 +48,47 @@ export default defineConfig(({ mode }) => {
                   res.end(JSON.stringify({ error: 'Missing prompt' }))
                   return
                 }
-                if (!llamaKey) {
-                  res.statusCode = 500
-                  res.setHeader('Content-Type', 'application/json')
-                  res.end(JSON.stringify({ error: 'Missing LLAMA_API_KEY' }))
-                  return
-                }
-
-                const response = await fetch(`${llamaBaseUrl}/chat/completions`, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${llamaKey}`,
-                    'HTTP-Referer': 'http://localhost:5173',
-                    'X-Title': 'scmpedia',
-                  },
-                  body: JSON.stringify({
-                    model: llamaModel,
-                    messages: [
-                      {
-                        role: 'system',
-                        content:
-                          "You are scmpedia AI, a precise supply chain management tutor. Explain terms using the authority, clarity, and practical orientation of Prof. Douglas Boateng's Executive Insight Series. Be accurate, concise, globally aware, and useful to professionals, students, policy makers, and business leaders. Return clean HTML only. Use <b> labels and no markdown.",
+                const response = llamaKey
+                  ? await fetch(`${llamaBaseUrl}/chat/completions`, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${llamaKey}`,
+                        'HTTP-Referer': 'http://localhost:5173',
+                        'X-Title': 'scmpedia',
                       },
-                      { role: 'user', content: prompt },
-                    ],
-                    temperature: 0.25,
-                    max_tokens: 520,
-                  }),
-                })
+                      body: JSON.stringify({
+                        model: llamaModel,
+                        messages: [
+                          {
+                            role: 'system',
+                            content: aiSystemPrompt,
+                          },
+                          { role: 'user', content: prompt },
+                        ],
+                        temperature: 0.25,
+                        max_tokens: 520,
+                      }),
+                    })
+                  : await fetch(`${ollamaBaseUrl}/api/chat`, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        model: ollamaModel,
+                        messages: [
+                          {
+                            role: 'system',
+                            content: aiSystemPrompt,
+                          },
+                          { role: 'user', content: prompt },
+                        ],
+                        stream: false,
+                        temperature: 0.25,
+                        options: { num_predict: 520 },
+                      }),
+                    })
 
                 const textBody = await response.text()
                 let data: any = {}
@@ -86,7 +102,7 @@ export default defineConfig(({ mode }) => {
                   throw new Error(message)
                 }
 
-                const content = data?.choices?.[0]?.message?.content
+                const content = llamaKey ? data?.choices?.[0]?.message?.content : data?.message?.content || data?.response
                 const outputText =
                   typeof content === 'string'
                     ? content
