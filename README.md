@@ -18,11 +18,8 @@ Admin app: `http://localhost:5173/admin`
 Create `.env.local` with:
 
 ```bash
-LLAMA_API_KEY=your_key_here
-LLAMA_BASE_URL=https://openrouter.ai/api/v1
-LLAMA_MODEL=meta-llama/llama-4-maverick:free
-OLLAMA_BASE_URL=http://127.0.0.1:11434
-OLLAMA_MODEL=llama3:8b
+GEMINI_API_KEY=your_key_here
+GEMINI_MODEL=gemini-2.5-flash
 GOOGLE_CSE_API_KEY=your_key_here
 GOOGLE_CSE_CX=your_search_engine_id
 ELEVENLABS_API_KEY=your_key_here
@@ -31,7 +28,7 @@ ELEVENLABS_MODEL_ID=eleven_multilingual_v2
 ELEVENLABS_OUTPUT_FORMAT=mp3_44100_128
 ```
 
-On Vercel, add the same variables in Project Settings. The AI explanation button uses Llama 4 through a chat-completions compatible provider when `LLAMA_API_KEY` is set. During local development, it falls back to Ollama when no hosted Llama key is available.
+On Vercel, add the same variables in Project Settings. The AI explanation button uses Google Gemini through the Gemini API.
 
 ## Admin Access
 

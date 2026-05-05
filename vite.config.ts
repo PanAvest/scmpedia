@@ -4,11 +4,8 @@ import { resolve } from 'path'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const llamaKey = env.LLAMA_API_KEY
-  const llamaBaseUrl = (env.LLAMA_BASE_URL || 'https://openrouter.ai/api/v1').replace(/\/$/, '')
-  const llamaModel = env.LLAMA_MODEL || 'meta-llama/llama-4-maverick:free'
-  const ollamaBaseUrl = (env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434').replace(/\/$/, '')
-  const ollamaModel = env.OLLAMA_MODEL || 'llama3:8b'
+  const geminiKey = env.GEMINI_API_KEY || env.GOOGLE_AI_API_KEY
+  const geminiModel = env.GEMINI_MODEL || 'gemini-2.5-flash'
   const aiSystemPrompt =
     "You are scmpedia AI, a precise supply chain management tutor. Explain terms using the authority, clarity, and practical orientation of Prof. Douglas Boateng's Executive Insight Series. Be accurate, concise, globally aware, and useful to professionals, students, policy makers, and business leaders. Return clean HTML only. Use <b> labels and no markdown."
   const cseKey = env.GOOGLE_CSE_API_KEY
@@ -48,47 +45,41 @@ export default defineConfig(({ mode }) => {
                   res.end(JSON.stringify({ error: 'Missing prompt' }))
                   return
                 }
-                const response = llamaKey
-                  ? await fetch(`${llamaBaseUrl}/chat/completions`, {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${llamaKey}`,
-                        'HTTP-Referer': 'http://localhost:5173',
-                        'X-Title': 'scmpedia',
+
+                if (!geminiKey) {
+                  res.statusCode = 500
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ error: 'Missing GEMINI_API_KEY' }))
+                  return
+                }
+
+                const response = await fetch(
+                  `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
+                    geminiModel
+                  )}:generateContent`,
+                  {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'x-goog-api-key': geminiKey,
+                    },
+                    body: JSON.stringify({
+                      systemInstruction: {
+                        parts: [{ text: aiSystemPrompt }],
                       },
-                      body: JSON.stringify({
-                        model: llamaModel,
-                        messages: [
-                          {
-                            role: 'system',
-                            content: aiSystemPrompt,
-                          },
-                          { role: 'user', content: prompt },
-                        ],
+                      contents: [
+                        {
+                          role: 'user',
+                          parts: [{ text: prompt }],
+                        },
+                      ],
+                      generationConfig: {
                         temperature: 0.25,
-                        max_tokens: 520,
-                      }),
-                    })
-                  : await fetch(`${ollamaBaseUrl}/api/chat`, {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
+                        maxOutputTokens: 520,
                       },
-                      body: JSON.stringify({
-                        model: ollamaModel,
-                        messages: [
-                          {
-                            role: 'system',
-                            content: aiSystemPrompt,
-                          },
-                          { role: 'user', content: prompt },
-                        ],
-                        stream: false,
-                        temperature: 0.25,
-                        options: { num_predict: 520 },
-                      }),
-                    })
+                    }),
+                  }
+                )
 
                 const textBody = await response.text()
                 let data: any = {}
@@ -98,23 +89,17 @@ export default defineConfig(({ mode }) => {
                   data = {}
                 }
                 if (!response.ok) {
-                  const message = data?.error?.message || textBody.slice(0, 500) || `Llama error (${response.status})`
+                  const message =
+                    data?.error?.message || textBody.slice(0, 500) || `Gemini error (${response.status})`
                   throw new Error(message)
                 }
 
-                const content = llamaKey ? data?.choices?.[0]?.message?.content : data?.message?.content || data?.response
-                const outputText =
-                  typeof content === 'string'
-                    ? content
-                    : Array.isArray(content)
-                    ? content
-                        .map((part: any) =>
-                          typeof part === 'string' ? part : typeof part?.text === 'string' ? part.text : ''
-                        )
-                        .join('\n')
-                    : ''
+                const parts = data?.candidates?.[0]?.content?.parts
+                const outputText = Array.isArray(parts)
+                  ? parts.map((part: any) => (typeof part?.text === 'string' ? part.text : '')).join('\n')
+                  : ''
 
-                if (!outputText.trim()) throw new Error('Llama returned an empty response')
+                if (!outputText.trim()) throw new Error('Gemini returned an empty response')
 
                 res.statusCode = 200
                 res.setHeader('Content-Type', 'application/json')
