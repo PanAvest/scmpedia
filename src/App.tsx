@@ -1776,7 +1776,7 @@ function useTTS() {
   const [preparingId, setPreparingId] = useState<string | null>(null)
   const [selectedVoiceURI, setSelectedVoiceURI] = useState<string>('')
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
-  const [provider, setProvider] = useState<TTSProvider>('elevenlabs')
+  const [provider, setProvider] = useState<TTSProvider>('browser')
   const synth = useRef(window.speechSynthesis)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const audioUrlRef = useRef<string | null>(null)
@@ -2074,10 +2074,10 @@ const SettingsDialog = ({
                 value={tts.provider}
                 onChange={(e) => tts.setProvider(e.target.value as TTSProvider)}
               >
-                <option value="elevenlabs">ElevenLabs default voice</option>
-                <option value="browser">Browser voices</option>
+                <option value="browser">Google / browser voices</option>
+                <option value="elevenlabs">ElevenLabs voice</option>
               </select>
-              <div className="api-hint">ElevenLabs uses the same default voice configured in PanAvest Courses.</div>
+              <div className="api-hint">Google browser voice is the default. ElevenLabs is optional if you have quota available.</div>
             </div>
           </div>
 
