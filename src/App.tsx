@@ -939,6 +939,8 @@ body {
 .context-img {
   border-radius: 8px;
   height: 250px;
+  object-fit: contain;
+  background: #f7faf9;
   animation: media-reveal 0.42s ease both;
 }
 
@@ -2234,8 +2236,8 @@ const SmartCard = ({
       const next = typeof data?.url === 'string' ? data.url : ''
       const thumb = typeof data?.thumbnail === 'string' ? data.thumbnail : ''
       if (!next && !thumb) throw new Error('No image found')
-      setImageUrl(thumb || next)
-      setImageAltUrl(next || thumb)
+      setImageUrl(next || thumb)
+      setImageAltUrl(thumb || next)
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e)
       console.error('AI image error', e)

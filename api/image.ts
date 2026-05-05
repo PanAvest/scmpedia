@@ -31,7 +31,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     cx: CX,
     q: query,
     searchType: 'image',
-    num: '1',
+    num: '5',
+    imgSize: 'huge',
     safe: 'active',
   })
 
@@ -53,7 +54,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return
     }
 
-    const item = data?.items?.[0]
+    const items = Array.isArray(data?.items) ? data.items : []
+    const item = items
+      .filter((result: any) => typeof result?.link === 'string' || typeof result?.image?.thumbnailLink === 'string')
+      .sort((a: any, b: any) => {
+        const aPixels = Number(a?.image?.width || 0) * Number(a?.image?.height || 0)
+        const bPixels = Number(b?.image?.width || 0) * Number(b?.image?.height || 0)
+        return bPixels - aPixels
+      })[0]
     const link = typeof item?.link === 'string' ? item.link : ''
     const thumbnail = typeof item?.image?.thumbnailLink === 'string' ? item.image.thumbnailLink : ''
 
@@ -63,7 +71,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     res.setHeader('Cache-Control', 's-maxage=86400, stale-while-revalidate=86400')
-    res.status(200).json({ url: thumbnail || link, thumbnail, link })
+    res.status(200).json({
+      url: link || thumbnail,
+      thumbnail,
+      link,
+      width: item?.image?.width || null,
+      height: item?.image?.height || null,
+    })
   } catch (error: any) {
     res.status(500).json({ error: error?.message || 'Failed to fetch image' })
   }
