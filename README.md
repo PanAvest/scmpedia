@@ -18,11 +18,14 @@ Admin app: `http://localhost:5173/admin`
 Create `.env.local` with:
 
 ```bash
-POLLINATIONS_API_KEY=your_key_here
-POLLINATIONS_BASE_URL=https://gen.pollinations.ai
-POLLINATIONS_MODEL=openai
+OPENAI_API_KEY=your_key_here
+OPENAI_MODEL=gpt-5.4-mini
 GOOGLE_CSE_API_KEY=your_key_here
 GOOGLE_CSE_CX=your_search_engine_id
+ELEVENLABS_API_KEY=your_key_here
+ELEVENLABS_VOICE_ID=VR5rq02kIGuHRg0JKxB6
+ELEVENLABS_MODEL_ID=eleven_multilingual_v2
+ELEVENLABS_OUTPUT_FORMAT=mp3_44100_128
 ```
 
 On Vercel, add the same variables in Project Settings.

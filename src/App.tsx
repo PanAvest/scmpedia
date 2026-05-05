@@ -21,6 +21,7 @@ const STYLES = `
 
 /* Base */
 * { box-sizing: border-box; }
+img { backface-visibility: hidden; transform: translateZ(0); }
 body { margin: 0; font-family: "Google Sans", "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text-main); height: 100dvh; overflow: hidden; -webkit-text-size-adjust: 100%; }
 #root { height: 100%; display: flex; flex-direction: column; overflow: hidden; }
 
@@ -378,10 +379,20 @@ body {
 .welcome-logo {
   display: block;
   width: min(360px, 76vw);
+  min-height: 74px;
   height: auto;
   margin: 0 auto 18px;
   object-fit: contain;
   animation: logo-pop 0.58s cubic-bezier(.2,.9,.2,1) 0.08s both;
+}
+
+.fade-img {
+  opacity: 0;
+  transition: opacity 0.28s ease, filter 0.28s ease;
+}
+
+.fade-img.loaded {
+  opacity: 1;
 }
 
 .home-panel {
@@ -619,6 +630,7 @@ body {
 
 .about-logo {
   width: min(300px, 72vw);
+  min-height: 58px;
   height: auto;
   margin-bottom: 18px;
   animation: text-rise 0.45s ease 0.12s both;
@@ -657,6 +669,8 @@ body {
 
 .book-cover {
   width: min(190px, 52vw);
+  aspect-ratio: 386 / 500;
+  object-fit: cover;
   border-radius: 6px;
   box-shadow: 0 22px 42px rgba(0, 18, 16, 0.34);
   animation: book-float-in 0.62s cubic-bezier(.2,.8,.2,1) 0.22s both, float-soft 4.5s ease-in-out 1.1s infinite;
@@ -1594,6 +1608,26 @@ const uuid = () => Math.random().toString(36).substring(2, 9)
 const escapeHtml = (input: string) =>
   input.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
 
+const FadeImage = ({
+  className,
+  eager,
+  ...props
+}: React.ImgHTMLAttributes<HTMLImageElement> & { eager?: boolean }) => {
+  const [loaded, setLoaded] = useState(false)
+  return (
+    <img
+      {...props}
+      className={`${className || ''} fade-img ${loaded ? 'loaded' : ''}`.trim()}
+      loading={eager ? 'eager' : props.loading || 'lazy'}
+      decoding="async"
+      onLoad={(event) => {
+        setLoaded(true)
+        props.onLoad?.(event)
+      }}
+    />
+  )
+}
+
 const fallbackExplanation = (anchor: Entry) => {
   const concept = escapeHtml(anchor.definition || `${anchor.term} is a supply chain concept.`)
   const exampleText =
@@ -1865,7 +1899,7 @@ function useTTS() {
   return { speak, speakingId, preparingId, voices, selectedVoiceURI, setSelectedVoiceURI, provider, setProvider }
 }
 
-// 3. AI GENERATOR (scmpedia)
+// 3. AI GENERATOR
 function useAI() {
   const [status] = useState<'loading' | 'ready' | 'error'>('ready')
   const transformersRef = useRef<any>(null)
@@ -1903,7 +1937,7 @@ function useAI() {
 
     if (!response.ok) {
       const errText = await response.text()
-      throw new Error(JSON.stringify({ status: response.status, body: errText || 'scmpedia error' }))
+      throw new Error(JSON.stringify({ status: response.status, body: errText || 'AI error' }))
     }
 
     const data = await response.json()
@@ -1976,7 +2010,7 @@ function useAI() {
       const text = await pollinationsGenerate(anchor, isRegen)
       return formatToHtml(text, anchor)
     } catch (e) {
-      console.error('scmpedia error', e)
+      console.error('AI error', e)
 
       if (shouldFallback(String(e))) {
         try {
@@ -2089,7 +2123,7 @@ const SettingsDialog = ({
                   <label className="modal-label">Auto-read insights</label>
                   <div className="toggle-copy">Read AI explanations aloud automatically when they finish loading.</div>
                 </div>
-                <label className="toggle-switch" aria-label="Auto-read scmpedia insights">
+                <label className="toggle-switch" aria-label="Auto-read AI insights">
                   <input type="checkbox" checked={autoReadAi} onChange={(e) => setAutoReadAi(e.target.checked)} />
                   <span className="toggle-slider"></span>
                 </label>
@@ -2129,7 +2163,7 @@ const ThinkingIndicator = () => {
     <div className="thinking-box">
       <div className="thinking-header">
         <div className="pulse-dot"></div>
-        scmpedia is thinking...
+        AI is thinking...
       </div>
       <div className="thought-process">
         <span className="fade-text">» {thought}</span>
@@ -2167,7 +2201,7 @@ const SmartCard = ({
       const next = txt || ''
       setAiText(next)
     } catch (e) {
-      console.error('scmpedia generate error', e)
+      console.error('AI generate error', e)
       setAiText(fallbackExplanation(entry))
     } finally {
       setLoadingAi(false)
@@ -2204,7 +2238,7 @@ const SmartCard = ({
       setImageAltUrl(next || thumb)
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e)
-      console.error('scmpedia image error', e)
+      console.error('AI image error', e)
       setImageErrorMessage(message)
       setImageError(true)
     } finally {
@@ -2280,7 +2314,7 @@ const SmartCard = ({
           <svg className="action-icon" viewBox="0 0 24 24" fill="currentColor">
             <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2zm0-4H7V7h10v2z" />
           </svg>
-          {ai.status === 'loading' ? 'Loading scmpedia...' : 'Explain with scmpedia'}
+          {ai.status === 'loading' ? 'Loading AI...' : 'Explain with AI'}
         </button>
 
         <button
@@ -2352,7 +2386,7 @@ const SmartCard = ({
           </div>
 
           {imageUrl && !imageError ? (
-            <img
+            <FadeImage
               src={imageUrl}
               className="context-img"
               alt={entry.term}
@@ -2493,7 +2527,7 @@ const AboutPage = ({ onBack }: { onBack: () => void }) => {
     <div className="about-page">
       <section className="about-hero">
         <div className="about-hero-content">
-          <img className="about-logo" src="/white-logo.png" alt="scmpedia" />
+          <FadeImage className="about-logo" src="/white-logo.png" alt="scmpedia" eager />
           <h1 className="about-title">
             The intelligence behind <span>scmpedia</span>
           </h1>
@@ -2505,10 +2539,11 @@ const AboutPage = ({ onBack }: { onBack: () => void }) => {
           </p>
         </div>
         <div className="about-book">
-          <img
+          <FadeImage
             className="book-cover"
             src="/book.jpg"
             alt="Executive Insight Series: Compendium of Supply Chain Management Terms book cover"
+            eager
           />
           <a
             className="amazon-btn"
@@ -2716,8 +2751,8 @@ export default function App() {
 
         <div className={`header ${messages.length > 0 ? 'scrolled' : ''}`}>
           <button className="brand" onClick={goHome} aria-label="Go to scmpedia home">
-            <img className="brand-logo" src="/logo.png" alt="scmpedia" />
-            <img className="brand-icon" src="/logo2.png" alt="scmpedia" />
+            <FadeImage className="brand-logo" src="/logo.png" alt="scmpedia" eager />
+            <FadeImage className="brand-icon" src="/logo2.png" alt="scmpedia" eager />
           </button>
 
           <div className="header-controls">
@@ -2805,7 +2840,7 @@ export default function App() {
           ) : messages.length === 0 ? (
             <div className="welcome-screen width-constraint">
               <div style={{ fontSize: '48px', marginBottom: '16px' }} aria-hidden="true"></div>
-              <img className="welcome-logo" src="/logo.png" alt="scmpedia" />
+              <FadeImage className="welcome-logo" src="/logo.png" alt="scmpedia" eager />
               <section className="home-panel">
                 <div className="home-content">
                   <div className="home-kicker">Powered by Prof. Douglas Boateng’s Executive Insight Series</div>
@@ -2929,7 +2964,7 @@ export default function App() {
                 <div key={m.id} className={`message-row ${m.role}`}>
                   {m.role === 'bot' && (
                     <div className="avatar bot">
-                      <img className="avatar-logo" src="/logo2.png" alt="scmpedia" />
+                      <FadeImage className="avatar-logo" src="/logo2.png" alt="scmpedia" eager />
                     </div>
                   )}
                   <div className="bubble">

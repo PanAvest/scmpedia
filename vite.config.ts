@@ -4,9 +4,8 @@ import { resolve } from 'path'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const apiKey = env.POLLINATIONS_API_KEY
-  const baseUrl = env.POLLINATIONS_BASE_URL || 'https://gen.pollinations.ai'
-  const model = env.POLLINATIONS_MODEL || 'openai'
+  const openAiKey = env.OPENAI_API_KEY
+  const openAiModel = env.OPENAI_MODEL || 'gpt-5.4-mini'
   const cseKey = env.GOOGLE_CSE_API_KEY
   const cseCx = env.GOOGLE_CSE_CX
   const elevenLabsKey = env.ELEVENLABS_API_KEY
@@ -44,103 +43,58 @@ export default defineConfig(({ mode }) => {
                   res.end(JSON.stringify({ error: 'Missing prompt' }))
                   return
                 }
-                if (!apiKey) {
+                if (!openAiKey) {
                   res.statusCode = 500
                   res.setHeader('Content-Type', 'application/json')
-                  res.end(
-                    JSON.stringify({ error: 'Missing POLLINATIONS_API_KEY. Use a secret key from enter.pollinations.ai.' })
-                  )
+                  res.end(JSON.stringify({ error: 'Missing OPENAI_API_KEY' }))
                   return
                 }
 
-                const isBadPollinations = (text: string) => {
-                  const s = (text || '').toLowerCase()
-                  return (
-                    s.includes('important notice') ||
-                    s.includes('legacy text api') ||
-                    s.includes('being deprecated') ||
-                    s.includes('migrate to our new service') ||
-                    s.includes('enter.pollinations.ai')
-                  )
-                }
-
-                const callPollinationsChat = async () => {
-                  const response = await fetch(`${baseUrl}/v1/chat/completions`, {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      Authorization: `Bearer ${apiKey}`,
-                    },
-                    body: JSON.stringify({
-                      model,
-                      messages: [{ role: 'user', content: prompt }],
-                      temperature: 0.3,
-                      max_tokens: 260,
-                    }),
-                  })
-
-                const textBody = await response.text()
-                if (!response.ok || !textBody) {
-                  const preview = textBody ? textBody.slice(0, 500) : 'empty response'
-                  throw new Error(`Pollinations error (${response.status}): ${preview}`)
-                }
-
-                  let parsed: any
-                  try {
-                    parsed = JSON.parse(textBody)
-                } catch (err) {
-                  throw new Error(textBody.slice(0, 500))
-                }
-
-                const message = parsed?.choices?.[0]?.message || {}
-                const text = message?.content || ''
-                const blocks = Array.isArray(message?.content_blocks) ? message.content_blocks : []
-                const blockText = blocks
-                  .filter((b: any) => b?.type === 'text' && typeof b?.text === 'string')
-                  .map((b: any) => b.text)
-                  .join('\n')
-                const finalText = text || blockText
-                if (!finalText || isBadPollinations(finalText)) {
-                  const preview = finalText ? finalText.slice(0, 500) : 'empty content'
-                  throw new Error(`Pollinations error (${response.status}): ${preview}`)
-                }
-
-                return finalText
-              }
-
-              const callPollinationsText = async () => {
-                const query = new URLSearchParams({
-                  model,
-                  temperature: '0.3',
+                const response = await fetch('https://api.openai.com/v1/responses', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${openAiKey}`,
+                  },
+                  body: JSON.stringify({
+                    model: openAiModel,
+                    input: prompt,
+                    store: true,
+                  }),
                 })
-                query.set('key', apiKey)
-                const url = `${baseUrl}/text/${encodeURIComponent(prompt)}?${query.toString()}`
-                const response = await fetch(url, { method: 'GET' })
-                const textBody = await response.text()
-                if (!response.ok || !textBody) {
-                  const preview = textBody ? textBody.slice(0, 500) : 'empty response'
-                  throw new Error(`Pollinations error (${response.status}): ${preview}`)
-                }
-                if (isBadPollinations(textBody)) {
-                  throw new Error(`Pollinations error (${response.status}): ${textBody.slice(0, 500)}`)
-                }
-                return textBody
-              }
 
-              let text = ''
-              try {
-                text = await callPollinationsChat()
-              } catch {
-                text = await callPollinationsText()
-              }
+                const textBody = await response.text()
+                let data: any = {}
+                try {
+                  data = JSON.parse(textBody || '{}')
+                } catch {
+                  data = {}
+                }
+                if (!response.ok) {
+                  const message = data?.error?.message || textBody.slice(0, 500) || `OpenAI error (${response.status})`
+                  throw new Error(message)
+                }
+
+                const outputText =
+                  typeof data?.output_text === 'string'
+                    ? data.output_text
+                    : Array.isArray(data?.output)
+                    ? data.output
+                        .flatMap((item: any) => item?.content || [])
+                        .filter((item: any) => item?.type === 'output_text' && typeof item?.text === 'string')
+                        .map((item: any) => item.text)
+                        .join('\n')
+                    : ''
+
+                if (!outputText.trim()) throw new Error('OpenAI returned an empty response')
 
                 res.statusCode = 200
                 res.setHeader('Content-Type', 'application/json')
-                res.end(JSON.stringify({ text: text || '' }))
+                res.end(JSON.stringify({ text: outputText }))
               } catch (err: any) {
                 res.statusCode = 500
                 res.setHeader('Content-Type', 'application/json')
-                res.end(JSON.stringify({ error: err?.message || 'scmpedia request failed' }))
+                res.end(JSON.stringify({ error: err?.message || 'AI request failed' }))
               }
             })
           })
