@@ -4,10 +4,9 @@ import { resolve } from 'path'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const geminiKey = env.GEMINI_API_KEY || env.GOOGLE_AI_API_KEY
-  const geminiModel = env.GEMINI_MODEL || 'gemini-2.5-flash'
-  const aiSystemPrompt =
-    "You are scmpedia AI, a precise supply chain management tutor. Explain terms using the authority, clarity, and practical orientation of Prof. Douglas Boateng's Executive Insight Series. Be accurate, concise, globally aware, and useful to professionals, students, policy makers, and business leaders. Return clean HTML only. Use <b> labels and no markdown."
+  const pollinationsKey = env.POLLINATIONS_API_KEY
+  const pollinationsBaseUrl = env.POLLINATIONS_BASE_URL || 'https://gen.pollinations.ai'
+  const pollinationsModel = env.POLLINATIONS_MODEL || 'openai'
   const cseKey = env.GOOGLE_CSE_API_KEY
   const cseCx = env.GOOGLE_CSE_CX
   const elevenLabsKey = env.ELEVENLABS_API_KEY
@@ -46,60 +45,94 @@ export default defineConfig(({ mode }) => {
                   return
                 }
 
-                if (!geminiKey) {
-                  res.statusCode = 500
-                  res.setHeader('Content-Type', 'application/json')
-                  res.end(JSON.stringify({ error: 'Missing GEMINI_API_KEY' }))
-                  return
+                const isBadPollinations = (text: string) => {
+                  const s = (text || '').toLowerCase()
+                  return (
+                    s.includes('important notice') ||
+                    s.includes('legacy text api') ||
+                    s.includes('being deprecated') ||
+                    s.includes('migrate to our new service') ||
+                    s.includes('enter.pollinations.ai')
+                  )
                 }
 
-                const response = await fetch(
-                  `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
-                    geminiModel
-                  )}:generateContent`,
-                  {
+                const callPollinationsChat = async (useKey: boolean) => {
+                  const response = await fetch(`${pollinationsBaseUrl}/v1/chat/completions`, {
                     method: 'POST',
                     headers: {
                       'Content-Type': 'application/json',
-                      'x-goog-api-key': geminiKey,
+                      ...(useKey && pollinationsKey ? { Authorization: `Bearer ${pollinationsKey}` } : {}),
                     },
                     body: JSON.stringify({
-                      systemInstruction: {
-                        parts: [{ text: aiSystemPrompt }],
-                      },
-                      contents: [
-                        {
-                          role: 'user',
-                          parts: [{ text: prompt }],
-                        },
-                      ],
-                      generationConfig: {
-                        temperature: 0.25,
-                        maxOutputTokens: 520,
-                      },
+                      model: pollinationsModel,
+                      messages: [{ role: 'user', content: prompt }],
+                      temperature: 0.3,
+                      max_tokens: 520,
                     }),
+                  })
+
+                  const textBody = await response.text()
+                  if (!response.ok || !textBody) {
+                    const preview = textBody ? textBody.slice(0, 500) : 'empty response'
+                    throw new Error(`Pollinations error (${response.status}): ${preview}`)
                   }
-                )
 
-                const textBody = await response.text()
-                let data: any = {}
+                  let parsed: any
+                  try {
+                    parsed = JSON.parse(textBody)
+                  } catch {
+                    throw new Error(textBody.slice(0, 500))
+                  }
+
+                  const message = parsed?.choices?.[0]?.message || {}
+                  const text = typeof message?.content === 'string' ? message.content : ''
+                  const blocks = Array.isArray(message?.content_blocks) ? message.content_blocks : []
+                  const blockText = blocks
+                    .filter((block: any) => block?.type === 'text' && typeof block?.text === 'string')
+                    .map((block: any) => block.text)
+                    .join('\n')
+                  const finalText = text || blockText
+                  if (!finalText || isBadPollinations(finalText)) {
+                    const preview = finalText ? finalText.slice(0, 500) : 'empty content'
+                    throw new Error(`Pollinations error (${response.status}): ${preview}`)
+                  }
+
+                  return finalText
+                }
+
+                const callPollinationsText = async (useKey: boolean) => {
+                  const query = new URLSearchParams({
+                    model: pollinationsModel,
+                    temperature: '0.3',
+                  })
+                  if (useKey && pollinationsKey) query.set('key', pollinationsKey)
+                  const url = `${pollinationsBaseUrl}/text/${encodeURIComponent(prompt)}?${query.toString()}`
+                  const response = await fetch(url, { method: 'GET' })
+                  const textBody = await response.text()
+                  if (!response.ok || !textBody) {
+                    const preview = textBody ? textBody.slice(0, 500) : 'empty response'
+                    throw new Error(`Pollinations error (${response.status}): ${preview}`)
+                  }
+                  if (isBadPollinations(textBody)) {
+                    throw new Error(`Pollinations error (${response.status}): ${textBody.slice(0, 500)}`)
+                  }
+                  return textBody
+                }
+
+                const generateText = async (useKey: boolean) => {
+                  try {
+                    return await callPollinationsChat(useKey)
+                  } catch {
+                    return await callPollinationsText(useKey)
+                  }
+                }
+
+                let outputText = ''
                 try {
-                  data = JSON.parse(textBody || '{}')
+                  outputText = await generateText(Boolean(pollinationsKey))
                 } catch {
-                  data = {}
+                  outputText = await generateText(false)
                 }
-                if (!response.ok) {
-                  const message =
-                    data?.error?.message || textBody.slice(0, 500) || `Gemini error (${response.status})`
-                  throw new Error(message)
-                }
-
-                const parts = data?.candidates?.[0]?.content?.parts
-                const outputText = Array.isArray(parts)
-                  ? parts.map((part: any) => (typeof part?.text === 'string' ? part.text : '')).join('\n')
-                  : ''
-
-                if (!outputText.trim()) throw new Error('Gemini returned an empty response')
 
                 res.statusCode = 200
                 res.setHeader('Content-Type', 'application/json')

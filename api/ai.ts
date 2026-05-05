@@ -1,14 +1,93 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 
-const API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY
-const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash'
-const SYSTEM_PROMPT =
-  "You are scmpedia AI, a precise supply chain management tutor. Explain terms using the authority, clarity, and practical orientation of Prof. Douglas Boateng's Executive Insight Series. Be accurate, concise, globally aware, and useful to professionals, students, policy makers, and business leaders. Return clean HTML only. Use <b> labels and no markdown."
+const BASE_URL = process.env.POLLINATIONS_BASE_URL || 'https://gen.pollinations.ai'
+const API_KEY = process.env.POLLINATIONS_API_KEY
+const MODEL = process.env.POLLINATIONS_MODEL || 'openai'
 
-const extractText = (data: any) => {
-  const parts = data?.candidates?.[0]?.content?.parts
-  if (!Array.isArray(parts)) return ''
-  return parts.map((part) => (typeof part?.text === 'string' ? part.text : '')).join('\n')
+const isBadPollinations = (text: string) => {
+  const s = (text || '').toLowerCase()
+  return (
+    s.includes('important notice') ||
+    s.includes('legacy text api') ||
+    s.includes('being deprecated') ||
+    s.includes('migrate to our new service') ||
+    s.includes('enter.pollinations.ai')
+  )
+}
+
+const extractMessageText = (parsed: any) => {
+  const message = parsed?.choices?.[0]?.message || {}
+  const text = typeof message?.content === 'string' ? message.content : ''
+  const blocks = Array.isArray(message?.content_blocks) ? message.content_blocks : []
+  const blockText = blocks
+    .filter((block: any) => block?.type === 'text' && typeof block?.text === 'string')
+    .map((block: any) => block.text)
+    .join('\n')
+  return text || blockText
+}
+
+const callPollinationsChat = async (prompt: string, useKey: boolean) => {
+  const response = await fetch(`${BASE_URL}/v1/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(useKey && API_KEY ? { Authorization: `Bearer ${API_KEY}` } : {}),
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      messages: [{ role: 'user', content: String(prompt) }],
+      temperature: 0.3,
+      max_tokens: 520,
+    }),
+  })
+
+  const textBody = await response.text()
+  if (!response.ok || !textBody) {
+    const preview = textBody ? textBody.slice(0, 500) : 'empty response'
+    throw new Error(`Pollinations error (${response.status}): ${preview}`)
+  }
+
+  let parsed: any
+  try {
+    parsed = JSON.parse(textBody)
+  } catch {
+    throw new Error(textBody.slice(0, 500))
+  }
+
+  const finalText = extractMessageText(parsed)
+  if (!finalText || isBadPollinations(finalText)) {
+    const preview = finalText ? finalText.slice(0, 500) : 'empty content'
+    throw new Error(`Pollinations error (${response.status}): ${preview}`)
+  }
+
+  return finalText
+}
+
+const callPollinationsText = async (prompt: string, useKey: boolean) => {
+  const query = new URLSearchParams({
+    model: MODEL,
+    temperature: '0.3',
+  })
+  if (useKey && API_KEY) query.set('key', API_KEY)
+  const url = `${BASE_URL}/text/${encodeURIComponent(prompt)}?${query.toString()}`
+  const response = await fetch(url, { method: 'GET' })
+  const textBody = await response.text()
+  if (!response.ok || !textBody) {
+    const preview = textBody ? textBody.slice(0, 500) : 'empty response'
+    throw new Error(`Pollinations error (${response.status}): ${preview}`)
+  }
+  if (isBadPollinations(textBody)) {
+    throw new Error(`Pollinations error (${response.status}): ${textBody.slice(0, 500)}`)
+  }
+  return textBody
+}
+
+const generateText = async (prompt: string, useKey: boolean) => {
+  try {
+    return await callPollinationsChat(prompt, useKey)
+  } catch {
+    return await callPollinationsText(prompt, useKey)
+  }
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -23,58 +102,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
-  if (!API_KEY) {
-    res.status(500).json({ error: 'Missing GEMINI_API_KEY' })
-    return
-  }
-
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(MODEL)}:generateContent`,
-      {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': API_KEY,
-      },
-      body: JSON.stringify({
-        systemInstruction: {
-          parts: [{ text: SYSTEM_PROMPT }],
-        },
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: String(prompt) }],
-          },
-        ],
-        generationConfig: {
-          temperature: 0.25,
-          maxOutputTokens: 520,
-        },
-      }),
-    })
-
-    const bodyText = await response.text()
-    let data: any = {}
+    let text = ''
     try {
-      data = JSON.parse(bodyText || '{}')
+      text = await generateText(String(prompt), Boolean(API_KEY))
     } catch {
-      data = {}
+      text = await generateText(String(prompt), false)
     }
-
-    if (!response.ok) {
-      const message = data?.error?.message || bodyText.slice(0, 500) || `Gemini request failed (${response.status})`
-      throw new Error(message)
-    }
-
-    const text = extractText(data)
-    if (!text.trim()) {
-      res.status(502).json({ error: 'Gemini returned an empty response' })
-      return
-    }
-
     res.status(200).json({ text })
   } catch (error: any) {
-    res.status(500).json({ error: error?.message || 'Gemini request failed' })
+    res.status(500).json({ error: error?.message || 'SCM AI request failed' })
   }
 }

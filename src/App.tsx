@@ -1972,7 +1972,7 @@ function useAI() {
     return text
   }
 
-  const geminiGenerate = async (anchor: Entry, isRegen?: boolean) => {
+  const scmpediaGenerate = async (anchor: Entry, isRegen?: boolean) => {
     const instruction = isRegen
       ? 'Re-explain the concept with a fresh practical angle while staying faithful to the supplied definition.'
       : 'Explain the concept with precision, practical context, and a real-world supply chain example.'
@@ -2011,19 +2011,19 @@ Use exactly these sections:
 
     const data = await response.json()
     const text = data?.text || ''
-    if (!text) throw new Error('Gemini returned empty response')
+    if (!text) throw new Error('scmpedia AI returned empty response')
     return text
   }
 
   const generate = async (anchor: Entry, isRegen?: boolean) => {
     try {
-      const text = await geminiGenerate(anchor, isRegen)
+      const text = await scmpediaGenerate(anchor, isRegen)
       return formatToHtml(text, anchor)
     } catch (e) {
-      console.error('Gemini AI error', e)
+      console.error('scmpedia AI error', e)
     }
 
-    return `<i>Could not reach Google Gemini AI. Here is a dictionary-based summary:</i><br/><br/><b>Concept Overview:</b> ${anchor.term} refers to ${anchor.definition}.<br/><br/><b>Why It Matters:</b> This term can affect planning, cost, reliability, service delivery, risk, or supply chain performance.<br/><br/><b>Real-World Example:</b> In practice, teams may use this concept when managing sourcing, inventory, logistics, operations, supplier performance, or customer fulfilment.`
+    return `<i>Could not reach scmpedia AI. Here is a dictionary-based summary:</i><br/><br/><b>Concept Overview:</b> ${anchor.term} refers to ${anchor.definition}.<br/><br/><b>Why It Matters:</b> This term can affect planning, cost, reliability, service delivery, risk, or supply chain performance.<br/><br/><b>Real-World Example:</b> In practice, teams may use this concept when managing sourcing, inventory, logistics, operations, supplier performance, or customer fulfilment.`
   }
 
   return { status, generate }
