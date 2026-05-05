@@ -22,7 +22,7 @@ const STYLES = `
 /* Base */
 * { box-sizing: border-box; }
 img { backface-visibility: hidden; transform: translateZ(0); }
-body { margin: 0; font-family: "Google Sans", "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text-main); height: 100dvh; overflow: hidden; -webkit-text-size-adjust: 100%; }
+body { margin: 0; font-family: "Google Sans", "Segoe UI", Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Arial Unicode MS", sans-serif; background: var(--bg); color: var(--text-main); height: 100dvh; overflow: hidden; -webkit-text-size-adjust: 100%; }
 #root { height: 100%; display: flex; flex-direction: column; overflow: hidden; }
 
 /* Layout */
@@ -99,7 +99,19 @@ body { margin: 0; font-family: "Google Sans", "Segoe UI", Roboto, Helvetica, Ari
 .action-btn:hover { background: var(--surface-hover); border-color: var(--border); color: var(--text-main); }
 .action-btn:active { transform: translateY(1px); }
 .action-btn.active { background: var(--primary-bg); color: var(--primary); border-color: rgba(182,84,55,0.2); }
+.action-btn.copied { background: #063f3a; color: #fff; border-color: #063f3a; }
 .action-icon { width: 16px; height: 16px; opacity: 0.8; }
+.copy-wrap { position: relative; display: inline-flex; }
+.copy-toast {
+  position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+  background: #063f3a; color: #fff; border-radius: 999px; padding: 6px 10px;
+  font-size: 12px; font-weight: 700; white-space: nowrap; box-shadow: 0 8px 20px rgba(6,63,58,0.2);
+  animation: pop-in 0.18s ease-out; z-index: 5; pointer-events: none;
+}
+.copy-toast::before {
+  content: ''; position: absolute; top: -4px; left: 50%; width: 8px; height: 8px;
+  background: #063f3a; transform: translateX(-50%) rotate(45deg);
+}
 
 /* Voice Meter */
 .voice-meter { display: flex; align-items: flex-end; gap: 2px; height: 12px; margin-left: 4px; }
@@ -1603,6 +1615,7 @@ type TTSProvider = 'elevenlabs' | 'browser'
 const DEFAULT_ELEVENLABS_VOICE_ID = 'VR5rq02kIGuHRg0JKxB6'
 const ELEVENLABS_MODEL_ID = 'eleven_multilingual_v2'
 const ELEVENLABS_OUTPUT_FORMAT = 'mp3_44100_128'
+const LOCAL_ENTRIES_KEY = 'scmpedia-admin-entries-v1'
 
 const uuid = () => Math.random().toString(36).substring(2, 9)
 const escapeHtml = (input: string) =>
@@ -1647,22 +1660,7 @@ function useData() {
   const fuseLibRef = useRef<any>(null)
   const fuseRef = useRef<any>(null)
 
-  const processCSV = useCallback((csv: string) => {
-    if (!papaRef.current) return
-    try {
-      const res = papaRef.current.parse(csv, { header: true, skipEmptyLines: true })
-      const entries = res.data
-        .map((r: any) => ({
-          term: (r.term || r.Term || '').trim(),
-          definition: (r.definition || r.Definition || '').trim(),
-          synonyms: r.synonyms || r.Synonyms || '',
-          tags: r.tags || r.Tags || '',
-          pos: r.pos || r.Pos || '',
-          pronunciation: r.pronunciation || r.Pronunciation || '',
-          examples: r.examples || r.Examples || '',
-        }))
-        .filter((e: Entry) => e.term && e.definition)
-
+  const applyEntries = useCallback((entries: Entry[]) => {
       if (entries.length) {
         setData(entries)
         if (fuseLibRef.current) {
@@ -1680,10 +1678,46 @@ function useData() {
       } else {
         setStatus('empty')
       }
+  }, [])
+
+  const normalizeEntry = (r: any): Entry => ({
+    term: String(r.term || r.Term || '').trim(),
+    definition: String(r.definition || r.Definition || '').trim(),
+    synonyms: String(r.synonyms || r.Synonyms || ''),
+    tags: String(r.tags || r.Tags || ''),
+    pos: String(r.pos || r.Pos || ''),
+    pronunciation: String(r.pronunciation || r.Pronunciation || ''),
+    examples: String(r.examples || r.Examples || ''),
+  })
+
+  const readLocalEntries = useCallback(() => {
+    try {
+      const raw = localStorage.getItem(LOCAL_ENTRIES_KEY)
+      if (!raw) return []
+      const parsed = JSON.parse(raw)
+      if (!Array.isArray(parsed)) return []
+      return parsed.map(normalizeEntry).filter((e: Entry) => e.term && e.definition)
+    } catch {
+      return []
+    }
+  }, [])
+
+  const processCSV = useCallback((csv: string) => {
+    if (!papaRef.current) return
+    try {
+      const localEntries = readLocalEntries()
+      if (localEntries.length) {
+        applyEntries(localEntries)
+        return
+      }
+
+      const res = papaRef.current.parse(csv, { header: true, skipEmptyLines: true })
+      const entries = res.data.map(normalizeEntry).filter((e: Entry) => e.term && e.definition)
+      applyEntries(entries)
     } catch {
       setStatus('error')
     }
-  }, [])
+  }, [applyEntries, readLocalEntries])
 
   useEffect(() => {
     const load = (src: string, g: string) =>
@@ -1722,6 +1756,16 @@ function useData() {
       loadCsv()
     })
   }, [processCSV])
+
+  useEffect(() => {
+    const syncLocalEntries = (event?: StorageEvent) => {
+      if (event && event.key !== LOCAL_ENTRIES_KEY) return
+      const localEntries = readLocalEntries()
+      if (localEntries.length) applyEntries(localEntries)
+    }
+    window.addEventListener('storage', syncLocalEntries)
+    return () => window.removeEventListener('storage', syncLocalEntries)
+  }, [applyEntries, readLocalEntries])
 
   return { data, status, processCSV, fuseRef }
 }
@@ -2148,6 +2192,7 @@ const SmartCard = ({
   const [imageLoading, setImageLoading] = useState(false)
   const [imageError, setImageError] = useState(false)
   const [imageErrorMessage, setImageErrorMessage] = useState('')
+  const [copied, setCopied] = useState(false)
 
   const fetchAi = async (regen = false) => {
     setLoadingAi(true)
@@ -2219,8 +2264,14 @@ const SmartCard = ({
     fetchImage()
   }
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(`${entry.term}: ${entry.definition}`)
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(`${entry.term}: ${entry.definition}`)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1800)
+    } catch (error) {
+      console.error('Copy failed', error)
+    }
   }
 
   const isSpeakingDef = tts.speakingId === `def-${entry.term}`
@@ -2282,12 +2333,15 @@ const SmartCard = ({
           Details
         </button>
 
-        <button className="action-btn" onClick={handleCopy}>
-          <svg className="action-icon" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" />
-          </svg>
-          Copy
-        </button>
+        <div className="copy-wrap">
+          <button className={`action-btn ${copied ? 'copied' : ''}`} onClick={handleCopy} aria-live="polite">
+            <svg className="action-icon" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" />
+            </svg>
+            {copied ? 'Copied' : 'Copy'}
+          </button>
+          {copied && <div className="copy-toast">Copied</div>}
+        </div>
       </div>
 
       {expanded === 'details' && (

@@ -18,6 +18,7 @@ type PapaParse = {
 
 const ADMIN_USER = 'scmpedia-admin'
 const ADMIN_PASS = 'scmpedia-2026'
+const LOCAL_ENTRIES_KEY = 'scmpedia-admin-entries-v1'
 
 const STYLES = `
 :root {
@@ -35,7 +36,7 @@ const STYLES = `
 }
 
 * { box-sizing: border-box; }
-body { margin: 0; font-family: "Google Sans", "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text-main); }
+body { margin: 0; font-family: "Google Sans", "Segoe UI", Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Arial Unicode MS", sans-serif; background: var(--bg); color: var(--text-main); }
 
 .admin-shell { min-height: 100dvh; display: flex; flex-direction: column; }
 .admin-header { padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.9); backdrop-filter: blur(6px); position: sticky; top: 0; z-index: 10; }
@@ -46,6 +47,7 @@ body { margin: 0; font-family: "Google Sans", "Segoe UI", Roboto, Helvetica, Ari
 .btn { border: none; cursor: pointer; border-radius: 10px; padding: 10px 14px; font-weight: 600; font-size: 13px; transition: transform 0.2s ease, box-shadow 0.2s ease; }
 .btn-primary { background: var(--primary); color: #fff; box-shadow: 0 6px 16px rgba(182, 84, 55, 0.25); }
 .btn-secondary { background: var(--surface-2); color: var(--text-main); }
+.btn-danger { background: #b91c1c; color: #fff; box-shadow: 0 6px 16px rgba(185, 28, 28, 0.18); }
 .btn:active { transform: translateY(1px); }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
 
@@ -66,7 +68,10 @@ body { margin: 0; font-family: "Google Sans", "Segoe UI", Roboto, Helvetica, Ari
 .input, .textarea { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: 14px; font-family: inherit; background: #fff; }
 .textarea { min-height: 90px; resize: vertical; }
 .helper { font-size: 12px; color: var(--text-sub); margin-top: 6px; }
-.status { font-size: 12px; color: var(--primary-dark); font-weight: 600; }
+.status { font-size: 12px; color: var(--primary-dark); font-weight: 600; width: 100%; }
+.status.success { color: #047857; }
+.status.warn { color: #b45309; }
+.status.error { color: #b91c1c; }
 
 .login-wrap { min-height: 100dvh; display: flex; align-items: center; justify-content: center; padding: 24px; }
 .login-card { width: min(420px, 100%); background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow); padding: 24px; animation: pop-up 0.25s ease; }
@@ -112,13 +117,35 @@ function AdminApp() {
   const [dirty, setDirty] = useState(false)
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState('Ready')
+  const [statusTone, setStatusTone] = useState<'default' | 'success' | 'warn' | 'error'>('default')
   const papaRef = useRef<PapaParse | null>(null)
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return entries
-    return entries.filter((e) => e.term.toLowerCase().includes(q))
+    return entries
+      .map((entry, index) => ({ entry, index }))
+      .filter(({ entry }) => !q || entry.term.toLowerCase().includes(q))
   }, [entries, query])
+
+  const showStatus = (message: string, tone: 'default' | 'success' | 'warn' | 'error' = 'default') => {
+    setStatus(message)
+    setStatusTone(tone)
+  }
+
+  const persistEntries = (next: Entry[]) => {
+    localStorage.setItem(LOCAL_ENTRIES_KEY, JSON.stringify(next))
+    window.dispatchEvent(new StorageEvent('storage', { key: LOCAL_ENTRIES_KEY, newValue: JSON.stringify(next) }))
+  }
+
+  const normalizeRow = (row: any): Entry => ({
+    term: String(row.term || row.Term || '').trim(),
+    definition: String(row.definition || row.Definition || '').trim(),
+    synonyms: String(row.synonyms || row.Synonyms || ''),
+    tags: String(row.tags || row.Tags || ''),
+    pos: String(row.pos || row.Pos || ''),
+    pronunciation: String(row.pronunciation || row.Pronunciation || ''),
+    examples: String(row.examples || row.Examples || ''),
+  })
 
   const loadPapa = (): Promise<PapaParse> =>
     new Promise((resolve, reject) => {
@@ -141,8 +168,21 @@ function AdminApp() {
 
   const loadCsv = async () => {
     setLoading(true)
-    setStatus('Loading CSV...')
+    showStatus('Loading CSV...')
     try {
+      const localEntries = localStorage.getItem(LOCAL_ENTRIES_KEY)
+      if (localEntries) {
+        const parsedLocal = JSON.parse(localEntries)
+        if (Array.isArray(parsedLocal) && parsedLocal.length) {
+          setEntries(parsedLocal.map(normalizeRow).filter((e: Entry) => e.term && e.definition))
+          setSelectedIndex(null)
+          setDraft(defaultEntry)
+          setDirty(false)
+          showStatus(`Loaded ${parsedLocal.length} saved local terms`, 'success')
+          return
+        }
+      }
+
       const Papa = await loadPapa()
       const sources = ['/scmpedia_full_UPDATED.csv', '/scmpedia_full.csv']
       let csv = ''
@@ -154,24 +194,15 @@ function AdminApp() {
       }
       if (!csv) throw new Error('Failed to load CSV')
       const parsed = Papa.parse(csv, { header: true, skipEmptyLines: true })
-      const data = parsed.data
-        .map((row: any) => ({
-          term: String(row.term || row.Term || '').trim(),
-          definition: String(row.definition || row.Definition || '').trim(),
-          synonyms: row.synonyms || row.Synonyms || '',
-          tags: row.tags || row.Tags || '',
-          pos: row.pos || row.Pos || '',
-          pronunciation: row.pronunciation || row.Pronunciation || '',
-          examples: row.examples || row.Examples || '',
-        }))
-        .filter((e: Entry) => e.term && e.definition)
+      const data = parsed.data.map(normalizeRow).filter((e: Entry) => e.term && e.definition)
       setEntries(data)
       setSelectedIndex(null)
       setDraft(defaultEntry)
       setDirty(false)
-      setStatus(`Loaded ${data.length} terms`)
+      persistEntries(data)
+      showStatus(`Loaded ${data.length} terms`, 'success')
     } catch (err: any) {
-      setStatus(err?.message || 'Failed to load CSV')
+      showStatus(err?.message || 'Failed to load CSV', 'error')
     } finally {
       setLoading(false)
     }
@@ -203,28 +234,59 @@ function AdminApp() {
 
   const handleSave = () => {
     if (!draft.term.trim() || !draft.definition.trim()) {
-      setStatus('Term and definition are required.')
+      showStatus('Term and definition are required.', 'error')
       return
     }
-    setEntries((prev) => {
-      const next = [...prev]
-      if (selectedIndex === null) {
-        next.unshift({ ...draft })
-      } else {
-        next[selectedIndex] = { ...draft }
+
+    const cleanDraft = normalizeRow(draft)
+    const isNew = selectedIndex === null
+    if (isNew) {
+      const confirmed = window.confirm(`Add "${cleanDraft.term}" to scmpedia?`)
+      if (!confirmed) {
+        showStatus('Not added.', 'warn')
+        return
       }
-      return next
-    })
+    }
+
+    const next = [...entries]
+    if (isNew) {
+      next.unshift(cleanDraft)
+    } else {
+      next[selectedIndex] = cleanDraft
+    }
+    setEntries(next)
+    persistEntries(next)
+    if (isNew) setSelectedIndex(0)
     setDirty(true)
-    setStatus('Changes saved locally. Download CSV to apply.')
+    showStatus(isNew ? 'Added.' : 'Changes saved.', 'success')
+  }
+
+  const handleDelete = () => {
+    if (selectedIndex === null) {
+      showStatus('Select a word before deleting.', 'warn')
+      return
+    }
+    const term = entries[selectedIndex]?.term || 'this word'
+    const confirmed = window.confirm(`Delete "${term}" from scmpedia?`)
+    if (!confirmed) {
+      showStatus('Not deleted.', 'warn')
+      return
+    }
+    const next = entries.filter((_, index) => index !== selectedIndex)
+    setEntries(next)
+    persistEntries(next)
+    setSelectedIndex(null)
+    setDraft(defaultEntry)
+    setDirty(true)
+    showStatus('Deleted.', 'success')
   }
 
   const handleDownload = async () => {
-    setStatus('Preparing CSV...')
+    showStatus('Preparing CSV...')
     try {
       const Papa = await loadPapa()
       const csv = Papa.unparse(entries)
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+      const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -232,38 +294,29 @@ function AdminApp() {
       a.click()
       URL.revokeObjectURL(url)
       setDirty(false)
-      setStatus('CSV downloaded.')
+      showStatus('CSV downloaded. UTF-8 symbols, logos, and emoji are preserved.', 'success')
     } catch (err: any) {
-      setStatus(err?.message || 'Failed to export CSV')
+      showStatus(err?.message || 'Failed to export CSV', 'error')
     }
   }
 
   const handleUpload = async (file?: File) => {
     if (!file) return
     setLoading(true)
-    setStatus('Uploading CSV...')
+    showStatus('Uploading CSV...')
     try {
       const Papa = await loadPapa()
       const text = await file.text()
       const parsed = Papa.parse(text, { header: true, skipEmptyLines: true })
-      const data = parsed.data
-        .map((row: any) => ({
-          term: String(row.term || row.Term || '').trim(),
-          definition: String(row.definition || row.Definition || '').trim(),
-          synonyms: row.synonyms || row.Synonyms || '',
-          tags: row.tags || row.Tags || '',
-          pos: row.pos || row.Pos || '',
-          pronunciation: row.pronunciation || row.Pronunciation || '',
-          examples: row.examples || row.Examples || '',
-        }))
-        .filter((e: Entry) => e.term && e.definition)
+      const data = parsed.data.map(normalizeRow).filter((e: Entry) => e.term && e.definition)
       setEntries(data)
+      persistEntries(data)
       setSelectedIndex(null)
       setDraft(defaultEntry)
       setDirty(true)
-      setStatus(`Loaded ${data.length} entries from upload.`)
+      showStatus(`Loaded ${data.length} entries from upload.`, 'success')
     } catch (err: any) {
-      setStatus(err?.message || 'Upload failed')
+      showStatus(err?.message || 'Upload failed', 'error')
     } finally {
       setLoading(false)
     }
@@ -335,11 +388,11 @@ function AdminApp() {
             onChange={(e) => setQuery(e.target.value)}
           />
           <div className="list">
-            {filtered.map((entry, idx) => (
+            {filtered.map(({ entry, index }) => (
               <div
-                key={`${entry.term}-${idx}`}
-                className={`list-item ${selectedIndex === idx ? 'active' : ''}`}
-                onClick={() => handleSelect(entry, idx)}
+                key={`${entry.term}-${index}`}
+                className={`list-item ${selectedIndex === index ? 'active' : ''}`}
+                onClick={() => handleSelect(entry, index)}
               >
                 {entry.term}
               </div>
@@ -414,12 +467,17 @@ function AdminApp() {
               New Entry
             </button>
             <button className="btn btn-primary" onClick={handleSave}>
-              Save Entry
+              {selectedIndex === null ? 'Add Entry' : 'Save Entry'}
             </button>
-            <div className="status">{dirty ? 'Unsaved changes' : status}</div>
+            <button className="btn btn-danger" onClick={handleDelete} disabled={selectedIndex === null}>
+              Delete Word
+            </button>
+            <div className={`status ${statusTone === 'default' ? '' : statusTone}`}>
+              {dirty ? `${status} Download CSV when ready.` : status}
+            </div>
           </div>
           <div className="helper">
-            Changes are local until you download the CSV and replace `public/scmpedia_full_UPDATED.csv` on the server.
+            Admin changes are saved in this browser immediately for the search page. Download the UTF-8 CSV when you want to update the server file.
           </div>
         </section>
       </main>
