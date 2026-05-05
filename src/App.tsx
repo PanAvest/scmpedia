@@ -278,6 +278,7 @@ body {
   padding: 14px clamp(16px, 4vw, 44px);
   background: rgba(246, 247, 244, 0.88);
   border-bottom: 1px solid rgba(223, 228, 221, 0.8);
+  animation: drop-in 0.45s cubic-bezier(.2,.8,.2,1) both;
 }
 
 .brand {
@@ -295,6 +296,7 @@ body {
   height: auto;
   max-height: 48px;
   object-fit: contain;
+  transition: transform 0.22s ease, filter 0.22s ease;
 }
 
 .brand-icon {
@@ -307,6 +309,12 @@ body {
   display: none;
 }
 
+.brand:hover .brand-logo,
+.brand:hover .brand-icon {
+  transform: translateY(-1px) scale(1.02);
+  filter: drop-shadow(0 10px 18px rgba(255, 122, 31, 0.16));
+}
+
 .settings-btn,
 .db-status {
   border-radius: 8px;
@@ -314,6 +322,7 @@ body {
   background: #fff;
   border-color: var(--border);
   box-shadow: 0 8px 20px rgba(20, 24, 22, 0.06);
+  transition: transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, color 0.18s ease;
 }
 
 .settings-btn.active {
@@ -324,6 +333,8 @@ body {
 .settings-btn:hover,
 .db-status:hover {
   background: var(--surface-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 26px rgba(20, 24, 22, 0.1);
 }
 
 .mobile-menu-btn {
@@ -352,6 +363,7 @@ body {
   display: block;
   text-align: left;
   padding-top: 8px;
+  animation: page-fade-in 0.55s ease both;
 }
 
 .welcome-screen > div:first-child {
@@ -369,6 +381,7 @@ body {
   height: auto;
   margin: 0 auto 18px;
   object-fit: contain;
+  animation: logo-pop 0.58s cubic-bezier(.2,.9,.2,1) 0.08s both;
 }
 
 .home-panel {
@@ -384,6 +397,7 @@ body {
   box-shadow: 0 24px 70px rgba(24, 34, 30, 0.16);
   padding: clamp(24px, 5vw, 50px);
   color: #fff;
+  animation: panel-rise 0.62s cubic-bezier(.2,.8,.2,1) 0.12s both;
 }
 
 .home-panel::before {
@@ -394,6 +408,7 @@ body {
     linear-gradient(120deg, transparent 0 40%, rgba(255,255,255,0.06) 41%, transparent 42%),
     radial-gradient(circle at 94% 12%, rgba(255,255,255,0.08), transparent 30%);
   pointer-events: none;
+  animation: soft-pan 9s ease-in-out infinite alternate;
 }
 
 .home-content {
@@ -408,6 +423,7 @@ body {
   font-weight: 800;
   font-size: 13px;
   margin-bottom: 12px;
+  animation: text-rise 0.48s ease 0.22s both;
 }
 
 .home-title {
@@ -418,6 +434,7 @@ body {
   line-height: 1.02;
   font-weight: 850;
   letter-spacing: 0;
+  animation: text-rise 0.52s ease 0.28s both;
 }
 
 .home-title span {
@@ -430,11 +447,13 @@ body {
   color: rgba(255,255,255,0.86);
   font-size: 16px;
   line-height: 1.65;
+  animation: text-rise 0.52s ease 0.34s both;
 }
 
 .home-search {
   max-width: 680px;
   position: relative;
+  animation: search-pop 0.48s cubic-bezier(.2,.8,.2,1) 0.42s both;
 }
 
 .home-search .input-wrapper {
@@ -485,6 +504,7 @@ body {
   font-weight: 700;
   font-size: 13px;
   cursor: pointer;
+  transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
 }
 
 .term-chip:hover,
@@ -492,6 +512,7 @@ body {
   color: #ff8a1d;
   border-color: rgba(255, 138, 29, 0.8);
   background: rgba(255, 138, 29, 0.12);
+  transform: translateY(-1px);
 }
 
 .feature-grid {
@@ -512,6 +533,19 @@ body {
   border-radius: 8px;
   background: rgba(255,255,255,0.88);
   box-shadow: 0 14px 36px rgba(31, 39, 35, 0.08);
+  animation: card-pop 0.48s cubic-bezier(.2,.8,.2,1) both;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.feature-card:nth-child(1) { animation-delay: 0.18s; }
+.feature-card:nth-child(2) { animation-delay: 0.24s; }
+.feature-card:nth-child(3) { animation-delay: 0.3s; }
+.feature-card:nth-child(4) { animation-delay: 0.36s; }
+
+.feature-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(255, 122, 31, 0.24);
+  box-shadow: 0 20px 44px rgba(31, 39, 35, 0.12);
 }
 
 .feature-icon {
@@ -547,6 +581,7 @@ body {
   width: 100%;
   max-width: 1060px;
   padding: 12px 20px 40px;
+  animation: page-fade-in 0.45s ease both;
 }
 
 .about-hero {
@@ -565,6 +600,7 @@ body {
     linear-gradient(132deg, rgba(0, 56, 50, 0.98), rgba(0, 77, 67, 0.96));
   color: #fff;
   box-shadow: 0 24px 70px rgba(24, 34, 30, 0.16);
+  animation: panel-rise 0.56s cubic-bezier(.2,.8,.2,1) both;
 }
 
 .about-hero::after {
@@ -585,6 +621,7 @@ body {
   width: min(300px, 72vw);
   height: auto;
   margin-bottom: 18px;
+  animation: text-rise 0.45s ease 0.12s both;
 }
 
 .about-title {
@@ -593,6 +630,7 @@ body {
   font-size: clamp(30px, 5vw, 52px);
   line-height: 1.02;
   font-weight: 850;
+  animation: text-rise 0.5s ease 0.18s both;
 }
 
 .about-title span {
@@ -605,6 +643,7 @@ body {
   color: rgba(255,255,255,0.86);
   font-size: 16px;
   line-height: 1.65;
+  animation: text-rise 0.5s ease 0.24s both;
 }
 
 .about-book {
@@ -620,6 +659,7 @@ body {
   width: min(190px, 52vw);
   border-radius: 6px;
   box-shadow: 0 22px 42px rgba(0, 18, 16, 0.34);
+  animation: book-float-in 0.62s cubic-bezier(.2,.8,.2,1) 0.22s both, float-soft 4.5s ease-in-out 1.1s infinite;
 }
 
 .amazon-btn {
@@ -636,10 +676,13 @@ body {
   font-weight: 900;
   text-decoration: none;
   box-shadow: 0 14px 26px rgba(255, 122, 31, 0.28);
+  transition: transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
 }
 
 .amazon-btn:hover {
   background: #ff9c3d;
+  transform: translateY(-2px);
+  box-shadow: 0 18px 34px rgba(255, 122, 31, 0.34);
 }
 
 .about-section-title {
@@ -666,6 +709,19 @@ body {
   border-radius: 8px;
   background: rgba(255,255,255,0.9);
   box-shadow: 0 14px 36px rgba(31, 39, 35, 0.08);
+  animation: card-pop 0.45s cubic-bezier(.2,.8,.2,1) both;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.about-card:nth-child(1) { animation-delay: 0.08s; }
+.about-card:nth-child(2) { animation-delay: 0.14s; }
+.about-card:nth-child(3) { animation-delay: 0.2s; }
+.about-card:nth-child(4) { animation-delay: 0.26s; }
+
+.about-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(0, 80, 70, 0.18);
+  box-shadow: 0 20px 44px rgba(31, 39, 35, 0.11);
 }
 
 .about-card-icon {
@@ -764,6 +820,7 @@ body {
     0 10px 24px rgba(154, 75, 50, 0.16);
   padding: 8px;
   overflow: hidden;
+  animation: avatar-pop 0.34s cubic-bezier(.2,.8,.2,1) both;
 }
 
 .avatar-logo {
@@ -781,6 +838,7 @@ body {
   border-color: rgba(223, 228, 221, 0.92);
   box-shadow: var(--shadow);
   padding: 22px;
+  animation: card-pop 0.42s cubic-bezier(.2,.8,.2,1) both;
 }
 
 .smart-card::before {
@@ -829,6 +887,14 @@ body {
   box-shadow: 0 10px 22px rgba(0, 80, 70, 0.18);
 }
 
+.action-btn:hover,
+.regen-btn:hover,
+.google-link-btn:hover,
+.modal-btn:hover,
+.about-back:hover {
+  transform: translateY(-1px);
+}
+
 .details-panel,
 .ai-box {
   border-radius: 8px;
@@ -847,6 +913,21 @@ body {
 .context-img {
   border-radius: 8px;
   height: 250px;
+  animation: media-reveal 0.42s ease both;
+}
+
+.context-img.placeholder {
+  position: relative;
+  overflow: hidden;
+}
+
+.context-img.placeholder::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.62), transparent);
+  animation: shimmer 1.5s infinite;
 }
 
 .input-area {
@@ -863,6 +944,7 @@ body {
 .input-wrapper:focus-within {
   border-color: rgba(47, 111, 104, 0.32);
   box-shadow: 0 20px 48px rgba(29, 35, 32, 0.15);
+  transform: translateY(-1px);
 }
 
 .chat-input {
@@ -875,17 +957,20 @@ body {
 
 .send-btn.active {
   background: var(--primary);
+  animation: button-ready 0.28s ease both;
 }
 
 .predictive-list {
   border-radius: 8px;
   box-shadow: 0 18px 42px rgba(29, 35, 32, 0.12);
+  animation: dropdown-in 0.2s cubic-bezier(.2,.8,.2,1) both;
 }
 
 .modal-overlay {
   padding: 18px;
   background: rgba(0, 28, 24, 0.5);
   backdrop-filter: blur(8px);
+  animation: overlay-in 0.2s ease both;
 }
 
 .modal {
@@ -896,6 +981,7 @@ body {
   border-radius: 8px;
   padding: 0;
   box-shadow: 0 28px 80px rgba(0, 28, 24, 0.28);
+  animation: modal-rise 0.26s cubic-bezier(.2,.8,.2,1) both;
 }
 
 .settings-head {
@@ -950,7 +1036,12 @@ body {
   border: 1px solid rgba(223, 228, 221, 0.92);
   border-radius: 8px;
   background: #fff;
+  animation: card-pop 0.34s cubic-bezier(.2,.8,.2,1) both;
 }
+
+.setting-card:nth-child(1) { animation-delay: 0.05s; }
+.setting-card:nth-child(2) { animation-delay: 0.1s; }
+.setting-card:nth-child(3) { animation-delay: 0.15s; }
 
 .setting-card-icon {
   width: 40px;
@@ -1100,7 +1191,7 @@ body {
     cursor: pointer;
   }
 
-  .mobile-menu {
+.mobile-menu {
     position: absolute;
     top: calc(100% + 8px);
     right: 0;
@@ -1113,6 +1204,7 @@ body {
     border-radius: 8px;
     background: rgba(255,255,255,0.98);
     box-shadow: 0 18px 44px rgba(20, 24, 22, 0.16);
+    animation: dropdown-in 0.18s cubic-bezier(.2,.8,.2,1) both;
   }
 
   .mobile-menu[hidden] {
@@ -1348,6 +1440,123 @@ body {
 
   .action-btn {
     justify-content: flex-start;
+  }
+}
+
+@keyframes page-fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes drop-in {
+  from { opacity: 0; transform: translateY(-12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes logo-pop {
+  0% { opacity: 0; transform: scale(0.94) translateY(8px); }
+  70% { opacity: 1; transform: scale(1.015) translateY(0); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes panel-rise {
+  from { opacity: 0; transform: translateY(18px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes text-rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes search-pop {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes card-pop {
+  from { opacity: 0; transform: translateY(14px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes avatar-pop {
+  from { opacity: 0; transform: scale(0.75); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes dropdown-in {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modal-rise {
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes book-float-in {
+  from { opacity: 0; transform: translateY(16px) rotate(-1.5deg) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) rotate(0) scale(1); }
+}
+
+@keyframes float-soft {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes media-reveal {
+  from { opacity: 0; transform: scale(0.985); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
+
+@keyframes soft-pan {
+  from { transform: translate3d(0, 0, 0); opacity: 0.75; }
+  to { transform: translate3d(12px, -8px, 0); opacity: 1; }
+}
+
+@keyframes button-ready {
+  0% { transform: scale(0.96); }
+  70% { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header,
+  .welcome-screen,
+  .welcome-logo,
+  .home-panel,
+  .home-panel::before,
+  .home-kicker,
+  .home-title,
+  .home-copy,
+  .home-search,
+  .feature-card,
+  .about-page,
+  .about-hero,
+  .about-logo,
+  .about-title,
+  .about-copy,
+  .book-cover,
+  .about-card,
+  .avatar.bot,
+  .smart-card,
+  .context-img,
+  .predictive-list,
+  .modal-overlay,
+  .modal,
+  .setting-card,
+  .mobile-menu,
+  .send-btn.active {
+    animation: none !important;
   }
 }
 `
