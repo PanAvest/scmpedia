@@ -4,8 +4,9 @@ import { resolve } from 'path'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const openAiKey = env.OPENAI_API_KEY
-  const openAiModel = env.OPENAI_MODEL || 'gpt-5.4-mini'
+  const llamaKey = env.LLAMA_API_KEY
+  const llamaBaseUrl = (env.LLAMA_BASE_URL || 'https://openrouter.ai/api/v1').replace(/\/$/, '')
+  const llamaModel = env.LLAMA_MODEL || 'meta-llama/llama-4-maverick:free'
   const cseKey = env.GOOGLE_CSE_API_KEY
   const cseCx = env.GOOGLE_CSE_CX
   const elevenLabsKey = env.ELEVENLABS_API_KEY
@@ -43,23 +44,33 @@ export default defineConfig(({ mode }) => {
                   res.end(JSON.stringify({ error: 'Missing prompt' }))
                   return
                 }
-                if (!openAiKey) {
+                if (!llamaKey) {
                   res.statusCode = 500
                   res.setHeader('Content-Type', 'application/json')
-                  res.end(JSON.stringify({ error: 'Missing OPENAI_API_KEY' }))
+                  res.end(JSON.stringify({ error: 'Missing LLAMA_API_KEY' }))
                   return
                 }
 
-                const response = await fetch('https://api.openai.com/v1/responses', {
+                const response = await fetch(`${llamaBaseUrl}/chat/completions`, {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
-                    Authorization: `Bearer ${openAiKey}`,
+                    Authorization: `Bearer ${llamaKey}`,
+                    'HTTP-Referer': 'http://localhost:5173',
+                    'X-Title': 'scmpedia',
                   },
                   body: JSON.stringify({
-                    model: openAiModel,
-                    input: prompt,
-                    store: true,
+                    model: llamaModel,
+                    messages: [
+                      {
+                        role: 'system',
+                        content:
+                          "You are scmpedia AI, a precise supply chain management tutor. Explain terms using the authority, clarity, and practical orientation of Prof. Douglas Boateng's Executive Insight Series. Be accurate, concise, globally aware, and useful to professionals, students, policy makers, and business leaders. Return clean HTML only. Use <b> labels and no markdown.",
+                      },
+                      { role: 'user', content: prompt },
+                    ],
+                    temperature: 0.25,
+                    max_tokens: 520,
                   }),
                 })
 
@@ -71,22 +82,23 @@ export default defineConfig(({ mode }) => {
                   data = {}
                 }
                 if (!response.ok) {
-                  const message = data?.error?.message || textBody.slice(0, 500) || `OpenAI error (${response.status})`
+                  const message = data?.error?.message || textBody.slice(0, 500) || `Llama error (${response.status})`
                   throw new Error(message)
                 }
 
+                const content = data?.choices?.[0]?.message?.content
                 const outputText =
-                  typeof data?.output_text === 'string'
-                    ? data.output_text
-                    : Array.isArray(data?.output)
-                    ? data.output
-                        .flatMap((item: any) => item?.content || [])
-                        .filter((item: any) => item?.type === 'output_text' && typeof item?.text === 'string')
-                        .map((item: any) => item.text)
+                  typeof content === 'string'
+                    ? content
+                    : Array.isArray(content)
+                    ? content
+                        .map((part: any) =>
+                          typeof part === 'string' ? part : typeof part?.text === 'string' ? part.text : ''
+                        )
                         .join('\n')
                     : ''
 
-                if (!outputText.trim()) throw new Error('OpenAI returned an empty response')
+                if (!outputText.trim()) throw new Error('Llama returned an empty response')
 
                 res.statusCode = 200
                 res.setHeader('Content-Type', 'application/json')

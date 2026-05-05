@@ -18,8 +18,9 @@ Admin app: `http://localhost:5173/admin`
 Create `.env.local` with:
 
 ```bash
-OPENAI_API_KEY=your_key_here
-OPENAI_MODEL=gpt-5.4-mini
+LLAMA_API_KEY=your_key_here
+LLAMA_BASE_URL=https://openrouter.ai/api/v1
+LLAMA_MODEL=meta-llama/llama-4-maverick:free
 GOOGLE_CSE_API_KEY=your_key_here
 GOOGLE_CSE_CX=your_search_engine_id
 ELEVENLABS_API_KEY=your_key_here
@@ -28,7 +29,7 @@ ELEVENLABS_MODEL_ID=eleven_multilingual_v2
 ELEVENLABS_OUTPUT_FORMAT=mp3_44100_128
 ```
 
-On Vercel, add the same variables in Project Settings.
+On Vercel, add the same variables in Project Settings. The AI explanation button uses Llama 4 through a chat-completions compatible provider.
 
 ## Admin Access
 

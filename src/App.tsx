@@ -1902,8 +1902,6 @@ function useTTS() {
 // 3. AI GENERATOR
 function useAI() {
   const [status] = useState<'loading' | 'ready' | 'error'>('ready')
-  const transformersRef = useRef<any>(null)
-  const transformersReadyRef = useRef<Promise<any> | null>(null)
 
   const formatToHtml = (raw: string, anchor: Entry) => {
     let text = raw.trim()
@@ -1922,12 +1920,31 @@ function useAI() {
     return text
   }
 
-  const pollinationsGenerate = async (anchor: Entry, isRegen?: boolean) => {
+  const llamaGenerate = async (anchor: Entry, isRegen?: boolean) => {
     const instruction = isRegen
-      ? 'Re-explain this concept simply for a beginner. Use a fresh analogy.'
-      : 'Explain this concept simply to a professional. Provide a clear definition and a real-world supply chain example.'
+      ? 'Re-explain the concept with a fresh practical angle while staying faithful to the supplied definition.'
+      : 'Explain the concept with precision, practical context, and a real-world supply chain example.'
 
-    const prompt = `You are a Supply Chain Tutor.\nTerm: "${anchor.term}"\nDefinition: "${anchor.definition}"\nTags: "${anchor.tags || ''}"\n\nTask: ${instruction}\n\nOutput Format:\nReturn strictly HTML with <b> tags. No markdown.\n1. <b>Concept:</b> (Explanation)\n2. <b>Real-World Example:</b> (Example)`
+    const prompt = `Term: "${anchor.term}"
+Dictionary definition: "${anchor.definition}"
+Tags: "${anchor.tags || 'supply chain management'}"
+Existing example: "${anchor.examples || ''}"
+
+Task: ${instruction}
+
+Quality requirements:
+- Explain like a senior supply chain educator advising professionals and students.
+- Preserve the meaning of the supplied dictionary definition.
+- Use plain, actionable language without oversimplifying the term.
+- Make the example realistic for logistics, procurement, operations, manufacturing, sourcing, trade, or policy.
+- If useful, mention why the term matters for performance, cost, reliability, service, risk, or growth.
+
+Output format:
+Return strictly HTML. No markdown.
+Use exactly these sections:
+<b>Concept Overview:</b> ...
+<br/><br/><b>Why It Matters:</b> ...
+<br/><br/><b>Real-World Example:</b> ...`
 
     const response = await fetch('/api/ai', {
       method: 'POST',
@@ -1942,87 +1959,19 @@ function useAI() {
 
     const data = await response.json()
     const text = data?.text || ''
-    if (!text) throw new Error('scmpedia returned empty response')
-    return text
-  }
-
-  const shouldFallback = (message: string) => {
-    const text = message.toLowerCase()
-    return (
-      text.includes('"status":402') ||
-      text.includes('"status":404') ||
-      text.includes('"status":429') ||
-      text.includes('insufficient_quota') ||
-      text.includes('quota') ||
-      text.includes('rate limit') ||
-      text.includes('payment required') ||
-      text.includes('unauthorized') ||
-      text.includes('authenticate') ||
-      text.includes('authentication') ||
-      text.includes('"status":401') ||
-      text.includes('important notice') ||
-      text.includes('legacy text api') ||
-      text.includes('being deprecated') ||
-      text.includes('migrate to our new service') ||
-      text.includes('enter.pollinations.ai')
-    )
-  }
-
-  const loadTransformers = () => {
-    if (transformersRef.current) return Promise.resolve(transformersRef.current)
-    if (transformersReadyRef.current) return transformersReadyRef.current
-
-    transformersReadyRef.current = import(
-      /* @vite-ignore */ 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.14.2/dist/transformers.min.js'
-    )
-      .then((mod: any) => {
-        const lib = mod?.pipeline ? mod : mod?.default
-        if (!lib?.pipeline) throw new Error('Transformers.js failed to load')
-        transformersRef.current = lib
-        return lib
-      })
-      .catch((err) => {
-        transformersReadyRef.current = null
-        throw err
-      })
-
-    return transformersReadyRef.current
-  }
-
-  const transformersGenerate = async (anchor: Entry, isRegen?: boolean) => {
-    const instruction = isRegen
-      ? 'Explain simply for a beginner with a fresh analogy.'
-      : 'Explain simply to a professional with a clear definition and a real-world supply chain example.'
-    const prompt = `Explain the supply chain term: ${anchor.term}. ${instruction} Definition: ${anchor.definition}. Tags: ${anchor.tags || ''}.`
-
-    const lib = await loadTransformers()
-    if (!lib?.pipeline) throw new Error('Transformers.js unavailable')
-
-    const generator = await lib.pipeline('text2text-generation', 'Xenova/flan-t5-small')
-    const out = await generator(prompt, { max_new_tokens: 160 })
-    const text = out?.[0]?.generated_text || ''
-    if (!text) throw new Error('Transformers.js returned empty response')
+    if (!text) throw new Error('Llama returned empty response')
     return text
   }
 
   const generate = async (anchor: Entry, isRegen?: boolean) => {
     try {
-      const text = await pollinationsGenerate(anchor, isRegen)
+      const text = await llamaGenerate(anchor, isRegen)
       return formatToHtml(text, anchor)
     } catch (e) {
-      console.error('AI error', e)
-
-      if (shouldFallback(String(e))) {
-        try {
-          const fallback = await transformersGenerate(anchor, isRegen)
-          return formatToHtml(fallback, anchor)
-        } catch (fallbackErr) {
-          console.error('Transformers.js fallback error', fallbackErr)
-        }
-      }
+      console.error('Llama AI error', e)
     }
 
-    return `<i>Could not reach scmpedia services. Here is a summary:</i><br/><br/><b>Concept:</b> ${anchor.term} is a concept in ${anchor.tags || 'supply chain'} regarding ${anchor.definition}.<br/><br/><b>Real-World Example:</b> This often appears when companies manage sourcing, inventory, logistics, or supplier performance related to the term.`
+    return `<i>Could not reach Llama 4 AI. Here is a dictionary-based summary:</i><br/><br/><b>Concept Overview:</b> ${anchor.term} refers to ${anchor.definition}.<br/><br/><b>Why It Matters:</b> This term can affect planning, cost, reliability, service delivery, risk, or supply chain performance.<br/><br/><b>Real-World Example:</b> In practice, teams may use this concept when managing sourcing, inventory, logistics, operations, supplier performance, or customer fulfilment.`
   }
 
   return { status, generate }
