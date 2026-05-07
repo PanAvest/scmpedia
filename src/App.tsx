@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
+import type { Session, User } from '@supabase/supabase-js'
+import { hasSupabaseConfig, supabase } from './supabase'
 
 /* ------------------------------- THEME & CSS ------------------------------- */
 const STYLES = `
@@ -273,6 +275,22 @@ const PLATFORM_STYLES = `
   --shadow: 0 16px 40px rgba(29, 35, 32, 0.09);
 }
 
+:root[data-theme="dark"] {
+  --bg: #111412;
+  --surface: #171c19;
+  --surface-hover: #222923;
+  --primary: #f28b58;
+  --primary-bg: rgba(242, 139, 88, 0.15);
+  --accent: #62c7ba;
+  --accent-soft: rgba(98, 199, 186, 0.14);
+  --text-main: #f4f7f2;
+  --text-sub: #b8c0b8;
+  --border: #2b332d;
+  --user-bubble: #0f6157;
+  --card-bg: #171c19;
+  --shadow: 0 18px 46px rgba(0, 0, 0, 0.35);
+}
+
 body {
   background:
     radial-gradient(circle at 7% 9%, rgba(255, 110, 28, 0.14) 0 1px, transparent 2px) 0 0 / 15px 15px,
@@ -280,6 +298,15 @@ body {
     radial-gradient(circle at top left, rgba(255, 128, 43, 0.1), transparent 34%),
     radial-gradient(circle at 88% 10%, rgba(0, 79, 70, 0.1), transparent 30%),
     #fbf8f1;
+}
+
+:root[data-theme="dark"] body {
+  background:
+    radial-gradient(circle at 7% 9%, rgba(242, 139, 88, 0.13) 0 1px, transparent 2px) 0 0 / 15px 15px,
+    linear-gradient(180deg, rgba(13,17,15,0.94), rgba(17,20,18,0.98)),
+    radial-gradient(circle at top left, rgba(242, 139, 88, 0.08), transparent 34%),
+    radial-gradient(circle at 88% 10%, rgba(98, 199, 186, 0.08), transparent 30%),
+    #111412;
 }
 
 .app-container {
@@ -1176,6 +1203,406 @@ body {
   font-weight: 850;
 }
 
+:root[data-theme="dark"] .header {
+  background: rgba(17, 20, 18, 0.9);
+  border-bottom-color: rgba(43, 51, 45, 0.9);
+}
+
+:root[data-theme="dark"] .settings-btn,
+:root[data-theme="dark"] .db-status,
+:root[data-theme="dark"] .modal,
+:root[data-theme="dark"] .auth-modal,
+:root[data-theme="dark"] .setting-card,
+:root[data-theme="dark"] .smart-card,
+:root[data-theme="dark"] .feature-card,
+:root[data-theme="dark"] .about-card,
+:root[data-theme="dark"] .favorite-card,
+:root[data-theme="dark"] .dashboard-empty,
+:root[data-theme="dark"] .details-panel,
+:root[data-theme="dark"] .ai-box {
+  background: #171c19;
+  border-color: #2b332d;
+  color: var(--text-main);
+}
+
+:root[data-theme="dark"] .settings-head,
+:root[data-theme="dark"] .auth-head {
+  background: linear-gradient(135deg, #171c19, #111412);
+  border-bottom-color: #2b332d;
+}
+
+:root[data-theme="dark"] .input-wrapper,
+:root[data-theme="dark"] .home-search .input-wrapper,
+:root[data-theme="dark"] .predictive-list,
+:root[data-theme="dark"] .modal-input,
+:root[data-theme="dark"] .modal-select,
+:root[data-theme="dark"] .auth-field input,
+:root[data-theme="dark"] .password-wrap,
+:root[data-theme="dark"] .password-wrap button,
+:root[data-theme="dark"] .icon-btn {
+  background: #111412;
+  border-color: #2b332d;
+  color: var(--text-main);
+}
+
+:root[data-theme="dark"] .input-area {
+  background: linear-gradient(to top, rgba(17,20,18,1) 70%, rgba(17,20,18,0));
+}
+
+:root[data-theme="dark"] .term-def,
+:root[data-theme="dark"] .favorite-card strong,
+:root[data-theme="dark"] .feature-title,
+:root[data-theme="dark"] .about-card h3 {
+  color: var(--text-main);
+}
+
+:root[data-theme="dark"] .feature-text,
+:root[data-theme="dark"] .about-card p,
+:root[data-theme="dark"] .favorite-card span,
+:root[data-theme="dark"] .detail-val,
+:root[data-theme="dark"] .auth-head p,
+:root[data-theme="dark"] .settings-subtitle,
+:root[data-theme="dark"] .toggle-copy {
+  color: var(--text-sub);
+}
+
+:root[data-theme="dark"] .context-img.placeholder,
+:root[data-theme="dark"] .thinking-box,
+:root[data-theme="dark"] .strength-panel,
+:root[data-theme="dark"] .strength-checks span {
+  background: #111412;
+  border-color: #2b332d;
+}
+
+.auth-modal {
+  width: min(480px, 100%);
+  max-height: calc(100dvh - 36px);
+  overflow-y: auto;
+  border: 1px solid rgba(223, 228, 221, 0.92);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 28px 80px rgba(0, 28, 24, 0.28);
+  animation: modal-rise 0.26s cubic-bezier(.2,.8,.2,1) both;
+}
+
+.auth-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(135deg, #fff, #f8fbf7);
+}
+
+.auth-head h2 {
+  margin: 0;
+  color: var(--text-main);
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.auth-head p {
+  margin: 4px 0 0;
+  color: var(--text-sub);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.auth-brand-row {
+  min-width: 0;
+}
+
+.auth-logo {
+  display: block;
+  width: min(210px, 62vw);
+  height: auto;
+  max-height: 42px;
+  object-fit: contain;
+  object-position: left center;
+  margin-bottom: 14px;
+}
+
+.icon-btn {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text-main);
+  cursor: pointer;
+}
+
+.auth-body {
+  display: grid;
+  gap: 13px;
+  padding: 18px 20px 20px;
+}
+
+.name-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.auth-field {
+  display: grid;
+  gap: 7px;
+  color: var(--text-main);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.auth-field input {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--text-main);
+  font: inherit;
+  font-weight: 500;
+}
+
+.password-wrap {
+  display: grid;
+  grid-template-columns: 1fr 44px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.password-wrap input {
+  border: 0;
+  border-radius: 0;
+}
+
+.password-wrap button {
+  border: 0;
+  border-left: 1px solid var(--border);
+  background: #fff;
+  color: var(--text-sub);
+  cursor: pointer;
+}
+
+.strength-panel {
+  display: grid;
+  gap: 9px;
+  padding: 11px;
+  border: 1px solid rgba(223, 228, 221, 0.95);
+  border-radius: 8px;
+  background: #f8faf7;
+}
+
+.strength-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-sub);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.strength-top strong {
+  color: #991b1b;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.strength-panel.good .strength-top strong { color: #9a4b32; }
+.strength-panel.strong .strength-top strong { color: #047857; }
+
+.strength-bars {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.strength-bars span {
+  height: 7px;
+  border-radius: 999px;
+  background: #dfe4dd;
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+
+.strength-bars span.filled {
+  background: #b91c1c;
+  transform: scaleY(1.2);
+}
+
+.strength-panel.good .strength-bars span.filled { background: #d97706; }
+.strength-panel.strong .strength-bars span.filled { background: #059669; }
+
+.strength-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.strength-checks span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 26px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #fff;
+  color: #6b7280;
+  border: 1px solid rgba(223, 228, 221, 0.95);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.strength-checks svg {
+  opacity: 0.35;
+}
+
+.strength-checks span.met {
+  color: #047857;
+  border-color: rgba(4, 120, 87, 0.2);
+  background: #ecfdf5;
+}
+
+.strength-checks span.met svg {
+  opacity: 1;
+}
+
+.auth-alert {
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.auth-alert.error {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.auth-alert.success {
+  color: #065f46;
+  background: #d1fae5;
+}
+
+.auth-submit {
+  min-height: 46px;
+  border: 0;
+  border-radius: 8px;
+  background: #004f46;
+  color: #fff;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.auth-submit:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.auth-switch {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.auth-switch button {
+  border: 0;
+  background: transparent;
+  color: #004f46;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.dashboard-page {
+  width: 100%;
+  max-width: 1060px;
+  padding: 12px 20px 40px;
+  animation: page-fade-in 0.45s ease both;
+}
+
+.dashboard-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 190px;
+  padding: clamp(24px, 5vw, 44px);
+  border: 1px solid rgba(0, 68, 60, 0.18);
+  border-radius: 8px;
+  background: linear-gradient(132deg, rgba(0, 56, 50, 0.98), rgba(0, 77, 67, 0.96));
+  color: #fff;
+  box-shadow: 0 24px 70px rgba(24, 34, 30, 0.16);
+}
+
+.dashboard-head h1 {
+  margin: 0 0 8px;
+  color: #fff;
+  font-size: clamp(30px, 5vw, 50px);
+  line-height: 1.04;
+}
+
+.dashboard-head p {
+  margin: 0;
+  color: rgba(255,255,255,0.82);
+}
+
+.favorite-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.favorite-card {
+  min-height: 124px;
+  padding: 18px;
+  border: 1px solid rgba(223, 228, 221, 0.92);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.9);
+  text-align: left;
+  box-shadow: 0 14px 36px rgba(31, 39, 35, 0.08);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.favorite-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(0, 80, 70, 0.18);
+  box-shadow: 0 20px 44px rgba(31, 39, 35, 0.11);
+}
+
+.favorite-card strong {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-main);
+  font-size: 17px;
+}
+
+.favorite-card span {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--text-sub);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.dashboard-empty {
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text-sub);
+  font-weight: 700;
+}
+
 @media (max-width: 760px) {
   .header {
     align-items: center;
@@ -1319,6 +1746,24 @@ body {
 
   .about-page {
     padding: 4px 12px 32px;
+  }
+
+  .dashboard-page {
+    padding: 4px 12px 32px;
+  }
+
+  .dashboard-head {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 22px 16px;
+  }
+
+  .favorite-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .name-grid {
+    grid-template-columns: 1fr;
   }
 
   .about-hero {
@@ -1613,11 +2058,22 @@ type Message = {
 }
 
 type TTSProvider = 'elevenlabs' | 'browser'
+type AuthMode = 'signin' | 'signup' | 'forgot' | 'update'
+type ProfileView = 'home' | 'dashboard'
+
+type FavoriteRow = {
+  id: string
+  user_id: string
+  word_id: string | null
+  term: string
+  created_at: string
+}
 
 const DEFAULT_ELEVENLABS_VOICE_ID = 'VR5rq02kIGuHRg0JKxB6'
 const ELEVENLABS_MODEL_ID = 'eleven_multilingual_v2'
 const ELEVENLABS_OUTPUT_FORMAT = 'mp3_44100_128'
 const LOCAL_ENTRIES_KEY = 'scmpedia-admin-entries-v1'
+const THEME_KEY = 'scmpedia-theme-v1'
 
 const uuid = () => Math.random().toString(36).substring(2, 9)
 const escapeHtml = (input: string) =>
@@ -1652,12 +2108,36 @@ const fallbackExplanation = (anchor: Entry) => {
   return `<b>Concept:</b> ${concept}<br/><br/><b>Real-World Example:</b> ${example}`
 }
 
+const getEntryId = (entry: Entry) => String(entry.id || entry.term).trim()
+
+const passwordStrength = (password: string) => {
+  let score = 0
+  if (password.length >= 8) score += 1
+  if (password.length >= 12) score += 1
+  if (/[A-Z]/.test(password) && /[a-z]/.test(password)) score += 1
+  if (/\d/.test(password)) score += 1
+  if (/[^A-Za-z0-9]/.test(password)) score += 1
+
+  if (!password) return { score: 0, label: 'Enter a password', tone: 'empty' }
+  if (score <= 2) return { score, label: 'Weak', tone: 'weak' }
+  if (score <= 4) return { score, label: 'Good', tone: 'good' }
+  return { score, label: 'Strong', tone: 'strong' }
+}
+
+const passwordChecks = (password: string) => [
+  { label: '8+ characters', met: password.length >= 8 },
+  { label: 'Upper & lower', met: /[A-Z]/.test(password) && /[a-z]/.test(password) },
+  { label: 'Number', met: /\d/.test(password) },
+  { label: 'Symbol', met: /[^A-Za-z0-9]/.test(password) },
+]
+
 /* ------------------------------- LOGIC HOOKS ------------------------------- */
 
 // 1. DATA HOOK
 function useData() {
   const [data, setData] = useState<Entry[]>([])
   const [status, setStatus] = useState<'loading' | 'ready' | 'error' | 'empty'>('loading')
+  const [serverBacked, setServerBacked] = useState(false)
   const papaRef = useRef<any>(null)
   const fuseLibRef = useRef<any>(null)
   const fuseRef = useRef<any>(null)
@@ -1683,6 +2163,7 @@ function useData() {
   }, [])
 
   const normalizeEntry = (r: any): Entry => ({
+    id: r.id ? String(r.id) : undefined,
     term: String(r.term || r.Term || '').trim(),
     definition: String(r.definition || r.Definition || '').trim(),
     synonyms: String(r.synonyms || r.Synonyms || ''),
@@ -1721,6 +2202,28 @@ function useData() {
     }
   }, [applyEntries, readLocalEntries])
 
+  const searchServerWords = useCallback(async (query: string, limit = 8) => {
+    const q = query.trim()
+    if (!q) return []
+    const res = await fetch(`/api/words?q=${encodeURIComponent(q)}&limit=${limit}`)
+    if (!res.ok) throw new Error('Word search failed')
+    const body = await res.json()
+    return ((body?.words || []) as Entry[]).map(normalizeEntry).filter((e: Entry) => e.term && e.definition)
+  }, [])
+
+  const loadServerWords = useCallback(async () => {
+    try {
+      const entries = await searchServerWords('supply', 12)
+      setServerBacked(true)
+      applyEntries(entries)
+      return true
+    } catch (error) {
+      console.warn('Server words fallback:', error)
+      setServerBacked(false)
+      return false
+    }
+  }, [applyEntries, searchServerWords])
+
   useEffect(() => {
     const load = (src: string, g: string) =>
       new Promise((res) => {
@@ -1732,6 +2235,9 @@ function useData() {
       })
 
     const loadCsv = async () => {
+      const loadedFromServer = await loadServerWords()
+      if (loadedFromServer) return
+
       const sources = ['/scmpedia_full_UPDATED.csv', '/scmpedia_full.csv']
       for (const src of sources) {
         try {
@@ -1757,7 +2263,7 @@ function useData() {
       papaRef.current = P
       loadCsv()
     })
-  }, [processCSV])
+  }, [loadServerWords, processCSV])
 
   useEffect(() => {
     const syncLocalEntries = (event?: StorageEvent) => {
@@ -1769,7 +2275,7 @@ function useData() {
     return () => window.removeEventListener('storage', syncLocalEntries)
   }, [applyEntries, readLocalEntries])
 
-  return { data, status, processCSV, fuseRef }
+  return { data, status, processCSV, fuseRef, serverBacked, searchServerWords }
 }
 
 // 2. TTS HOOK
@@ -1778,7 +2284,7 @@ function useTTS() {
   const [preparingId, setPreparingId] = useState<string | null>(null)
   const [selectedVoiceURI, setSelectedVoiceURI] = useState<string>('')
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
-  const [provider, setProvider] = useState<TTSProvider>('browser')
+  const [provider, setProvider] = useState<TTSProvider>('elevenlabs')
   const synth = useRef(window.speechSynthesis)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const audioUrlRef = useRef<string | null>(null)
@@ -2029,6 +2535,131 @@ Use exactly these sections:
   return { status, generate }
 }
 
+function useAuth() {
+  const [session, setSession] = useState<Session | null>(null)
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(Boolean(supabase))
+  const [passwordRecovery, setPasswordRecovery] = useState(false)
+
+  useEffect(() => {
+    if (!supabase) {
+      setLoading(false)
+      return
+    }
+
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session)
+      setUser(data.session?.user ?? null)
+      setLoading(false)
+    })
+
+    const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      setSession(nextSession)
+      setUser(nextSession?.user ?? null)
+      if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true)
+    })
+
+    return () => listener.subscription.unsubscribe()
+  }, [])
+
+  const signOut = async () => {
+    if (!supabase) return
+    await supabase.auth.signOut()
+  }
+
+  return { session, user, loading, passwordRecovery, setPasswordRecovery, signOut }
+}
+
+function useFavorites(user: User | null, allData: Entry[]) {
+  const [favorites, setFavorites] = useState<FavoriteRow[]>([])
+  const [remoteEntries, setRemoteEntries] = useState<Entry[]>([])
+  const [loading, setLoading] = useState(false)
+  const [savingTerm, setSavingTerm] = useState<string | null>(null)
+
+  const loadFavorites = useCallback(async () => {
+    if (!supabase || !user) {
+      setFavorites([])
+      return
+    }
+    setLoading(true)
+    const { data, error } = await supabase
+      .from('favorites')
+      .select('id,user_id,word_id,term,created_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+    if (error) {
+      console.error('Favorites load error', error)
+      setFavorites([])
+    } else {
+      setFavorites(data || [])
+    }
+    setLoading(false)
+  }, [user])
+
+  useEffect(() => {
+    void loadFavorites()
+  }, [loadFavorites])
+
+  const favoriteTerms = useMemo(
+    () => new Set(favorites.map((favorite) => favorite.term.toLowerCase())),
+    [favorites]
+  )
+
+  useEffect(() => {
+    const terms = favorites.map((favorite) => favorite.term).filter(Boolean)
+    if (!terms.length) {
+      setRemoteEntries([])
+      return
+    }
+    const params = new URLSearchParams({ terms: terms.join(','), limit: String(Math.min(terms.length, 25)) })
+    void fetch(`/api/words?${params.toString()}`)
+      .then((res) => (res.ok ? res.json() : { words: [] }))
+      .then((body) => setRemoteEntries(Array.isArray(body?.words) ? body.words : []))
+      .catch(() => setRemoteEntries([]))
+  }, [favorites])
+
+  const favoriteEntries = useMemo(() => {
+    const byTerm = new Map([...allData, ...remoteEntries].map((entry) => [entry.term.toLowerCase(), entry]))
+    return favorites.map((favorite) => byTerm.get(favorite.term.toLowerCase())).filter(Boolean) as Entry[]
+  }, [allData, favorites, remoteEntries])
+
+  const toggleFavorite = async (entry: Entry) => {
+    if (!supabase || !user) return { ok: false, needsAuth: true }
+    const term = entry.term.trim()
+    if (!term) return { ok: false, needsAuth: false }
+    setSavingTerm(term)
+    try {
+      const existing = favorites.find((favorite) => favorite.term.toLowerCase() === term.toLowerCase())
+      if (existing) {
+        const { error } = await supabase.from('favorites').delete().eq('id', existing.id).eq('user_id', user.id)
+        if (error) throw error
+        setFavorites((current) => current.filter((favorite) => favorite.id !== existing.id))
+        return { ok: true, needsAuth: false }
+      }
+
+      const { data, error } = await supabase
+        .from('favorites')
+        .insert({
+          user_id: user.id,
+          word_id: entry.id || null,
+          term,
+        })
+        .select('id,user_id,word_id,term,created_at')
+        .single()
+      if (error) throw error
+      if (data) setFavorites((current) => [data, ...current])
+      return { ok: true, needsAuth: false }
+    } catch (error) {
+      console.error('Favorite save error', error)
+      return { ok: false, needsAuth: false }
+    } finally {
+      setSavingTerm(null)
+    }
+  }
+
+  return { favorites, favoriteEntries, favoriteTerms, loading, savingTerm, toggleFavorite, reload: loadFavorites }
+}
+
 /* ------------------------------- UI COMPONENTS ------------------------------- */
 
 const SettingsDialog = ({
@@ -2037,12 +2668,16 @@ const SettingsDialog = ({
   tts,
   autoReadAi,
   setAutoReadAi,
+  darkMode,
+  setDarkMode,
 }: {
   open: boolean
   onClose: () => void
   tts: any
   autoReadAi: boolean
   setAutoReadAi: (v: boolean) => void
+  darkMode: boolean
+  setDarkMode: (v: boolean) => void
 }) => {
   if (!open) return null
   return (
@@ -2132,6 +2767,26 @@ const SettingsDialog = ({
             </div>
           </div>
 
+          <div className="setting-card">
+            <div className="setting-card-icon">
+              <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 3a6 6 0 0 0 9 7.5A9 9 0 1 1 12 3Z" />
+              </svg>
+            </div>
+            <div className="setting-card-main">
+              <div className="toggle-row">
+                <div>
+                  <label className="modal-label">Dark mode</label>
+                  <div className="toggle-copy">Use a darker interface for lower-light reading.</div>
+                </div>
+                <label className="toggle-switch" aria-label="Dark mode">
+                  <input type="checkbox" checked={darkMode} onChange={(e) => setDarkMode(e.target.checked)} />
+                  <span className="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+
           <div className="modal-actions">
             <button className="modal-btn primary" onClick={onClose}>
               Done
@@ -2139,6 +2794,249 @@ const SettingsDialog = ({
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+const AuthDialog = ({
+  open,
+  mode,
+  setMode,
+  onClose,
+  darkMode,
+}: {
+  open: boolean
+  mode: AuthMode
+  setMode: (mode: AuthMode) => void
+  onClose: () => void
+  darkMode: boolean
+}) => {
+  const [email, setEmail] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [statusMessage, setStatusMessage] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const strength = passwordStrength(password)
+
+  useEffect(() => {
+    if (!open) return
+    setError('')
+    setStatusMessage('')
+    setPassword('')
+    setShowPassword(false)
+  }, [mode, open])
+
+  if (!open) return null
+
+  const title =
+    mode === 'signin' ? 'Sign in' : mode === 'signup' ? 'Create account' : mode === 'update' ? 'Update password' : 'Reset password'
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault()
+    setError('')
+    setStatusMessage('')
+    if (!supabase) {
+      setError('Supabase is not configured for this deployment.')
+      return
+    }
+    setLoading(true)
+    try {
+      if (mode === 'signin') {
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+        if (signInError) throw signInError
+        onClose()
+      } else if (mode === 'signup') {
+        if (strength.score < 3) {
+          setError('Use a stronger password before creating your account.')
+          return
+        }
+        const { error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              first_name: firstName.trim(),
+              last_name: lastName.trim(),
+              full_name: `${firstName} ${lastName}`.trim(),
+            },
+          },
+        })
+        if (signUpError) throw signUpError
+        setStatusMessage('Account created. Check your email if confirmation is enabled.')
+      } else if (mode === 'forgot') {
+        const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: window.location.origin,
+        })
+        if (resetError) throw resetError
+        setStatusMessage('Password reset link sent if this email exists.')
+      } else {
+        if (strength.score < 3) {
+          setError('Use a stronger password before updating your account.')
+          return
+        }
+        const { error: updateError } = await supabase.auth.updateUser({ password })
+        if (updateError) throw updateError
+        setStatusMessage('Password updated.')
+        setPassword('')
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Authentication failed.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <form className="auth-modal" onSubmit={handleSubmit} onClick={(e) => e.stopPropagation()}>
+        <div className="auth-head">
+          <div className="auth-brand-row">
+            <FadeImage className="auth-logo" src={darkMode ? '/white-logo.png' : '/logo.png'} alt="scmpedia" eager />
+            <h2>{title}</h2>
+            <p>{mode === 'forgot' ? 'Enter your account email.' : mode === 'update' ? 'Choose a new password.' : 'Save favorite terms to your personal dashboard.'}</p>
+          </div>
+          <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="auth-body">
+          {mode === 'signup' && (
+            <div className="name-grid">
+              <label className="auth-field">
+                <span>First name</span>
+                <input value={firstName} onChange={(e) => setFirstName(e.target.value)} autoComplete="given-name" required />
+              </label>
+              <label className="auth-field">
+                <span>Last name</span>
+                <input value={lastName} onChange={(e) => setLastName(e.target.value)} autoComplete="family-name" required />
+              </label>
+            </div>
+          )}
+
+          {mode !== 'update' && (
+            <label className="auth-field">
+              <span>Email</span>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required />
+            </label>
+          )}
+
+          {mode !== 'forgot' && (
+            <label className="auth-field">
+              <span>Password</span>
+              <div className="password-wrap">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+                  required
+                />
+                <button type="button" onClick={() => setShowPassword((show) => !show)} aria-label={showPassword ? 'Hide password' : 'Show password'}>
+                  {showPassword ? (
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="m3 3 18 18M10.6 10.6a2 2 0 0 0 2.8 2.8" />
+                      <path d="M9.9 4.2A10.8 10.8 0 0 1 12 4c5 0 8.6 4 10 8a12.7 12.7 0 0 1-2.2 3.7M6.6 6.6A12.2 12.2 0 0 0 2 12c1.4 4 5 8 10 8 1.7 0 3.2-.5 4.5-1.2" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+              {(mode === 'signup' || mode === 'update') && (
+                <div className={`strength-panel ${strength.tone}`}>
+                  <div className="strength-top">
+                    <span>Password strength</span>
+                    <strong>{strength.label}</strong>
+                  </div>
+                  <div className="strength-bars" aria-hidden="true">
+                    {[1, 2, 3, 4, 5].map((level) => (
+                      <span key={level} className={strength.score >= level ? 'filled' : ''} />
+                    ))}
+                  </div>
+                  <div className="strength-checks">
+                    {passwordChecks(password).map((check) => (
+                      <span key={check.label} className={check.met ? 'met' : ''}>
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.4">
+                          <path d="m5 12 4 4L19 6" />
+                        </svg>
+                        {check.label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </label>
+          )}
+
+          {error && <div className="auth-alert error">{error}</div>}
+          {statusMessage && <div className="auth-alert success">{statusMessage}</div>}
+
+          <button className="auth-submit" disabled={loading || !hasSupabaseConfig}>
+            {loading ? 'Please wait...' : mode === 'signin' ? 'Sign in' : mode === 'signup' ? 'Sign up' : mode === 'update' ? 'Update password' : 'Send reset link'}
+          </button>
+
+          <div className="auth-switch">
+            {mode !== 'signin' && mode !== 'update' && <button type="button" onClick={() => setMode('signin')}>Sign in</button>}
+            {mode !== 'signup' && mode !== 'update' && <button type="button" onClick={() => setMode('signup')}>Create account</button>}
+            {mode !== 'forgot' && mode !== 'update' && <button type="button" onClick={() => setMode('forgot')}>Forgot password?</button>}
+          </div>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+const DashboardPage = ({
+  user,
+  entries,
+  loading,
+  onBack,
+  onOpenTerm,
+}: {
+  user: User | null
+  entries: Entry[]
+  loading: boolean
+  onBack: () => void
+  onOpenTerm: (entry: Entry) => void
+}) => {
+  const meta = user?.user_metadata || {}
+  const displayName = [meta.first_name, meta.last_name].filter(Boolean).join(' ') || user?.email || 'Your profile'
+
+  return (
+    <div className="dashboard-page">
+      <section className="dashboard-head">
+        <div>
+          <div className="home-kicker">Personal dashboard</div>
+          <h1>{displayName}</h1>
+          <p>{user?.email}</p>
+        </div>
+        <button className="about-back" onClick={onBack}>Back to search</button>
+      </section>
+
+      <h2 className="about-section-title">Favorite Words</h2>
+      {loading ? (
+        <div className="dashboard-empty">Loading favorites...</div>
+      ) : entries.length ? (
+        <section className="favorite-grid">
+          {entries.map((entry) => (
+            <button className="favorite-card" key={getEntryId(entry)} onClick={() => onOpenTerm(entry)}>
+              <strong>{entry.term}</strong>
+              <span>{entry.definition}</span>
+            </button>
+          ))}
+        </section>
+      ) : (
+        <div className="dashboard-empty">No favorites saved yet.</div>
+      )}
     </div>
   )
 }
@@ -2179,12 +3077,22 @@ const SmartCard = ({
   tts,
   ai,
   autoReadAi,
+  user,
+  isFavorite,
+  savingFavorite,
+  onAuthRequired,
+  onToggleFavorite,
 }: {
   entry: Entry
   allData: Entry[]
   tts: any
   ai: { status: 'loading' | 'ready' | 'error'; generate: (e: Entry, regen?: boolean) => Promise<string> }
   autoReadAi: boolean
+  user: User | null
+  isFavorite: boolean
+  savingFavorite: boolean
+  onAuthRequired: () => void
+  onToggleFavorite: (entry: Entry) => Promise<void>
 }) => {
   const [expanded, setExpanded] = useState<'details' | 'ai' | null>(null)
   const [aiText, setAiText] = useState('')
@@ -2280,6 +3188,13 @@ const SmartCard = ({
   const isSpeakingAi = tts.speakingId === `ai-${entry.term}`
   const isPreparingDef = tts.preparingId === `def-${entry.term}`
   const isPreparingAi = tts.preparingId === `ai-${entry.term}`
+  const handleFavorite = () => {
+    if (!user) {
+      onAuthRequired()
+      return
+    }
+    void onToggleFavorite(entry)
+  }
 
   return (
     <div className="smart-card">
@@ -2323,6 +3238,17 @@ const SmartCard = ({
             <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2zm0-4H7V7h10v2z" />
           </svg>
           {ai.status === 'loading' ? 'Loading AI...' : 'Explain with AI'}
+        </button>
+
+        <button
+          className={`action-btn ${isFavorite ? 'active' : ''}`}
+          onClick={handleFavorite}
+          disabled={savingFavorite}
+        >
+          <svg className="action-icon" viewBox="0 0 24 24" fill={isFavorite ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+            <path d="M12 21s-7-4.4-9.2-8.5C1 9 2.7 5 6.5 5c2 0 3.5 1.1 4.3 2.4C11.7 6.1 13.2 5 15.2 5 19 5 21 9 19.2 12.5 17 16.6 12 21 12 21Z" />
+          </svg>
+          {savingFavorite ? 'Saving' : isFavorite ? 'Saved' : 'Favorite'}
         </button>
 
         <button
@@ -2625,17 +3551,27 @@ const AboutPage = ({ onBack }: { onBack: () => void }) => {
 /* ------------------------------- MAIN APP ------------------------------- */
 
 export default function App() {
-  const { data, status, processCSV, fuseRef } = useData()
+  const { data, status, processCSV, fuseRef, serverBacked, searchServerWords } = useData()
   const tts = useTTS()
   const ai = useAI()
+  const auth = useAuth()
+  const favorites = useFavorites(auth.user, data)
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [suggestions, setSuggestions] = useState<Entry[]>([])
   const [selectedSug, setSelectedSug] = useState(-1)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [authOpen, setAuthOpen] = useState(false)
+  const [authMode, setAuthMode] = useState<AuthMode>('signin')
   const [aboutOpen, setAboutOpen] = useState(false)
+  const [profileView, setProfileView] = useState<ProfileView>('home')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [autoReadAi, setAutoReadAi] = useState(true)
+  const [darkMode, setDarkMode] = useState(() => {
+    const stored = localStorage.getItem(THEME_KEY)
+    if (stored) return stored === 'dark'
+    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false
+  })
 
   const chatEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -2648,13 +3584,45 @@ export default function App() {
   useEffect(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), [messages])
 
   useEffect(() => {
+    document.documentElement.dataset.theme = darkMode ? 'dark' : 'light'
+    localStorage.setItem(THEME_KEY, darkMode ? 'dark' : 'light')
+  }, [darkMode])
+
+  useEffect(() => {
+    if (!auth.user && profileView === 'dashboard') {
+      setProfileView('home')
+    }
+  }, [auth.user, profileView])
+
+  useEffect(() => {
+    if (!auth.passwordRecovery) return
+    setAuthMode('update')
+    setAuthOpen(true)
+    auth.setPasswordRecovery(false)
+  }, [auth])
+
+  useEffect(() => {
+    if (serverBacked) {
+      const query = input.trim()
+      if (!query) {
+        setSuggestions([])
+        return
+      }
+      const timeout = window.setTimeout(() => {
+        void searchServerWords(query, 5)
+          .then(setSuggestions)
+          .catch(() => setSuggestions([]))
+      }, 180)
+      return () => window.clearTimeout(timeout)
+    }
+
     if (!input.trim() || !fuseRef.current) {
       setSuggestions([])
       return
     }
     const hits = fuseRef.current.search(input).slice(0, 5).map((h: any) => h.item)
     setSuggestions(hits)
-  }, [input, fuseRef])
+  }, [input, fuseRef, searchServerWords, serverBacked])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
@@ -2673,13 +3641,14 @@ export default function App() {
     }
   }
 
-  const handleSubmit = (text: string) => {
+  const handleSubmit = async (text: string) => {
     if (!text.trim()) return
     const originalQuery = text.trim()
     setInput('')
     setSuggestions([])
     setSelectedSug(-1)
     setAboutOpen(false)
+    setProfileView('home')
     setMobileMenuOpen(false)
 
     setMessages((prev) => [...prev, { id: uuid(), role: 'user', content: originalQuery, timestamp: Date.now() }])
@@ -2694,15 +3663,26 @@ export default function App() {
 
     const cleanQuery = originalQuery.replace(stopWords, '').replace(/[?]/g, '').trim()
 
-    let match = data.find((d) => d.term.toLowerCase() === cleanQuery.toLowerCase())
-
-    if (!match && fuseRef.current) {
-      const res = fuseRef.current.search(cleanQuery)
-      if (res.length > 0) match = res[0].item
+    let searchPool = data
+    if (serverBacked) {
+      try {
+        searchPool = await searchServerWords(cleanQuery || originalQuery, 8)
+      } catch {
+        searchPool = data
+      }
     }
 
-    if (!match && cleanQuery !== originalQuery && fuseRef.current) {
-      const exactOrig = data.find((d) => d.term.toLowerCase() === originalQuery.toLowerCase())
+    let match = searchPool.find((d) => d.term.toLowerCase() === cleanQuery.toLowerCase())
+
+    if (!match && !serverBacked && fuseRef.current) {
+      const res = fuseRef.current.search(cleanQuery)
+      if (res.length > 0) match = res[0].item
+    } else if (!match && serverBacked) {
+      match = searchPool[0]
+    }
+
+    if (!match && cleanQuery !== originalQuery && !serverBacked && fuseRef.current) {
+      const exactOrig = searchPool.find((d) => d.term.toLowerCase() === originalQuery.toLowerCase())
       if (exactOrig) {
         match = exactOrig
       } else {
@@ -2741,11 +3721,40 @@ export default function App() {
 
   const goHome = () => {
     setAboutOpen(false)
+    setProfileView('home')
     setMobileMenuOpen(false)
     setMessages([])
     setInput('')
     setSuggestions([])
     setSelectedSug(-1)
+  }
+
+  const openAuth = (mode: AuthMode = 'signin') => {
+    setAuthMode(mode)
+    setAuthOpen(true)
+    setMobileMenuOpen(false)
+  }
+
+  const openDashboard = () => {
+    if (!auth.user) {
+      openAuth('signin')
+      return
+    }
+    setAboutOpen(false)
+    setProfileView('dashboard')
+    setMessages([])
+    setMobileMenuOpen(false)
+  }
+
+  const openTerm = (entry: Entry) => {
+    setProfileView('home')
+    setAboutOpen(false)
+    setMessages([{ id: uuid(), role: 'bot', entry, timestamp: Date.now() }])
+  }
+
+  const toggleFavorite = async (entry: Entry) => {
+    const result = await favorites.toggleFavorite(entry)
+    if (result.needsAuth) openAuth('signin')
   }
 
   return (
@@ -2758,11 +3767,14 @@ export default function App() {
           tts={tts}
           autoReadAi={autoReadAi}
           setAutoReadAi={setAutoReadAi}
+          darkMode={darkMode}
+          setDarkMode={setDarkMode}
         />
+        <AuthDialog open={authOpen} mode={authMode} setMode={setAuthMode} onClose={() => setAuthOpen(false)} darkMode={darkMode} />
 
         <div className={`header ${messages.length > 0 ? 'scrolled' : ''}`}>
           <button className="brand" onClick={goHome} aria-label="Go to scmpedia home">
-            <FadeImage className="brand-logo" src="/logo.png" alt="scmpedia" eager />
+            <FadeImage className="brand-logo" src={darkMode ? '/white-logo.png' : '/logo.png'} alt="scmpedia" eager />
             <FadeImage className="brand-icon" src="/logo2.png" alt="scmpedia" eager />
           </button>
 
@@ -2793,6 +3805,32 @@ export default function App() {
               </svg>
               Settings
             </button>
+            {auth.user ? (
+              <>
+                <button className={`settings-btn ${profileView === 'dashboard' ? 'active' : ''}`} onClick={openDashboard}>
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M4 20V8l8-4 8 4v12" />
+                    <path d="M9 20v-6h6v6" />
+                  </svg>
+                  Dashboard
+                </button>
+                <button className="settings-btn" onClick={() => void auth.signOut()}>
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    <path d="M16 17l5-5-5-5M21 12H9" />
+                  </svg>
+                  Sign out
+                </button>
+              </>
+            ) : (
+              <button className="settings-btn" onClick={() => openAuth('signin')}>
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                  <path d="M10 17l5-5-5-5M15 12H3" />
+                </svg>
+                Sign in
+              </button>
+            )}
             <button
               className="mobile-menu-btn"
               onClick={() => setMobileMenuOpen((open) => !open)}
@@ -2830,6 +3868,38 @@ export default function App() {
                 </svg>
                 Settings
               </button>
+              {auth.user ? (
+                <>
+                  <button className={`settings-btn ${profileView === 'dashboard' ? 'active' : ''}`} onClick={openDashboard}>
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M4 20V8l8-4 8 4v12" />
+                      <path d="M9 20v-6h6v6" />
+                    </svg>
+                    Dashboard
+                  </button>
+                  <button
+                    className="settings-btn"
+                    onClick={() => {
+                      setMobileMenuOpen(false)
+                      void auth.signOut()
+                    }}
+                  >
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                      <path d="M16 17l5-5-5-5M21 12H9" />
+                    </svg>
+                    Sign out
+                  </button>
+                </>
+              ) : (
+                <button className="settings-btn" onClick={() => openAuth('signin')}>
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                    <path d="M10 17l5-5-5-5M15 12H3" />
+                  </svg>
+                  Sign in
+                </button>
+              )}
             </div>
 
           </div>
@@ -2846,12 +3916,20 @@ export default function App() {
         </div>
 
         <div className="chat-window">
-          {aboutOpen ? (
+          {profileView === 'dashboard' ? (
+            <DashboardPage
+              user={auth.user}
+              entries={favorites.favoriteEntries}
+              loading={favorites.loading}
+              onBack={goHome}
+              onOpenTerm={openTerm}
+            />
+          ) : aboutOpen ? (
             <AboutPage onBack={() => setAboutOpen(false)} />
           ) : messages.length === 0 ? (
             <div className="welcome-screen width-constraint">
               <div style={{ fontSize: '48px', marginBottom: '16px' }} aria-hidden="true"></div>
-              <FadeImage className="welcome-logo" src="/logo.png" alt="scmpedia" eager />
+              <FadeImage className="welcome-logo" src={darkMode ? '/white-logo.png' : '/logo.png'} alt="scmpedia" eager />
               <section className="home-panel">
                 <div className="home-content">
                   <div className="home-kicker">Powered by Prof. Douglas Boateng’s Executive Insight Series</div>
@@ -2980,7 +4058,20 @@ export default function App() {
                   )}
                   <div className="bubble">
                     {m.content && <div style={{ padding: m.role === 'bot' ? '12px 0' : undefined }}>{m.content}</div>}
-                    {m.entry && <SmartCard entry={m.entry} allData={data} tts={tts} ai={ai} autoReadAi={autoReadAi} />}
+                    {m.entry && (
+                      <SmartCard
+                        entry={m.entry}
+                        allData={data}
+                        tts={tts}
+                        ai={ai}
+                        autoReadAi={autoReadAi}
+                        user={auth.user}
+                        isFavorite={favorites.favoriteTerms.has(m.entry.term.toLowerCase())}
+                        savingFavorite={favorites.savingTerm?.toLowerCase() === m.entry.term.toLowerCase()}
+                        onAuthRequired={() => openAuth('signin')}
+                        onToggleFavorite={toggleFavorite}
+                      />
+                    )}
                   </div>
                 </div>
               ))}
@@ -2989,7 +4080,7 @@ export default function App() {
           )}
         </div>
 
-        {messages.length > 0 && !aboutOpen && <div className="input-area">
+        {messages.length > 0 && !aboutOpen && profileView !== 'dashboard' && <div className="input-area">
           <div className="input-container">
             {suggestions.length > 0 && (
               <div className="predictive-list">

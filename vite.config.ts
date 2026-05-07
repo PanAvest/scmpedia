@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
+import { createClient } from '@supabase/supabase-js'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
@@ -13,8 +14,11 @@ export default defineConfig(({ mode }) => {
   const elevenLabsVoiceId = env.ELEVENLABS_VOICE_ID || 'VR5rq02kIGuHRg0JKxB6'
   const elevenLabsModelId = env.ELEVENLABS_MODEL_ID || 'eleven_multilingual_v2'
   const elevenLabsOutputFormat = env.ELEVENLABS_OUTPUT_FORMAT || 'mp3_44100_128'
+  const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL || env.VITE_SUPABASE_URL
+  const supabaseServiceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY
 
   return {
+    envPrefix: ['VITE_', 'NEXT_PUBLIC_'],
     plugins: [
       react(),
       {
@@ -290,6 +294,67 @@ export default defineConfig(({ mode }) => {
                 res.setHeader('Content-Type', 'application/json')
                 res.end(JSON.stringify({ error: err?.message || 'Failed to fetch image' }))
               })
+          })
+
+          server.middlewares.use('/api/words', async (req, res) => {
+            if (req.method !== 'GET') {
+              res.statusCode = 405
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify({ error: 'Method not allowed' }))
+              return
+            }
+
+            if (!supabaseUrl || !supabaseServiceRoleKey) {
+              res.statusCode = 500
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify({ error: 'Missing Supabase service configuration' }))
+              return
+            }
+
+            const url = new URL(req.url || '', 'http://localhost')
+            const q = url.searchParams.get('q')?.trim() || ''
+            const terms = url.searchParams.get('terms')?.trim() || ''
+            const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 8, 1), 25)
+            if (!q && !terms) {
+              res.statusCode = 400
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify({ error: 'Missing search query' }))
+              return
+            }
+
+            try {
+              const client = createClient(supabaseUrl, supabaseServiceRoleKey, {
+                auth: { persistSession: false, autoRefreshToken: false },
+              })
+              let query = client
+                .from('words')
+                .select('id,term,definition,synonyms,tags,pronunciation,pos,examples')
+                .order('term', { ascending: true })
+                .limit(limit)
+
+              if (terms) {
+                query = query.in(
+                  'term',
+                  terms
+                    .split(',')
+                    .map((term) => term.trim())
+                    .filter(Boolean)
+                    .slice(0, 25)
+                )
+              } else {
+                query = query.or(`term.ilike.%${q}%,definition.ilike.%${q}%,tags.ilike.%${q}%`)
+              }
+
+              const { data, error } = await query
+              if (error) throw error
+              res.statusCode = 200
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify({ words: data || [] }))
+            } catch (err: any) {
+              res.statusCode = 500
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify({ error: err?.message || 'Failed to search words' }))
+            }
           })
         },
       },
