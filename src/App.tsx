@@ -4569,6 +4569,7 @@ export default function App() {
   }
 
   const goHome = () => {
+    setDictionaryMode(false)
     setAboutOpen(false)
     setProfileView('home')
     setMobileMenuOpen(false)
@@ -4589,6 +4590,7 @@ export default function App() {
       openAuth('signin')
       return
     }
+    setDictionaryMode(false)
     setAboutOpen(false)
     setProfileView('dashboard')
     setMessages([])
@@ -4600,6 +4602,7 @@ export default function App() {
     setInput('')
     setSuggestions([])
     setSelectedSug(-1)
+    setDictionaryMode(false)
     setProfileView('home')
     setAboutOpen(false)
     setMessages([{ id: uuid(), role: 'bot', entry, timestamp: Date.now() }])
@@ -4652,6 +4655,7 @@ export default function App() {
             <button
               className={`settings-btn ${aboutOpen ? 'active' : ''}`}
               onClick={() => {
+                setDictionaryMode(false)
                 setAboutOpen((open) => !open)
                 setMobileMenuOpen(false)
               }}
@@ -4715,6 +4719,7 @@ export default function App() {
               <button
                 className={`settings-btn ${aboutOpen ? 'active' : ''}`}
                 onClick={() => {
+                  setDictionaryMode(false)
                   setAboutOpen((open) => !open)
                   setMobileMenuOpen(false)
                 }}
@@ -4787,10 +4792,7 @@ export default function App() {
 
         <div className="chat-window">
           {dictionaryMode ? (
-            <DictionaryModeView onOpenTerm={(entry) => {
-              setDictionaryMode(false)
-              openTerm(entry)
-            }} />
+            <DictionaryModeView onOpenTerm={openTerm} />
           ) : profileView === 'dashboard' ? (
             <DashboardPage
               user={auth.user}
