@@ -37,7 +37,7 @@ On Vercel, add the same variables in Project Settings. The AI explanation button
 - Username: `scmpedia-admin`
 - Password: `scmpedia-2026`
 
-Admin changes are local until you download the updated CSV and replace `public/scmpedia_full_UPDATED.csv`.
+Words are served from Supabase through the server-only `/api/words` endpoint. Keep `SUPABASE_SERVICE_ROLE_KEY` in local/Vercel server environment variables, never in frontend code.
 
 ## Build
 

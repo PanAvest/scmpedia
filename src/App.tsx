@@ -4094,7 +4094,7 @@ export default function App() {
 
               {status === 'empty' && (
                 <div style={{ color: '#d93025', fontWeight: 500 }}>
-                  Please drag and drop scmpedia_full_UPDATED.csv or scmpedia_full.csv here.
+                  Word database is not connected. Add SUPABASE_SERVICE_ROLE_KEY to your local or Vercel server environment.
                 </div>
               )}
             </div>
