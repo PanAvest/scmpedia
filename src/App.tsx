@@ -2013,6 +2013,8 @@ body {
     align-items: center;
     min-height: 62px;
     padding: 10px 12px;
+    z-index: 240;
+    overflow: visible;
   }
 
   .brand-logo {
@@ -2031,6 +2033,7 @@ body {
     position: relative;
     width: auto;
     gap: 0;
+    z-index: 260;
   }
 
   .header-controls > .settings-btn {
@@ -2052,10 +2055,10 @@ body {
   }
 
 .mobile-menu {
-    position: absolute;
-    top: calc(100% + 8px);
-    right: 0;
-    z-index: 80;
+    position: fixed;
+    top: 58px;
+    right: 12px;
+    z-index: 300;
     display: grid;
     gap: 6px;
     width: min(260px, calc(100vw - 24px));
