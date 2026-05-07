@@ -1779,7 +1779,7 @@ body {
 
 .dictionary-zoom-controls,
 .dictionary-page-controls,
-.dictionary-open-list {
+.dictionary-letter-jump {
   display: flex;
   justify-content: center;
   gap: 8px;
@@ -1789,7 +1789,7 @@ body {
 
 .dictionary-zoom-controls button,
 .dictionary-page-controls button,
-.dictionary-open-list button {
+.dictionary-letter-jump button {
   min-height: 38px;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -1798,6 +1798,18 @@ body {
   padding: 8px 12px;
   font-weight: 850;
   cursor: pointer;
+}
+
+.dictionary-letter-jump {
+  gap: 6px;
+  max-width: 980px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.dictionary-letter-jump button {
+  min-width: 34px;
+  padding: 7px 9px;
 }
 
 .dictionary-zoom-controls button.active {
@@ -1832,7 +1844,10 @@ body {
 }
 
 .dictionary-book-wrap.zoomed {
-  cursor: grab;
+  overflow: auto;
+  cursor: move;
+  max-height: 72vh;
+  overscroll-behavior: contain;
 }
 
 .dictionary-book-wrap:not(.ready) {
@@ -1844,7 +1859,7 @@ body {
   min-height: min(72vh, 720px);
   margin: 0 auto;
   transform-origin: center;
-  transition: transform 0.18s ease;
+  transition: width 0.18s ease;
   filter: drop-shadow(0 24px 42px rgba(20, 24, 22, 0.18));
 }
 
@@ -3332,14 +3347,15 @@ const DictionaryModeView = ({ onOpenTerm }: { onOpenTerm: (entry: Entry) => void
   const [loadError, setLoadError] = useState('')
   const [currentPage, setCurrentPage] = useState(0)
   const [zoom, setZoom] = useState(1)
-  const [pan, setPan] = useState({ x: 0, y: 0 })
   const [isMobileBook, setIsMobileBook] = useState(() => window.matchMedia?.('(max-width: 760px)').matches ?? false)
   const [bookReady, setBookReady] = useState(false)
-  const dragRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null)
+  const bookWrapRef = useRef<HTMLDivElement>(null)
   const flipBookRef = useRef<any>(null)
 
   useEffect(() => {
-    if (zoom <= 1) setPan({ x: 0, y: 0 })
+    if (zoom <= 1 && bookWrapRef.current) {
+      bookWrapRef.current.scrollTo({ left: 0, top: 0, behavior: 'smooth' })
+    }
   }, [zoom])
 
   useEffect(() => {
@@ -3455,31 +3471,19 @@ const DictionaryModeView = ({ onOpenTerm }: { onOpenTerm: (entry: Entry) => void
   const nextPage = () => flipBookRef.current?.pageFlip?.()?.flipNext('bottom')
   const prevPage = () => flipBookRef.current?.pageFlip?.()?.flipPrev('bottom')
   const isZoomed = zoom > 1.001
+  const letters = useMemo(() => ['#', ...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')], [])
+  const pageForLetter = useCallback((letter: string) => {
+    const target = flipPages.findIndex((page) => {
+      if (page.type !== 'entries') return false
+      return page.entries.some((entry) => getSection(entry.term.replace(' (continued)', '')) === letter)
+    })
+    if (target >= 0) {
+      setCurrentPage(target)
+      flipBookRef.current?.pageFlip?.()?.turnToPage(target)
+    }
+  }, [flipPages])
   const resetZoom = () => {
     setZoom(1)
-    setPan({ x: 0, y: 0 })
-  }
-
-  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (!isZoomed) return
-    event.preventDefault()
-    event.stopPropagation()
-    dragRef.current = { x: event.clientX, y: event.clientY, panX: pan.x, panY: pan.y }
-    event.currentTarget.setPointerCapture(event.pointerId)
-  }
-
-  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragRef.current || !isZoomed) return
-    event.preventDefault()
-    event.stopPropagation()
-    setPan({
-      x: dragRef.current.panX + event.clientX - dragRef.current.x,
-      y: dragRef.current.panY + event.clientY - dragRef.current.y,
-    })
-  }
-
-  const handlePointerUp = () => {
-    dragRef.current = null
   }
 
   if (loading) return <DictionaryLoader count={loadedCount} />
@@ -3507,13 +3511,10 @@ const DictionaryModeView = ({ onOpenTerm }: { onOpenTerm: (entry: Entry) => void
           </div>
 
           <div
+            ref={bookWrapRef}
             className={`dictionary-book-wrap ${isZoomed ? 'zoomed' : ''} ${bookReady ? 'ready' : ''}`}
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerUp}
           >
-            <div className="dictionary-book-shell" style={{ transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})` }}>
+            <div className="dictionary-book-shell" style={{ width: isZoomed ? `${1120 * zoom}px` : undefined }}>
               {!bookReady && <DictionaryLoader count={loadedCount} />}
               {bookReady && <HTMLFlipBook
                 key={`${isMobileBook ? 'mobile' : 'desktop'}-${flipPages.length}`}
@@ -3564,10 +3565,10 @@ const DictionaryModeView = ({ onOpenTerm }: { onOpenTerm: (entry: Entry) => void
             <button onClick={nextPage} disabled={safePage >= maxPage}>Next</button>
           </div>
 
-          <div className="dictionary-open-list">
-            {(flipPages[safePage]?.type === 'entries' ? flipPages[safePage].entries : []).filter((entry) => !entry.term.includes('(continued)')).slice(0, 6).map((entry) => (
-              <button key={getEntryId(entry)} onClick={() => onOpenTerm(entry)}>
-                Open {entry.term} in chat card
+          <div className="dictionary-letter-jump" aria-label="Dictionary chapter jumps">
+            {letters.map((letter) => (
+              <button key={letter} onClick={() => pageForLetter(letter)}>
+                {letter}
               </button>
             ))}
           </div>
