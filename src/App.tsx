@@ -1770,20 +1770,7 @@ body {
   width: min(420px, 100%);
 }
 
-.dictionary-search {
-  width: 100%;
-  min-height: 48px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--card-bg);
-  color: var(--text-main);
-  padding: 11px 14px;
-  font: inherit;
-  box-shadow: var(--shadow);
-}
-
 .dictionary-count {
-  margin-top: 7px;
   color: var(--text-sub);
   font-size: 12px;
   font-weight: 800;
@@ -1811,6 +1798,12 @@ body {
   padding: 8px 12px;
   font-weight: 850;
   cursor: pointer;
+}
+
+.dictionary-zoom-controls button.active {
+  background: #004f46;
+  color: #fff;
+  border-color: #004f46;
 }
 
 .dictionary-page-controls button:disabled {
@@ -1870,6 +1863,14 @@ body {
   transform-origin: left center;
 }
 
+.dictionary-page::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 0;
+  pointer-events: none;
+}
+
 .dictionary-page:nth-child(2) {
   background:
     linear-gradient(270deg, rgba(0,0,0,0.08), transparent 8%),
@@ -1897,6 +1898,7 @@ body {
   row-gap: 0;
   align-content: start;
   min-height: 0;
+  overflow: hidden;
 }
 
 .dictionary-entry {
@@ -1934,6 +1936,8 @@ body {
   color: #3b3329;
   font-size: 12px;
   line-height: 1.36;
+  overflow-wrap: anywhere;
+  word-break: normal;
 }
 
 .dictionary-entry p::before {
@@ -1943,8 +1947,9 @@ body {
 .dictionary-cover {
   display: grid;
   place-items: center;
-  padding: 22px;
-  background: linear-gradient(135deg, #063f3a, #0f6157);
+  padding: 0;
+  background: #fff;
+  border: 0;
 }
 
 .dictionary-cover img {
@@ -1952,8 +1957,8 @@ body {
   height: 100%;
   aspect-ratio: 386 / 500;
   object-fit: cover;
-  border-radius: 6px;
-  box-shadow: 0 24px 42px rgba(0,0,0,0.34);
+  border-radius: 0;
+  box-shadow: none;
 }
 
 :root[data-theme="dark"] .dictionary-book-wrap {
@@ -2496,6 +2501,10 @@ type FavoriteRow = {
   term: string
   created_at: string
 }
+
+type DictionaryPage =
+  | { type: 'cover' }
+  | { type: 'entries'; entries: Entry[]; pageNumber: number }
 
 const DEFAULT_ELEVENLABS_VOICE_ID = 'VR5rq02kIGuHRg0JKxB6'
 const ELEVENLABS_MODEL_ID = 'eleven_multilingual_v2'
@@ -3306,7 +3315,6 @@ const DictionaryModeView = ({ onOpenTerm }: { onOpenTerm: (entry: Entry) => void
   const [loading, setLoading] = useState(true)
   const [loadedCount, setLoadedCount] = useState(0)
   const [loadError, setLoadError] = useState('')
-  const [query, setQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(0)
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
@@ -3315,7 +3323,12 @@ const DictionaryModeView = ({ onOpenTerm }: { onOpenTerm: (entry: Entry) => void
   const flipBookRef = useRef<any>(null)
 
   useEffect(() => {
+    if (zoom <= 1) setPan({ x: 0, y: 0 })
+  }, [zoom])
+
+  useEffect(() => {
     let cancelled = false
+    let opened = false
     const load = async () => {
       setLoading(true)
       setLoadError('')
@@ -3329,6 +3342,11 @@ const DictionaryModeView = ({ onOpenTerm }: { onOpenTerm: (entry: Entry) => void
           const next = Array.isArray(body?.words) ? body.words : []
           all = [...all, ...next]
           if (!cancelled) setLoadedCount(all.length)
+          if (!cancelled && !opened && all.length >= 800) {
+            opened = true
+            setEntries(all)
+            setLoading(false)
+          }
           if (!next.length || next.length < 400) break
           offset = Number(body?.nextOffset || offset + next.length)
         }
@@ -3360,47 +3378,54 @@ const DictionaryModeView = ({ onOpenTerm }: { onOpenTerm: (entry: Entry) => void
     return () => media.removeEventListener('change', update)
   }, [])
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    const source = q
-      ? entries.filter((entry) => `${entry.term} ${entry.definition} ${entry.tags || ''}`.toLowerCase().includes(q))
-      : entries
-    return [...source].sort((a, b) => a.term.localeCompare(b.term))
-  }, [entries, query])
-
   const pages = useMemo(() => {
-    const maxUnits = isMobileBook ? 1180 : 980
+    const maxUnits = isMobileBook ? 820 : 920
     const chunks: Entry[][] = []
     let page: Entry[] = []
     let units = 0
 
-    for (const entry of filtered) {
-      const estimate = 95 + entry.term.length * 2.4 + entry.definition.length * 1.15
-      if (page.length && units + estimate > maxUnits) {
-        chunks.push(page)
-        page = []
-        units = 0
+    const sorted = [...entries].sort((a, b) => a.term.localeCompare(b.term))
+    for (const original of sorted) {
+      const definition = String(original.definition || '')
+      const maxDefinition = isMobileBook ? 520 : 610
+      const parts: string[] = []
+      for (let index = 0; index < definition.length; index += maxDefinition) {
+        parts.push(definition.slice(index, index + maxDefinition))
       }
-      page.push(entry)
-      units += estimate
+      const splitEntries = (parts.length ? parts : ['']).map((part, index) => ({
+        ...original,
+        term: index === 0 ? original.term : `${original.term} (continued)`,
+        definition: part,
+      }))
+
+      for (const entry of splitEntries) {
+        const estimate = 120 + entry.term.length * 2.6 + entry.definition.length * 1.35
+        if (page.length && units + estimate > maxUnits) {
+          chunks.push(page)
+          page = []
+          units = 0
+        }
+        page.push(entry)
+        units += estimate
+      }
     }
     if (page.length) chunks.push(page)
     return chunks
-  }, [filtered, isMobileBook])
+  }, [entries, isMobileBook])
 
   useEffect(() => {
     setCurrentPage(0)
     window.setTimeout(() => flipBookRef.current?.pageFlip?.()?.turnToPage(0), 0)
-  }, [query])
+  }, [entries.length])
 
-  const flipPages = useMemo(() => {
-    const dictionaryPages = pages.map((pageEntries, index) => ({
-      type: 'entries' as const,
+  const flipPages = useMemo<DictionaryPage[]>(() => {
+    const dictionaryPages = pages.map((pageEntries, index): DictionaryPage => ({
+      type: 'entries',
       entries: pageEntries,
       pageNumber: index + 1,
     }))
-    return query ? dictionaryPages : [{ type: 'cover' as const }, ...dictionaryPages]
-  }, [pages, query])
+    return [{ type: 'cover' }, ...dictionaryPages]
+  }, [pages])
 
   const maxPage = Math.max(0, flipPages.length - 1)
   const safePage = Math.min(currentPage, maxPage)
@@ -3438,16 +3463,8 @@ const DictionaryModeView = ({ onOpenTerm }: { onOpenTerm: (entry: Entry) => void
           <div className="home-kicker">Dictionary mode</div>
           <h1>Supply Chain Management Terms</h1>
         </div>
-        <div className="dictionary-search-wrap">
-          <input
-            className="dictionary-search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search the dictionary..."
-          />
-          <div className="dictionary-count">
-            {filtered.length.toLocaleString()} terms
-          </div>
+        <div className="dictionary-count">
+          {entries.length.toLocaleString()} terms {loadedCount > entries.length ? `loading ${loadedCount.toLocaleString()}...` : ''}
         </div>
       </div>
 
@@ -3456,7 +3473,7 @@ const DictionaryModeView = ({ onOpenTerm }: { onOpenTerm: (entry: Entry) => void
       ) : (
         <>
           <div className="dictionary-zoom-controls">
-            <button onClick={() => setZoom((value) => Math.min(value + 0.15, 1.8))}>Zoom in</button>
+            <button className={zoom > 1 ? 'active' : ''} onClick={() => setZoom((value) => Math.min(value + 0.2, 1.8))}>Zoom in</button>
             <button onClick={() => setZoom((value) => Math.max(value - 0.15, 1))}>Zoom out</button>
             <button onClick={resetZoom}>Reset</button>
           </div>
@@ -3470,7 +3487,7 @@ const DictionaryModeView = ({ onOpenTerm }: { onOpenTerm: (entry: Entry) => void
           >
             <div className="dictionary-book-shell" style={{ transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})` }}>
               <HTMLFlipBook
-                key={`${query}-${isMobileBook ? 'mobile' : 'desktop'}-${flipPages.length}`}
+                key={`${isMobileBook ? 'mobile' : 'desktop'}-${flipPages.length}`}
                 ref={flipBookRef}
                 className="dictionary-flipbook"
                 style={{}}
@@ -3488,7 +3505,7 @@ const DictionaryModeView = ({ onOpenTerm }: { onOpenTerm: (entry: Entry) => void
                 startZIndex={1}
                 autoSize
                 maxShadowOpacity={0.35}
-                showCover={!query}
+                showCover
                 mobileScrollSupport
                 clickEventForward
                 useMouseEvents={zoom <= 1}
@@ -3519,7 +3536,7 @@ const DictionaryModeView = ({ onOpenTerm }: { onOpenTerm: (entry: Entry) => void
           </div>
 
           <div className="dictionary-open-list">
-            {(flipPages[safePage]?.type === 'entries' ? flipPages[safePage].entries : []).slice(0, 6).map((entry) => (
+            {(flipPages[safePage]?.type === 'entries' ? flipPages[safePage].entries : []).filter((entry) => !entry.term.includes('(continued)')).slice(0, 6).map((entry) => (
               <button key={getEntryId(entry)} onClick={() => onOpenTerm(entry)}>
                 Open {entry.term} in chat card
               </button>
