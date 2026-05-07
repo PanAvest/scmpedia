@@ -190,6 +190,54 @@ body { margin: 0; font-family: "Google Sans", "Segoe UI", Roboto, Helvetica, Ari
 }
 .chat-thinking i:nth-child(3) { animation-delay: 0.12s; }
 .chat-thinking i:nth-child(4) { animation-delay: 0.24s; }
+.word-suggestions {
+  width: min(680px, 100%);
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card-bg);
+  box-shadow: var(--shadow);
+}
+.word-suggestions-title {
+  margin-bottom: 10px;
+  color: var(--text-main);
+  font-size: 14px;
+  font-weight: 850;
+}
+.word-suggestion-list {
+  display: grid;
+  gap: 8px;
+}
+.word-suggestion-list button {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-main);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+}
+.word-suggestion-list button:hover {
+  background: var(--surface-hover);
+  border-color: rgba(154, 75, 50, 0.24);
+  transform: translateY(-1px);
+}
+.word-suggestion-list strong {
+  font-size: 14px;
+}
+.word-suggestion-list span {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--text-sub);
+  font-size: 12px;
+  line-height: 1.4;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
 
 /* Input Area */
 .input-area { position: fixed; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, var(--bg) 85%, transparent); padding: 0 20px calc(30px + var(--safe-bottom)); display: flex; flex-direction: column; align-items: center; z-index: 20; pointer-events: none; }
@@ -3104,6 +3152,20 @@ const ChatThinking = () => (
   </div>
 )
 
+const WordSuggestions = ({ entries, onPick }: { entries: Entry[]; onPick: (entry: Entry) => void }) => (
+  <div className="word-suggestions">
+    <div className="word-suggestions-title">Did you mean one of these?</div>
+    <div className="word-suggestion-list">
+      {entries.map((entry) => (
+        <button key={getEntryId(entry)} onClick={() => onPick(entry)}>
+          <strong>{entry.term}</strong>
+          <span>{entry.definition}</span>
+        </button>
+      ))}
+    </div>
+  </div>
+)
+
 const SmartCard = ({
   entry,
   allData,
@@ -3714,12 +3776,12 @@ export default function App() {
     }
 
     let match = searchPool.find((d) => d.term.toLowerCase() === cleanQuery.toLowerCase())
+    const exactOriginal = searchPool.find((d) => d.term.toLowerCase() === originalQuery.toLowerCase())
+    if (!match && exactOriginal) match = exactOriginal
 
     if (!match && !serverBacked && fuseRef.current) {
       const res = fuseRef.current.search(cleanQuery)
       if (res.length > 0) match = res[0].item
-    } else if (!match && serverBacked) {
-      match = searchPool[0]
     }
 
     if (!match && cleanQuery !== originalQuery && !serverBacked && fuseRef.current) {
@@ -3740,6 +3802,14 @@ export default function App() {
             : message
         )
       )
+    } else if (searchPool.length) {
+      setMessages((p) =>
+        p.map((message) =>
+          message.id === thinkingId
+            ? { id: thinkingId, role: 'bot', related: searchPool.slice(0, 5), timestamp: Date.now() }
+            : message
+        )
+      )
     } else {
       setMessages((p) =>
         p.map((message) =>
@@ -3747,7 +3817,7 @@ export default function App() {
             ? {
                 id: thinkingId,
                 role: 'bot',
-                content: `I couldn't find a match for "${cleanQuery}". Try a different term.`,
+                content: 'No close matches yet. Try another spelling or a related supply chain term.',
                 timestamp: Date.now(),
               }
             : message
@@ -4110,6 +4180,7 @@ export default function App() {
                   <div className="bubble">
                     {m.loading && <ChatThinking />}
                     {m.content && <div style={{ padding: m.role === 'bot' ? '12px 0' : undefined }}>{m.content}</div>}
+                    {m.related?.length ? <WordSuggestions entries={m.related} onPick={openTerm} /> : null}
                     {m.entry && (
                       <SmartCard
                         entry={m.entry}
