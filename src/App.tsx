@@ -1842,8 +1842,8 @@ body {
 }
 
 .dictionary-book-shell {
-  width: min(100%, 820px);
-  min-height: 540px;
+  width: min(100%, 1120px);
+  min-height: min(72vh, 720px);
   margin: 0 auto;
   transform-origin: center;
   transition: transform 0.18s ease;
@@ -1855,17 +1855,17 @@ body {
 }
 
 .dictionary-page {
-  width: 386px;
-  height: 500px;
-  padding: 24px 23px 20px;
+  width: 520px;
+  height: 674px;
+  padding: 34px 36px 28px;
   background:
     linear-gradient(90deg, rgba(0,0,0,0.08), transparent 8%),
     #fffdf5;
   color: #211d18;
   border: 1px solid #e2d6c2;
   font-family: Georgia, "Times New Roman", serif;
-  column-count: 2;
-  column-gap: 16px;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   transform-origin: left center;
 }
@@ -1879,36 +1879,45 @@ body {
 .dictionary-page-top {
   display: flex;
   justify-content: space-between;
-  column-span: all;
-  margin-bottom: 10px;
-  padding-bottom: 6px;
+  margin-bottom: 16px;
+  padding-bottom: 9px;
   border-bottom: 1px solid #d6c8ad;
   color: #6b5b43;
   font-family: "Google Sans", "Segoe UI", sans-serif;
   font-size: 11px;
   font-weight: 900;
   letter-spacing: 0.08em;
+  flex: 0 0 auto;
+}
+
+.dictionary-page-content {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 22px;
+  row-gap: 0;
+  align-content: start;
+  min-height: 0;
 }
 
 .dictionary-entry {
-  break-inside: avoid;
-  margin: 0 0 7px;
+  margin: 0 0 10px;
+  min-width: 0;
 }
 
 .dictionary-entry h2 {
   margin: 0 0 8px;
   color: #9a4b32;
-  font-size: 22px;
+  font-size: 28px;
   line-height: 1;
   border-bottom: 2px solid #9a4b32;
-  column-span: all;
+  grid-column: 1 / -1;
 }
 
 .dictionary-entry h3 {
   display: inline;
   margin: 0;
   color: #16120d;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.25;
   font-weight: 900;
 }
@@ -1916,15 +1925,15 @@ body {
 .dictionary-entry em {
   margin-left: 5px;
   color: #8a7052;
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .dictionary-entry p {
   display: inline;
   margin: 0;
   color: #3b3329;
-  font-size: 10px;
-  line-height: 1.28;
+  font-size: 12px;
+  line-height: 1.36;
 }
 
 .dictionary-entry p::before {
@@ -1936,7 +1945,6 @@ body {
   place-items: center;
   padding: 22px;
   background: linear-gradient(135deg, #063f3a, #0f6157);
-  column-count: 1;
 }
 
 .dictionary-cover img {
@@ -2142,14 +2150,17 @@ body {
   }
 
   .dictionary-book-shell {
-    width: min(100%, 390px);
-    min-height: 505px;
+    width: min(100%, 520px);
+    min-height: 540px;
     filter: drop-shadow(0 18px 28px rgba(20, 24, 22, 0.16));
   }
 
   .dictionary-page {
     padding: 24px 22px;
-    column-count: 1;
+  }
+
+  .dictionary-page-content {
+    grid-template-columns: 1fr;
   }
 
   .dashboard-head {
@@ -3090,6 +3101,7 @@ const SettingsDialog = ({
   setDarkMode,
   dictionaryMode,
   setDictionaryMode,
+  setSettingsOpen,
 }: {
   open: boolean
   onClose: () => void
@@ -3100,6 +3112,7 @@ const SettingsDialog = ({
   setDarkMode: (v: boolean) => void
   dictionaryMode: boolean
   setDictionaryMode: (v: boolean) => void
+  setSettingsOpen: (v: boolean) => void
 }) => {
   if (!open) return null
   return (
@@ -3224,7 +3237,14 @@ const SettingsDialog = ({
                   <div className="toggle-copy">Browse scmpedia as a page-flipping dictionary instead of chat.</div>
                 </div>
                 <label className="toggle-switch" aria-label="Dictionary mode">
-                  <input type="checkbox" checked={dictionaryMode} onChange={(e) => setDictionaryMode(e.target.checked)} />
+                  <input
+                    type="checkbox"
+                    checked={dictionaryMode}
+                    onChange={(e) => {
+                      setDictionaryMode(e.target.checked)
+                      setSettingsOpen(false)
+                    }}
+                  />
                   <span className="toggle-slider"></span>
                 </label>
               </div>
@@ -3242,10 +3262,10 @@ const SettingsDialog = ({
   )
 }
 
-const DictionaryLoader = () => (
+const DictionaryLoader = ({ count }: { count: number }) => (
   <div className="dictionary-loader" aria-live="polite">
     <FadeImage src="/logo2.png" alt="scmpedia" className="dictionary-loader-logo" eager />
-    <div>Loading dictionary...</div>
+    <div>Loading dictionary{count ? ` (${count.toLocaleString()} terms)` : ''}...</div>
   </div>
 )
 
@@ -3262,19 +3282,21 @@ const DictionaryPageView = React.forwardRef<HTMLDivElement, { entries: Entry[]; 
         <span>SCMPEDIA</span>
         <span>{pageNumber}</span>
       </div>
-      {entries.map((entry) => {
-        const section = getSection(entry.term)
-        const showHeader = section !== currentSection
-        currentSection = section
-        return (
-          <article className="dictionary-entry" key={getEntryId(entry)}>
-            {showHeader && <h2>{section}</h2>}
-            <h3>{entry.term}</h3>
-            {entry.pos && <em>{entry.pos}</em>}
-            <p>{entry.definition}</p>
-          </article>
-        )
-      })}
+      <div className="dictionary-page-content">
+        {entries.map((entry) => {
+          const section = getSection(entry.term)
+          const showHeader = section !== currentSection
+          currentSection = section
+          return (
+            <article className="dictionary-entry" key={getEntryId(entry)}>
+              {showHeader && <h2>{section}</h2>}
+              <h3>{entry.term}</h3>
+              {entry.pos && <em>{entry.pos}</em>}
+              <p>{entry.definition}</p>
+            </article>
+          )
+        })}
+      </div>
     </section>
   )
 })
@@ -3282,7 +3304,7 @@ const DictionaryPageView = React.forwardRef<HTMLDivElement, { entries: Entry[]; 
 const DictionaryModeView = ({ onOpenTerm }: { onOpenTerm: (entry: Entry) => void }) => {
   const [entries, setEntries] = useState<Entry[]>([])
   const [loading, setLoading] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
+  const [loadedCount, setLoadedCount] = useState(0)
   const [loadError, setLoadError] = useState('')
   const [query, setQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(0)
@@ -3306,13 +3328,13 @@ const DictionaryModeView = ({ onOpenTerm }: { onOpenTerm: (entry: Entry) => void
           const body = await res.json()
           const next = Array.isArray(body?.words) ? body.words : []
           all = [...all, ...next]
-          if (!cancelled) {
-            setEntries(all)
-            setLoading(false)
-            setLoadingMore(Boolean(next.length))
-          }
+          if (!cancelled) setLoadedCount(all.length)
           if (!next.length || next.length < 400) break
           offset = Number(body?.nextOffset || offset + next.length)
+        }
+        if (!cancelled) {
+          setEntries(all)
+          setLoading(false)
         }
       } catch (error: any) {
         if (!cancelled) {
@@ -3320,7 +3342,7 @@ const DictionaryModeView = ({ onOpenTerm }: { onOpenTerm: (entry: Entry) => void
           setLoading(false)
         }
       } finally {
-        if (!cancelled) setLoadingMore(false)
+        if (!cancelled) setLoadedCount(all.length)
       }
     }
     void load()
@@ -3347,13 +3369,24 @@ const DictionaryModeView = ({ onOpenTerm }: { onOpenTerm: (entry: Entry) => void
   }, [entries, query])
 
   const pages = useMemo(() => {
-    const pageSize = 8
+    const maxUnits = isMobileBook ? 1180 : 980
     const chunks: Entry[][] = []
-    for (let index = 0; index < filtered.length; index += pageSize) {
-      chunks.push(filtered.slice(index, index + pageSize))
+    let page: Entry[] = []
+    let units = 0
+
+    for (const entry of filtered) {
+      const estimate = 95 + entry.term.length * 2.4 + entry.definition.length * 1.15
+      if (page.length && units + estimate > maxUnits) {
+        chunks.push(page)
+        page = []
+        units = 0
+      }
+      page.push(entry)
+      units += estimate
     }
+    if (page.length) chunks.push(page)
     return chunks
-  }, [filtered])
+  }, [filtered, isMobileBook])
 
   useEffect(() => {
     setCurrentPage(0)
@@ -3396,7 +3429,7 @@ const DictionaryModeView = ({ onOpenTerm }: { onOpenTerm: (entry: Entry) => void
     dragRef.current = null
   }
 
-  if (loading) return <DictionaryLoader />
+  if (loading) return <DictionaryLoader count={loadedCount} />
 
   return (
     <div className="dictionary-mode">
@@ -3413,7 +3446,7 @@ const DictionaryModeView = ({ onOpenTerm }: { onOpenTerm: (entry: Entry) => void
             placeholder="Search the dictionary..."
           />
           <div className="dictionary-count">
-            {filtered.length.toLocaleString()} terms {loadingMore ? 'loading...' : ''}
+            {filtered.length.toLocaleString()} terms
           </div>
         </div>
       </div>
@@ -3441,12 +3474,12 @@ const DictionaryModeView = ({ onOpenTerm }: { onOpenTerm: (entry: Entry) => void
                 ref={flipBookRef}
                 className="dictionary-flipbook"
                 style={{}}
-                width={386}
-                height={500}
-                minWidth={300}
-                maxWidth={386}
-                minHeight={389}
-                maxHeight={500}
+                width={520}
+                height={674}
+                minWidth={320}
+                maxWidth={520}
+                minHeight={415}
+                maxHeight={674}
                 size="stretch"
                 startPage={0}
                 drawShadow
@@ -3486,7 +3519,7 @@ const DictionaryModeView = ({ onOpenTerm }: { onOpenTerm: (entry: Entry) => void
           </div>
 
           <div className="dictionary-open-list">
-            {filtered.slice(Math.max(0, safePage - (query ? 0 : 1)) * 8, Math.max(0, safePage - (query ? 0 : 1)) * 8 + 6).map((entry) => (
+            {(flipPages[safePage]?.type === 'entries' ? flipPages[safePage].entries : []).slice(0, 6).map((entry) => (
               <button key={getEntryId(entry)} onClick={() => onOpenTerm(entry)}>
                 Open {entry.term} in chat card
               </button>
@@ -4555,6 +4588,7 @@ export default function App() {
           setDarkMode={setDarkMode}
           dictionaryMode={dictionaryMode}
           setDictionaryMode={setDictionaryMode}
+          setSettingsOpen={setSettingsOpen}
         />
         <AuthDialog open={authOpen} mode={authMode} setMode={setAuthMode} onClose={() => setAuthOpen(false)} darkMode={darkMode} />
 
