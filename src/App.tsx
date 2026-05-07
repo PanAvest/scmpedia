@@ -384,6 +384,56 @@ body {
   background: transparent;
 }
 
+.app-container::before,
+.app-container::after {
+  content: "";
+  position: fixed;
+  width: clamp(260px, 36vw, 560px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  filter: blur(42px);
+  opacity: 0.46;
+  transform: translate3d(0, 0, 0);
+  animation: ambient-glow-a 14s ease-in-out infinite alternate;
+}
+
+.app-container::before {
+  top: 9%;
+  left: -12%;
+  background: radial-gradient(circle, rgba(255, 138, 29, 0.3), rgba(255, 138, 29, 0.08) 46%, transparent 72%);
+}
+
+.app-container::after {
+  right: -14%;
+  bottom: 8%;
+  background: radial-gradient(circle, rgba(0, 112, 96, 0.22), rgba(0, 112, 96, 0.07) 44%, transparent 74%);
+  animation-name: ambient-glow-b;
+  animation-duration: 18s;
+}
+
+:root[data-theme="dark"] .app-container::before {
+  opacity: 0.62;
+  background: radial-gradient(circle, rgba(242, 139, 88, 0.34), rgba(242, 139, 88, 0.1) 46%, transparent 72%);
+}
+
+:root[data-theme="dark"] .app-container::after {
+  opacity: 0.58;
+  background: radial-gradient(circle, rgba(98, 199, 186, 0.28), rgba(98, 199, 186, 0.08) 46%, transparent 74%);
+}
+
+.header,
+.chat-window,
+.input-area {
+  position: relative;
+}
+
+.header,
+.chat-window {
+  z-index: 1;
+}
+
 .header {
   min-height: 72px;
   padding: 14px clamp(16px, 4vw, 44px);
@@ -2067,6 +2117,18 @@ body {
   to { transform: translate3d(12px, -8px, 0); opacity: 1; }
 }
 
+@keyframes ambient-glow-a {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(8vw, 5vh, 0) scale(1.08); }
+  100% { transform: translate3d(3vw, 10vh, 0) scale(0.96); }
+}
+
+@keyframes ambient-glow-b {
+  0% { transform: translate3d(0, 0, 0) scale(0.96); }
+  50% { transform: translate3d(-7vw, -4vh, 0) scale(1.06); }
+  100% { transform: translate3d(-3vw, -10vh, 0) scale(1.12); }
+}
+
 @keyframes button-ready {
   0% { transform: scale(0.96); }
   70% { transform: scale(1.04); }
@@ -2099,6 +2161,8 @@ body {
   .modal,
   .setting-card,
   .mobile-menu,
+  .app-container::before,
+  .app-container::after,
   .send-btn.active {
     animation: none !important;
   }
