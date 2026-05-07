@@ -314,9 +314,12 @@ export default defineConfig(({ mode }) => {
             const url = new URL(req.url || '', 'http://localhost')
             const q = url.searchParams.get('q')?.trim() || ''
             const terms = url.searchParams.get('terms')?.trim() || ''
+            const browse = url.searchParams.get('browse') === '1'
             const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 8, 1), 25)
+            const browseLimit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 300, 50), 500)
+            const offset = Math.max(Number(url.searchParams.get('offset')) || 0, 0)
             const searchLimit = terms ? limit : 100
-            if (!q && !terms) {
+            if (!q && !terms && !browse) {
               res.statusCode = 400
               res.setHeader('Content-Type', 'application/json')
               res.end(JSON.stringify({ error: 'Missing search query' }))
@@ -327,6 +330,19 @@ export default defineConfig(({ mode }) => {
               const client = createClient(supabaseUrl, supabaseServiceRoleKey, {
                 auth: { persistSession: false, autoRefreshToken: false },
               })
+              if (browse) {
+                const { data, error, count } = await client
+                  .from('words')
+                  .select('id,term,definition,synonyms,tags,pronunciation,pos,examples', { count: 'exact' })
+                  .order('term', { ascending: true })
+                  .range(offset, offset + browseLimit - 1)
+                if (error) throw error
+                res.statusCode = 200
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ words: data || [], nextOffset: offset + (data?.length || 0), count }))
+                return
+              }
+
               let query = client
                 .from('words')
                 .select('id,term,definition,synonyms,tags,pronunciation,pos,examples')

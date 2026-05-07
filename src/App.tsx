@@ -1724,6 +1724,244 @@ body {
   font-weight: 700;
 }
 
+.dictionary-loader {
+  min-height: calc(100dvh - 120px);
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 18px;
+  color: var(--text-sub);
+  font-weight: 850;
+  animation: page-fade-in 0.3s ease both;
+}
+
+.dictionary-loader-logo {
+  width: 86px;
+  height: 86px;
+  object-fit: contain;
+  animation: dictionary-unfold 1.35s ease-in-out infinite;
+  transform-origin: center;
+}
+
+.dictionary-mode {
+  width: 100%;
+  max-width: 1220px;
+  padding: 12px 20px 44px;
+  animation: page-fade-in 0.45s ease both;
+}
+
+.dictionary-toolbar {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 14px;
+}
+
+.dictionary-toolbar h1 {
+  margin: 0;
+  color: var(--text-main);
+  font-size: clamp(28px, 4vw, 46px);
+  line-height: 1.05;
+}
+
+.dictionary-search-wrap {
+  width: min(420px, 100%);
+}
+
+.dictionary-search {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card-bg);
+  color: var(--text-main);
+  padding: 11px 14px;
+  font: inherit;
+  box-shadow: var(--shadow);
+}
+
+.dictionary-count {
+  margin-top: 7px;
+  color: var(--text-sub);
+  font-size: 12px;
+  font-weight: 800;
+  text-align: right;
+}
+
+.dictionary-zoom-controls,
+.dictionary-page-controls,
+.dictionary-open-list {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+
+.dictionary-zoom-controls button,
+.dictionary-page-controls button,
+.dictionary-open-list button {
+  min-height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card-bg);
+  color: var(--text-main);
+  padding: 8px 12px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.dictionary-page-controls button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.dictionary-page-controls span {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-sub);
+  font-size: 13px;
+  font-weight: 850;
+  min-height: 38px;
+}
+
+.dictionary-book-wrap {
+  overflow: hidden;
+  padding: 18px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background:
+    linear-gradient(90deg, rgba(0,0,0,0.05), transparent 12%, transparent 88%, rgba(0,0,0,0.05)),
+    rgba(255,255,255,0.32);
+}
+
+.dictionary-book-wrap.zoomed {
+  cursor: grab;
+}
+
+.dictionary-book {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  max-width: 1080px;
+  min-height: 680px;
+  margin: 0 auto;
+  transform-origin: center;
+  transition: transform 0.18s ease;
+  filter: drop-shadow(0 24px 42px rgba(20, 24, 22, 0.18));
+}
+
+.dictionary-page {
+  min-height: 680px;
+  padding: 34px 34px 28px;
+  background:
+    linear-gradient(90deg, rgba(0,0,0,0.08), transparent 8%),
+    #fffdf5;
+  color: #211d18;
+  border: 1px solid #e2d6c2;
+  font-family: Georgia, "Times New Roman", serif;
+  column-count: 2;
+  column-gap: 24px;
+  overflow: hidden;
+  transform-origin: left center;
+  animation: page-flip-in 0.34s cubic-bezier(.2,.8,.2,1) both;
+}
+
+.dictionary-page:nth-child(2) {
+  background:
+    linear-gradient(270deg, rgba(0,0,0,0.08), transparent 8%),
+    #fffdf5;
+}
+
+.dictionary-page-top {
+  display: flex;
+  justify-content: space-between;
+  column-span: all;
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #d6c8ad;
+  color: #6b5b43;
+  font-family: "Google Sans", "Segoe UI", sans-serif;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.dictionary-entry {
+  break-inside: avoid;
+  margin: 0 0 10px;
+}
+
+.dictionary-entry h2 {
+  margin: 0 0 8px;
+  color: #9a4b32;
+  font-size: 30px;
+  line-height: 1;
+  border-bottom: 2px solid #9a4b32;
+  column-span: all;
+}
+
+.dictionary-entry h3 {
+  display: inline;
+  margin: 0;
+  color: #16120d;
+  font-size: 14px;
+  line-height: 1.25;
+  font-weight: 900;
+}
+
+.dictionary-entry em {
+  margin-left: 5px;
+  color: #8a7052;
+  font-size: 12px;
+}
+
+.dictionary-entry p {
+  display: inline;
+  margin: 0;
+  color: #3b3329;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.dictionary-entry p::before {
+  content: " - ";
+}
+
+.dictionary-cover {
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background: linear-gradient(135deg, #063f3a, #0f6157);
+  column-count: 1;
+}
+
+.dictionary-cover img {
+  width: min(78%, 330px);
+  aspect-ratio: 386 / 500;
+  object-fit: cover;
+  border-radius: 6px;
+  box-shadow: 0 24px 42px rgba(0,0,0,0.34);
+}
+
+:root[data-theme="dark"] .dictionary-book-wrap {
+  background:
+    linear-gradient(90deg, rgba(255,255,255,0.05), transparent 12%, transparent 88%, rgba(255,255,255,0.05)),
+    rgba(8, 11, 10, 0.52);
+}
+
+@keyframes dictionary-unfold {
+  0%, 100% { transform: perspective(260px) rotateY(-18deg) scale(0.96); opacity: 0.72; }
+  45% { transform: perspective(260px) rotateY(18deg) scale(1.06); opacity: 1; }
+  70% { transform: perspective(260px) rotateY(0deg) scale(1); opacity: 0.9; }
+}
+
+@keyframes page-flip-in {
+  from { opacity: 0.55; transform: perspective(900px) rotateY(-6deg) translateX(8px); }
+  to { opacity: 1; transform: perspective(900px) rotateY(0deg) translateX(0); }
+}
+
 @media (max-width: 760px) {
   .header {
     align-items: center;
@@ -1871,6 +2109,53 @@ body {
 
   .dashboard-page {
     padding: 4px 12px 32px;
+  }
+
+  .dictionary-mode {
+    padding: 4px 12px 32px;
+  }
+
+  .dictionary-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .dictionary-search-wrap {
+    width: 100%;
+  }
+
+  .dictionary-count {
+    text-align: left;
+  }
+
+  .dictionary-zoom-controls {
+    display: none;
+  }
+
+  .dictionary-book-wrap {
+    padding: 10px;
+    overflow: auto;
+    touch-action: pan-x pan-y pinch-zoom;
+  }
+
+  .dictionary-book {
+    grid-template-columns: 1fr;
+    min-height: 620px;
+    filter: drop-shadow(0 18px 28px rgba(20, 24, 22, 0.16));
+  }
+
+  .dictionary-book .dictionary-page:nth-child(2) {
+    display: none;
+  }
+
+  .dictionary-page {
+    min-height: 620px;
+    padding: 24px 22px;
+    column-count: 1;
+  }
+
+  .dictionary-cover img {
+    width: min(82%, 260px);
   }
 
   .dashboard-head {
@@ -2163,6 +2448,8 @@ body {
   .mobile-menu,
   .app-container::before,
   .app-container::after,
+  .dictionary-loader-logo,
+  .dictionary-page,
   .send-btn.active {
     animation: none !important;
   }
@@ -2210,6 +2497,7 @@ const ELEVENLABS_MODEL_ID = 'eleven_multilingual_v2'
 const ELEVENLABS_OUTPUT_FORMAT = 'mp3_44100_128'
 const LOCAL_ENTRIES_KEY = 'scmpedia-admin-entries-v1'
 const THEME_KEY = 'scmpedia-theme-v1'
+const DICTIONARY_MODE_KEY = 'scmpedia-dictionary-mode-v1'
 
 const uuid = () => Math.random().toString(36).substring(2, 9)
 const escapeHtml = (input: string) =>
@@ -2806,6 +3094,8 @@ const SettingsDialog = ({
   setAutoReadAi,
   darkMode,
   setDarkMode,
+  dictionaryMode,
+  setDictionaryMode,
 }: {
   open: boolean
   onClose: () => void
@@ -2814,6 +3104,8 @@ const SettingsDialog = ({
   setAutoReadAi: (v: boolean) => void
   darkMode: boolean
   setDarkMode: (v: boolean) => void
+  dictionaryMode: boolean
+  setDictionaryMode: (v: boolean) => void
 }) => {
   if (!open) return null
   return (
@@ -2923,6 +3215,28 @@ const SettingsDialog = ({
             </div>
           </div>
 
+          <div className="setting-card">
+            <div className="setting-card-icon">
+              <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                <path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15Z" />
+                <path d="M8 7h8M8 11h8M8 15h5" />
+              </svg>
+            </div>
+            <div className="setting-card-main">
+              <div className="toggle-row">
+                <div>
+                  <label className="modal-label">Dictionary mode</label>
+                  <div className="toggle-copy">Browse scmpedia as a page-flipping dictionary instead of chat.</div>
+                </div>
+                <label className="toggle-switch" aria-label="Dictionary mode">
+                  <input type="checkbox" checked={dictionaryMode} onChange={(e) => setDictionaryMode(e.target.checked)} />
+                  <span className="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+
           <div className="modal-actions">
             <button className="modal-btn primary" onClick={onClose}>
               Done
@@ -2930,6 +3244,222 @@ const SettingsDialog = ({
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+const DictionaryLoader = () => (
+  <div className="dictionary-loader" aria-live="polite">
+    <FadeImage src="/logo2.png" alt="scmpedia" className="dictionary-loader-logo" eager />
+    <div>Loading dictionary...</div>
+  </div>
+)
+
+const getSection = (term: string) => {
+  const first = term.trim()[0]?.toUpperCase() || '#'
+  return /^[A-Z]$/.test(first) ? first : '#'
+}
+
+const DictionaryPageView = ({ entries, pageNumber }: { entries: Entry[]; pageNumber: number }) => {
+  let currentSection = ''
+  return (
+    <section className="dictionary-page">
+      <div className="dictionary-page-top">
+        <span>SCMPEDIA</span>
+        <span>{pageNumber}</span>
+      </div>
+      {entries.map((entry) => {
+        const section = getSection(entry.term)
+        const showHeader = section !== currentSection
+        currentSection = section
+        return (
+          <article className="dictionary-entry" key={getEntryId(entry)}>
+            {showHeader && <h2>{section}</h2>}
+            <h3>{entry.term}</h3>
+            {entry.pos && <em>{entry.pos}</em>}
+            <p>{entry.definition}</p>
+          </article>
+        )
+      })}
+    </section>
+  )
+}
+
+const DictionaryModeView = ({ onOpenTerm }: { onOpenTerm: (entry: Entry) => void }) => {
+  const [entries, setEntries] = useState<Entry[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [loadError, setLoadError] = useState('')
+  const [query, setQuery] = useState('')
+  const [pageIndex, setPageIndex] = useState(0)
+  const [zoom, setZoom] = useState(1)
+  const [pan, setPan] = useState({ x: 0, y: 0 })
+  const [isMobileBook, setIsMobileBook] = useState(() => window.matchMedia?.('(max-width: 760px)').matches ?? false)
+  const dragRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      setLoading(true)
+      setLoadError('')
+      let offset = 0
+      let all: Entry[] = []
+      try {
+        while (!cancelled) {
+          const res = await fetch(`/api/words?browse=1&limit=400&offset=${offset}`)
+          if (!res.ok) throw new Error('Dictionary database is not connected.')
+          const body = await res.json()
+          const next = Array.isArray(body?.words) ? body.words : []
+          all = [...all, ...next]
+          if (!cancelled) {
+            setEntries(all)
+            setLoading(false)
+            setLoadingMore(Boolean(next.length))
+          }
+          if (!next.length || next.length < 400) break
+          offset = Number(body?.nextOffset || offset + next.length)
+        }
+      } catch (error: any) {
+        if (!cancelled) {
+          setLoadError(error?.message || 'Dictionary failed to load.')
+          setLoading(false)
+        }
+      } finally {
+        if (!cancelled) setLoadingMore(false)
+      }
+    }
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    const media = window.matchMedia?.('(max-width: 760px)')
+    if (!media) return
+    const update = () => setIsMobileBook(media.matches)
+    update()
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    const source = q
+      ? entries.filter((entry) => `${entry.term} ${entry.definition} ${entry.tags || ''}`.toLowerCase().includes(q))
+      : entries
+    return [...source].sort((a, b) => a.term.localeCompare(b.term))
+  }, [entries, query])
+
+  const pages = useMemo(() => {
+    const pageSize = 16
+    const chunks: Entry[][] = []
+    for (let index = 0; index < filtered.length; index += pageSize) {
+      chunks.push(filtered.slice(index, index + pageSize))
+    }
+    return chunks
+  }, [filtered])
+
+  useEffect(() => {
+    setPageIndex(0)
+  }, [query])
+
+  const maxPage = Math.max(0, pages.length - 1)
+  const safePage = Math.min(pageIndex, maxPage)
+  const pageStep = isMobileBook ? 1 : 2
+  const nextPage = () => setPageIndex((page) => Math.min(page + pageStep, maxPage))
+  const prevPage = () => setPageIndex((page) => Math.max(page - pageStep, 0))
+  const resetZoom = () => {
+    setZoom(1)
+    setPan({ x: 0, y: 0 })
+  }
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (zoom <= 1) return
+    dragRef.current = { x: event.clientX, y: event.clientY, panX: pan.x, panY: pan.y }
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current || zoom <= 1) return
+    setPan({
+      x: dragRef.current.panX + event.clientX - dragRef.current.x,
+      y: dragRef.current.panY + event.clientY - dragRef.current.y,
+    })
+  }
+
+  const handlePointerUp = () => {
+    dragRef.current = null
+  }
+
+  if (loading) return <DictionaryLoader />
+
+  return (
+    <div className="dictionary-mode">
+      <div className="dictionary-toolbar">
+        <div>
+          <div className="home-kicker">Dictionary mode</div>
+          <h1>Supply Chain Management Terms</h1>
+        </div>
+        <div className="dictionary-search-wrap">
+          <input
+            className="dictionary-search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search the dictionary..."
+          />
+          <div className="dictionary-count">
+            {filtered.length.toLocaleString()} terms {loadingMore ? 'loading...' : ''}
+          </div>
+        </div>
+      </div>
+
+      {loadError ? (
+        <div className="dashboard-empty">{loadError}</div>
+      ) : (
+        <>
+          <div className="dictionary-zoom-controls">
+            <button onClick={() => setZoom((value) => Math.min(value + 0.15, 1.8))}>Zoom in</button>
+            <button onClick={() => setZoom((value) => Math.max(value - 0.15, 1))}>Zoom out</button>
+            <button onClick={resetZoom}>Reset</button>
+          </div>
+
+          <div
+            className={`dictionary-book-wrap ${zoom > 1 ? 'zoomed' : ''}`}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+          >
+            <div className="dictionary-book" style={{ transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})` }}>
+              {safePage === 0 && !query ? (
+                <section className="dictionary-page dictionary-cover" key="cover">
+                  <FadeImage src="/book.jpg" alt="Supply Chain Management Terms book cover" eager />
+                </section>
+              ) : (
+                <DictionaryPageView key={`left-${safePage}`} entries={pages[safePage] || []} pageNumber={safePage + 1} />
+              )}
+              <DictionaryPageView key={`right-${safePage + 1}`} entries={pages[safePage + 1] || []} pageNumber={safePage + 2} />
+            </div>
+          </div>
+
+          <div className="dictionary-page-controls">
+            <button onClick={prevPage} disabled={safePage === 0}>Previous</button>
+            <span>
+              Page {Math.min(safePage + 1, pages.length || 1)} of {Math.max(pages.length, 1)}
+            </span>
+            <button onClick={nextPage} disabled={safePage >= maxPage}>Next</button>
+          </div>
+
+          <div className="dictionary-open-list">
+            {filtered.slice(safePage * 16, safePage * 16 + 6).map((entry) => (
+              <button key={getEntryId(entry)} onClick={() => onOpenTerm(entry)}>
+                Open {entry.term} in chat card
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   )
 }
@@ -3726,6 +4256,7 @@ export default function App() {
   const [profileView, setProfileView] = useState<ProfileView>('home')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [autoReadAi, setAutoReadAi] = useState(true)
+  const [dictionaryMode, setDictionaryMode] = useState(() => localStorage.getItem(DICTIONARY_MODE_KEY) === 'on')
   const [darkMode, setDarkMode] = useState(() => {
     const stored = localStorage.getItem(THEME_KEY)
     if (stored) return stored === 'dark'
@@ -3747,6 +4278,15 @@ export default function App() {
     document.documentElement.dataset.theme = darkMode ? 'dark' : 'light'
     localStorage.setItem(THEME_KEY, darkMode ? 'dark' : 'light')
   }, [darkMode])
+
+  useEffect(() => {
+    localStorage.setItem(DICTIONARY_MODE_KEY, dictionaryMode ? 'on' : 'off')
+    if (dictionaryMode) {
+      setSuggestions([])
+      setSelectedSug(-1)
+      setMobileMenuOpen(false)
+    }
+  }, [dictionaryMode])
 
   useEffect(() => {
     if (!auth.user && profileView === 'dashboard') {
@@ -3979,6 +4519,8 @@ export default function App() {
           setAutoReadAi={setAutoReadAi}
           darkMode={darkMode}
           setDarkMode={setDarkMode}
+          dictionaryMode={dictionaryMode}
+          setDictionaryMode={setDictionaryMode}
         />
         <AuthDialog open={authOpen} mode={authMode} setMode={setAuthMode} onClose={() => setAuthOpen(false)} darkMode={darkMode} />
 
@@ -4126,7 +4668,12 @@ export default function App() {
         </div>
 
         <div className="chat-window">
-          {profileView === 'dashboard' ? (
+          {dictionaryMode ? (
+            <DictionaryModeView onOpenTerm={(entry) => {
+              setDictionaryMode(false)
+              openTerm(entry)
+            }} />
+          ) : profileView === 'dashboard' ? (
             <DashboardPage
               user={auth.user}
               entries={favorites.favoriteEntries}
@@ -4292,7 +4839,7 @@ export default function App() {
           )}
         </div>
 
-        {messages.length > 0 && !aboutOpen && profileView !== 'dashboard' && <div className="input-area">
+        {messages.length > 0 && !aboutOpen && profileView !== 'dashboard' && !dictionaryMode && <div className="input-area">
           <div className="input-container">
             {suggestions.length > 0 && (
               <div className="predictive-list">

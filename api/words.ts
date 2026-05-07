@@ -100,10 +100,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const q = getSingle(req.query.q)
   const terms = getSingle(req.query.terms)
+  const browse = getSingle(req.query.browse) === '1'
   const limit = Math.min(Math.max(Number(getSingle(req.query.limit)) || 8, 1), 25)
+  const browseLimit = Math.min(Math.max(Number(getSingle(req.query.limit)) || 300, 50), 500)
+  const offset = Math.max(Number(getSingle(req.query.offset)) || 0, 0)
   const searchLimit = terms ? limit : 100
 
   try {
+    if (browse) {
+      const { data, error, count } = await client
+        .from('words')
+        .select('id,term,definition,synonyms,tags,pronunciation,pos,examples', { count: 'exact' })
+        .order('term', { ascending: true })
+        .range(offset, offset + browseLimit - 1)
+      if (error) throw error
+      res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600')
+      res.status(200).json({ words: data || [], nextOffset: offset + (data?.length || 0), count })
+      return
+    }
+
     let query = client
       .from('words')
       .select('id,term,definition,synonyms,tags,pronunciation,pos,examples')
