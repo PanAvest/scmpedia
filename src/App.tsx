@@ -1828,10 +1828,15 @@ body {
   background:
     linear-gradient(90deg, rgba(0,0,0,0.05), transparent 12%, transparent 88%, rgba(0,0,0,0.05)),
     rgba(255,255,255,0.32);
+  contain: layout paint;
 }
 
 .dictionary-book-wrap.zoomed {
   cursor: grab;
+}
+
+.dictionary-book-wrap:not(.ready) {
+  min-height: 620px;
 }
 
 .dictionary-book-shell {
@@ -1843,8 +1848,18 @@ body {
   filter: drop-shadow(0 24px 42px rgba(20, 24, 22, 0.18));
 }
 
+.dictionary-book-wrap.zoomed .dictionary-flipbook,
+.dictionary-book-wrap.zoomed .dictionary-page {
+  pointer-events: none !important;
+}
+
 .dictionary-flipbook {
   margin: 0 auto !important;
+  opacity: 1;
+}
+
+.dictionary-flipbook > div {
+  overflow: visible !important;
 }
 
 .dictionary-page {
@@ -3319,6 +3334,7 @@ const DictionaryModeView = ({ onOpenTerm }: { onOpenTerm: (entry: Entry) => void
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [isMobileBook, setIsMobileBook] = useState(() => window.matchMedia?.('(max-width: 760px)').matches ?? false)
+  const [bookReady, setBookReady] = useState(false)
   const dragRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null)
   const flipBookRef = useRef<any>(null)
 
@@ -3415,8 +3431,15 @@ const DictionaryModeView = ({ onOpenTerm }: { onOpenTerm: (entry: Entry) => void
 
   useEffect(() => {
     setCurrentPage(0)
-    window.setTimeout(() => flipBookRef.current?.pageFlip?.()?.turnToPage(0), 0)
-  }, [entries.length])
+    setBookReady(false)
+    const frame = window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        setBookReady(true)
+        window.setTimeout(() => flipBookRef.current?.pageFlip?.()?.turnToPage(0), 0)
+      })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [entries.length, isMobileBook])
 
   const flipPages = useMemo<DictionaryPage[]>(() => {
     const dictionaryPages = pages.map((pageEntries, index): DictionaryPage => ({
@@ -3431,19 +3454,24 @@ const DictionaryModeView = ({ onOpenTerm }: { onOpenTerm: (entry: Entry) => void
   const safePage = Math.min(currentPage, maxPage)
   const nextPage = () => flipBookRef.current?.pageFlip?.()?.flipNext('bottom')
   const prevPage = () => flipBookRef.current?.pageFlip?.()?.flipPrev('bottom')
+  const isZoomed = zoom > 1.001
   const resetZoom = () => {
     setZoom(1)
     setPan({ x: 0, y: 0 })
   }
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (zoom <= 1) return
+    if (!isZoomed) return
+    event.preventDefault()
+    event.stopPropagation()
     dragRef.current = { x: event.clientX, y: event.clientY, panX: pan.x, panY: pan.y }
     event.currentTarget.setPointerCapture(event.pointerId)
   }
 
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragRef.current || zoom <= 1) return
+    if (!dragRef.current || !isZoomed) return
+    event.preventDefault()
+    event.stopPropagation()
     setPan({
       x: dragRef.current.panX + event.clientX - dragRef.current.x,
       y: dragRef.current.panY + event.clientY - dragRef.current.y,
@@ -3479,14 +3507,15 @@ const DictionaryModeView = ({ onOpenTerm }: { onOpenTerm: (entry: Entry) => void
           </div>
 
           <div
-            className={`dictionary-book-wrap ${zoom > 1 ? 'zoomed' : ''}`}
+            className={`dictionary-book-wrap ${isZoomed ? 'zoomed' : ''} ${bookReady ? 'ready' : ''}`}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
           >
             <div className="dictionary-book-shell" style={{ transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})` }}>
-              <HTMLFlipBook
+              {!bookReady && <DictionaryLoader count={loadedCount} />}
+              {bookReady && <HTMLFlipBook
                 key={`${isMobileBook ? 'mobile' : 'desktop'}-${flipPages.length}`}
                 ref={flipBookRef}
                 className="dictionary-flipbook"
@@ -3508,10 +3537,10 @@ const DictionaryModeView = ({ onOpenTerm }: { onOpenTerm: (entry: Entry) => void
                 showCover
                 mobileScrollSupport
                 clickEventForward
-                useMouseEvents={zoom <= 1}
+                useMouseEvents={!isZoomed}
                 swipeDistance={24}
-                showPageCorners={zoom <= 1}
-                disableFlipByClick={zoom > 1}
+                showPageCorners={!isZoomed}
+                disableFlipByClick={isZoomed}
                 onFlip={(event: any) => setCurrentPage(Number(event?.data || 0))}
               >
                 {flipPages.map((page, index) =>
@@ -3523,7 +3552,7 @@ const DictionaryModeView = ({ onOpenTerm }: { onOpenTerm: (entry: Entry) => void
                     <DictionaryPageView key={`page-${index}`} entries={page.entries} pageNumber={page.pageNumber} />
                   )
                 )}
-              </HTMLFlipBook>
+              </HTMLFlipBook>}
             </div>
           </div>
 
