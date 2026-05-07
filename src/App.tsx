@@ -167,6 +167,29 @@ body { margin: 0; font-family: "Google Sans", "Segoe UI", Roboto, Helvetica, Ari
 .pulse-dot { width: 8px; height: 8px; background: var(--primary); border-radius: 50%; animation: pulse-opacity 1s infinite ease-in-out; }
 .thought-process { font-size: 12px; color: #64748b; font-family: monospace; height: 1.4em; overflow: hidden; white-space: nowrap; }
 .fade-text { animation: fade-in-out 2s infinite; }
+.chat-thinking {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 42px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card-bg);
+  color: var(--text-sub);
+  box-shadow: var(--shadow);
+  font-size: 14px;
+  font-weight: 750;
+}
+.chat-thinking i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--primary);
+  animation: pulse-opacity 0.85s infinite ease-in-out;
+}
+.chat-thinking i:nth-child(3) { animation-delay: 0.12s; }
+.chat-thinking i:nth-child(4) { animation-delay: 0.24s; }
 
 /* Input Area */
 .input-area { position: fixed; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, var(--bg) 85%, transparent); padding: 0 20px calc(30px + var(--safe-bottom)); display: flex; flex-direction: column; align-items: center; z-index: 20; pointer-events: none; }
@@ -2055,6 +2078,7 @@ type Message = {
   entry?: Entry
   related?: Entry[]
   timestamp?: number
+  loading?: boolean
 }
 
 type TTSProvider = 'elevenlabs' | 'browser'
@@ -3071,6 +3095,15 @@ const ThinkingIndicator = () => {
   )
 }
 
+const ChatThinking = () => (
+  <div className="chat-thinking" aria-live="polite">
+    <span>Thinking</span>
+    <i />
+    <i />
+    <i />
+  </div>
+)
+
 const SmartCard = ({
   entry,
   allData,
@@ -3651,12 +3684,20 @@ export default function App() {
     setProfileView('home')
     setMobileMenuOpen(false)
 
-    setMessages((prev) => [...prev, { id: uuid(), role: 'user', content: originalQuery, timestamp: Date.now() }])
+    const thinkingId = uuid()
+    setMessages((prev) => [
+      ...prev,
+      { id: uuid(), role: 'user', content: originalQuery, timestamp: Date.now() },
+      { id: thinkingId, role: 'bot', loading: true, timestamp: Date.now() },
+    ])
 
     if (status !== 'ready') {
-      setTimeout(
-        () => setMessages((p) => [...p, { id: uuid(), role: 'bot', content: 'Please load the database file first.' }]),
-        200
+      setMessages((p) =>
+        p.map((message) =>
+          message.id === thinkingId
+            ? { id: thinkingId, role: 'bot', content: 'Please load the database file first.', timestamp: Date.now() }
+            : message
+        )
       )
       return
     }
@@ -3692,15 +3733,25 @@ export default function App() {
     }
 
     if (match) {
-      setMessages((p) => [...p, { id: uuid(), role: 'bot', entry: match, timestamp: Date.now() }])
+      setMessages((p) =>
+        p.map((message) =>
+          message.id === thinkingId
+            ? { id: thinkingId, role: 'bot', entry: match, timestamp: Date.now() }
+            : message
+        )
+      )
     } else {
-      setTimeout(
-        () =>
-          setMessages((p) => [
-            ...p,
-            { id: uuid(), role: 'bot', content: `I couldn't find a match for "${cleanQuery}". Try a different term.` },
-          ]),
-        300
+      setMessages((p) =>
+        p.map((message) =>
+          message.id === thinkingId
+            ? {
+                id: thinkingId,
+                role: 'bot',
+                content: `I couldn't find a match for "${cleanQuery}". Try a different term.`,
+                timestamp: Date.now(),
+              }
+            : message
+        )
       )
     }
   }
@@ -4057,6 +4108,7 @@ export default function App() {
                     </div>
                   )}
                   <div className="bubble">
+                    {m.loading && <ChatThinking />}
                     {m.content && <div style={{ padding: m.role === 'bot' ? '12px 0' : undefined }}>{m.content}</div>}
                     {m.entry && (
                       <SmartCard
