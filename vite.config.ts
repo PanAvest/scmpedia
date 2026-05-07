@@ -315,6 +315,7 @@ export default defineConfig(({ mode }) => {
             const q = url.searchParams.get('q')?.trim() || ''
             const terms = url.searchParams.get('terms')?.trim() || ''
             const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 8, 1), 25)
+            const searchLimit = terms ? limit : 100
             if (!q && !terms) {
               res.statusCode = 400
               res.setHeader('Content-Type', 'application/json')
@@ -329,8 +330,7 @@ export default defineConfig(({ mode }) => {
               let query = client
                 .from('words')
                 .select('id,term,definition,synonyms,tags,pronunciation,pos,examples')
-                .order('term', { ascending: true })
-                .limit(limit)
+                .limit(searchLimit)
 
               if (terms) {
                 query = query.in(
@@ -347,9 +347,30 @@ export default defineConfig(({ mode }) => {
 
               const { data, error } = await query
               if (error) throw error
+              const rankWords = (rows: any[]) => {
+                const needle = q.toLowerCase()
+                const score = (row: any) => {
+                  const term = String(row?.term || '').toLowerCase()
+                  const definition = String(row?.definition || '').toLowerCase()
+                  const tags = String(row?.tags || '').toLowerCase()
+                  if (term === needle) return 0
+                  if (term.startsWith(`${needle} `) || term.startsWith(`${needle}-`) || term.startsWith(needle)) return 1
+                  if (term.includes(needle)) return 2
+                  if (tags.includes(needle)) return 3
+                  if (definition.includes(needle)) return 4
+                  return 5
+                }
+                return [...rows]
+                  .sort((a, b) => {
+                    const scoreDiff = score(a) - score(b)
+                    if (scoreDiff) return scoreDiff
+                    return String(a?.term || '').localeCompare(String(b?.term || ''))
+                  })
+                  .slice(0, limit)
+              }
               res.statusCode = 200
               res.setHeader('Content-Type', 'application/json')
-              res.end(JSON.stringify({ words: data || [] }))
+              res.end(JSON.stringify({ words: terms ? data || [] : rankWords(data || []) }))
             } catch (err: any) {
               res.statusCode = 500
               res.setHeader('Content-Type', 'application/json')

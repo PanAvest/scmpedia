@@ -17,6 +17,31 @@ const client =
       })
     : null
 
+const rankWords = (rows: any[], q: string, limit: number) => {
+  const needle = q.trim().toLowerCase()
+  if (!needle) return rows.slice(0, limit)
+
+  const score = (row: any) => {
+    const term = String(row?.term || '').toLowerCase()
+    const definition = String(row?.definition || '').toLowerCase()
+    const tags = String(row?.tags || '').toLowerCase()
+    if (term === needle) return 0
+    if (term.startsWith(`${needle} `) || term.startsWith(`${needle}-`) || term.startsWith(needle)) return 1
+    if (term.includes(needle)) return 2
+    if (tags.includes(needle)) return 3
+    if (definition.includes(needle)) return 4
+    return 5
+  }
+
+  return [...rows]
+    .sort((a, b) => {
+      const scoreDiff = score(a) - score(b)
+      if (scoreDiff) return scoreDiff
+      return String(a?.term || '').localeCompare(String(b?.term || ''))
+    })
+    .slice(0, limit)
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
     res.status(405).json({ error: 'Method not allowed' })
@@ -31,13 +56,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const q = getSingle(req.query.q)
   const terms = getSingle(req.query.terms)
   const limit = Math.min(Math.max(Number(getSingle(req.query.limit)) || 8, 1), 25)
+  const searchLimit = terms ? limit : 100
 
   try {
     let query = client
       .from('words')
       .select('id,term,definition,synonyms,tags,pronunciation,pos,examples')
-      .order('term', { ascending: true })
-      .limit(limit)
+      .limit(searchLimit)
 
     if (terms) {
       const values = terms
@@ -57,7 +82,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (error) throw error
 
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600')
-    res.status(200).json({ words: data || [] })
+    const words = terms ? data || [] : rankWords(data || [], q, limit)
+    res.status(200).json({ words })
   } catch (error: any) {
     res.status(500).json({ error: error?.message || 'Failed to search words' })
   }
