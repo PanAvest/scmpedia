@@ -2304,12 +2304,13 @@ body {
   }
 
   .modal-overlay {
-    align-items: flex-end;
+    align-items: center;
+    justify-content: center;
     padding: 10px;
   }
 
   .modal {
-    width: 100%;
+    width: min(560px, 100%);
     max-height: calc(100dvh - 20px);
   }
 
@@ -4569,6 +4570,8 @@ export default function App() {
   }
 
   const goHome = () => {
+    setSettingsOpen(false)
+    setAuthOpen(false)
     setDictionaryMode(false)
     setAboutOpen(false)
     setProfileView('home')
@@ -4580,6 +4583,7 @@ export default function App() {
   }
 
   const openAuth = (mode: AuthMode = 'signin') => {
+    setSettingsOpen(false)
     setAuthMode(mode)
     setAuthOpen(true)
     setMobileMenuOpen(false)
@@ -4591,6 +4595,7 @@ export default function App() {
       return
     }
     setDictionaryMode(false)
+    setSettingsOpen(false)
     setAboutOpen(false)
     setProfileView('dashboard')
     setMessages([])
@@ -4602,6 +4607,8 @@ export default function App() {
     setInput('')
     setSuggestions([])
     setSelectedSug(-1)
+    setSettingsOpen(false)
+    setAuthOpen(false)
     setDictionaryMode(false)
     setProfileView('home')
     setAboutOpen(false)
@@ -4655,6 +4662,8 @@ export default function App() {
             <button
               className={`settings-btn ${aboutOpen ? 'active' : ''}`}
               onClick={() => {
+                setSettingsOpen(false)
+                setAuthOpen(false)
                 setDictionaryMode(false)
                 setAboutOpen((open) => !open)
                 setMobileMenuOpen(false)
@@ -4719,6 +4728,8 @@ export default function App() {
               <button
                 className={`settings-btn ${aboutOpen ? 'active' : ''}`}
                 onClick={() => {
+                  setSettingsOpen(false)
+                  setAuthOpen(false)
                   setDictionaryMode(false)
                   setAboutOpen((open) => !open)
                   setMobileMenuOpen(false)
@@ -4802,7 +4813,11 @@ export default function App() {
               onOpenTerm={openTerm}
             />
           ) : aboutOpen ? (
-            <AboutPage onBack={() => setAboutOpen(false)} />
+            <AboutPage onBack={() => {
+              setSettingsOpen(false)
+              setAuthOpen(false)
+              setAboutOpen(false)
+            }} />
           ) : messages.length === 0 ? (
             <div className="welcome-screen width-constraint">
               <div style={{ fontSize: '48px', marginBottom: '16px' }} aria-hidden="true"></div>
