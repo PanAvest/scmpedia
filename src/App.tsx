@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
+import HTMLFlipBook from 'react-pageflip'
 import { hasSupabaseConfig, supabase } from './supabase'
 
 /* ------------------------------- THEME & CSS ------------------------------- */
@@ -1840,21 +1841,23 @@ body {
   cursor: grab;
 }
 
-.dictionary-book {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0;
-  max-width: 1080px;
-  min-height: 680px;
+.dictionary-book-shell {
+  width: min(100%, 820px);
+  min-height: 540px;
   margin: 0 auto;
   transform-origin: center;
   transition: transform 0.18s ease;
   filter: drop-shadow(0 24px 42px rgba(20, 24, 22, 0.18));
 }
 
+.dictionary-flipbook {
+  margin: 0 auto !important;
+}
+
 .dictionary-page {
-  min-height: 680px;
-  padding: 34px 34px 28px;
+  width: 386px;
+  height: 500px;
+  padding: 24px 23px 20px;
   background:
     linear-gradient(90deg, rgba(0,0,0,0.08), transparent 8%),
     #fffdf5;
@@ -1862,10 +1865,9 @@ body {
   border: 1px solid #e2d6c2;
   font-family: Georgia, "Times New Roman", serif;
   column-count: 2;
-  column-gap: 24px;
+  column-gap: 16px;
   overflow: hidden;
   transform-origin: left center;
-  animation: page-flip-in 0.34s cubic-bezier(.2,.8,.2,1) both;
 }
 
 .dictionary-page:nth-child(2) {
@@ -1878,8 +1880,8 @@ body {
   display: flex;
   justify-content: space-between;
   column-span: all;
-  margin-bottom: 14px;
-  padding-bottom: 8px;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
   border-bottom: 1px solid #d6c8ad;
   color: #6b5b43;
   font-family: "Google Sans", "Segoe UI", sans-serif;
@@ -1890,13 +1892,13 @@ body {
 
 .dictionary-entry {
   break-inside: avoid;
-  margin: 0 0 10px;
+  margin: 0 0 7px;
 }
 
 .dictionary-entry h2 {
   margin: 0 0 8px;
   color: #9a4b32;
-  font-size: 30px;
+  font-size: 22px;
   line-height: 1;
   border-bottom: 2px solid #9a4b32;
   column-span: all;
@@ -1906,7 +1908,7 @@ body {
   display: inline;
   margin: 0;
   color: #16120d;
-  font-size: 14px;
+  font-size: 11px;
   line-height: 1.25;
   font-weight: 900;
 }
@@ -1914,15 +1916,15 @@ body {
 .dictionary-entry em {
   margin-left: 5px;
   color: #8a7052;
-  font-size: 12px;
+  font-size: 10px;
 }
 
 .dictionary-entry p {
   display: inline;
   margin: 0;
   color: #3b3329;
-  font-size: 12px;
-  line-height: 1.35;
+  font-size: 10px;
+  line-height: 1.28;
 }
 
 .dictionary-entry p::before {
@@ -1938,7 +1940,8 @@ body {
 }
 
 .dictionary-cover img {
-  width: min(78%, 330px);
+  width: 100%;
+  height: 100%;
   aspect-ratio: 386 / 500;
   object-fit: cover;
   border-radius: 6px;
@@ -2138,24 +2141,15 @@ body {
     touch-action: pan-x pan-y pinch-zoom;
   }
 
-  .dictionary-book {
-    grid-template-columns: 1fr;
-    min-height: 620px;
+  .dictionary-book-shell {
+    width: min(100%, 390px);
+    min-height: 505px;
     filter: drop-shadow(0 18px 28px rgba(20, 24, 22, 0.16));
   }
 
-  .dictionary-book .dictionary-page:nth-child(2) {
-    display: none;
-  }
-
   .dictionary-page {
-    min-height: 620px;
     padding: 24px 22px;
     column-count: 1;
-  }
-
-  .dictionary-cover img {
-    width: min(82%, 260px);
   }
 
   .dashboard-head {
@@ -3260,10 +3254,10 @@ const getSection = (term: string) => {
   return /^[A-Z]$/.test(first) ? first : '#'
 }
 
-const DictionaryPageView = ({ entries, pageNumber }: { entries: Entry[]; pageNumber: number }) => {
+const DictionaryPageView = React.forwardRef<HTMLDivElement, { entries: Entry[]; pageNumber: number }>(({ entries, pageNumber }, ref) => {
   let currentSection = ''
   return (
-    <section className="dictionary-page">
+    <section className="dictionary-page" ref={ref}>
       <div className="dictionary-page-top">
         <span>SCMPEDIA</span>
         <span>{pageNumber}</span>
@@ -3283,7 +3277,7 @@ const DictionaryPageView = ({ entries, pageNumber }: { entries: Entry[]; pageNum
       })}
     </section>
   )
-}
+})
 
 const DictionaryModeView = ({ onOpenTerm }: { onOpenTerm: (entry: Entry) => void }) => {
   const [entries, setEntries] = useState<Entry[]>([])
@@ -3291,11 +3285,12 @@ const DictionaryModeView = ({ onOpenTerm }: { onOpenTerm: (entry: Entry) => void
   const [loadingMore, setLoadingMore] = useState(false)
   const [loadError, setLoadError] = useState('')
   const [query, setQuery] = useState('')
-  const [pageIndex, setPageIndex] = useState(0)
+  const [currentPage, setCurrentPage] = useState(0)
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [isMobileBook, setIsMobileBook] = useState(() => window.matchMedia?.('(max-width: 760px)').matches ?? false)
   const dragRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null)
+  const flipBookRef = useRef<any>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -3352,7 +3347,7 @@ const DictionaryModeView = ({ onOpenTerm }: { onOpenTerm: (entry: Entry) => void
   }, [entries, query])
 
   const pages = useMemo(() => {
-    const pageSize = 16
+    const pageSize = 8
     const chunks: Entry[][] = []
     for (let index = 0; index < filtered.length; index += pageSize) {
       chunks.push(filtered.slice(index, index + pageSize))
@@ -3361,14 +3356,23 @@ const DictionaryModeView = ({ onOpenTerm }: { onOpenTerm: (entry: Entry) => void
   }, [filtered])
 
   useEffect(() => {
-    setPageIndex(0)
+    setCurrentPage(0)
+    window.setTimeout(() => flipBookRef.current?.pageFlip?.()?.turnToPage(0), 0)
   }, [query])
 
-  const maxPage = Math.max(0, pages.length - 1)
-  const safePage = Math.min(pageIndex, maxPage)
-  const pageStep = isMobileBook ? 1 : 2
-  const nextPage = () => setPageIndex((page) => Math.min(page + pageStep, maxPage))
-  const prevPage = () => setPageIndex((page) => Math.max(page - pageStep, 0))
+  const flipPages = useMemo(() => {
+    const dictionaryPages = pages.map((pageEntries, index) => ({
+      type: 'entries' as const,
+      entries: pageEntries,
+      pageNumber: index + 1,
+    }))
+    return query ? dictionaryPages : [{ type: 'cover' as const }, ...dictionaryPages]
+  }, [pages, query])
+
+  const maxPage = Math.max(0, flipPages.length - 1)
+  const safePage = Math.min(currentPage, maxPage)
+  const nextPage = () => flipBookRef.current?.pageFlip?.()?.flipNext('bottom')
+  const prevPage = () => flipBookRef.current?.pageFlip?.()?.flipPrev('bottom')
   const resetZoom = () => {
     setZoom(1)
     setPan({ x: 0, y: 0 })
@@ -3431,28 +3435,58 @@ const DictionaryModeView = ({ onOpenTerm }: { onOpenTerm: (entry: Entry) => void
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
           >
-            <div className="dictionary-book" style={{ transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})` }}>
-              {safePage === 0 && !query ? (
-                <section className="dictionary-page dictionary-cover" key="cover">
-                  <FadeImage src="/book.jpg" alt="Supply Chain Management Terms book cover" eager />
-                </section>
-              ) : (
-                <DictionaryPageView key={`left-${safePage}`} entries={pages[safePage] || []} pageNumber={safePage + 1} />
-              )}
-              <DictionaryPageView key={`right-${safePage + 1}`} entries={pages[safePage + 1] || []} pageNumber={safePage + 2} />
+            <div className="dictionary-book-shell" style={{ transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})` }}>
+              <HTMLFlipBook
+                key={`${query}-${isMobileBook ? 'mobile' : 'desktop'}-${flipPages.length}`}
+                ref={flipBookRef}
+                className="dictionary-flipbook"
+                style={{}}
+                width={386}
+                height={500}
+                minWidth={300}
+                maxWidth={386}
+                minHeight={389}
+                maxHeight={500}
+                size="stretch"
+                startPage={0}
+                drawShadow
+                flippingTime={720}
+                usePortrait
+                startZIndex={1}
+                autoSize
+                maxShadowOpacity={0.35}
+                showCover={!query}
+                mobileScrollSupport
+                clickEventForward
+                useMouseEvents={zoom <= 1}
+                swipeDistance={24}
+                showPageCorners={zoom <= 1}
+                disableFlipByClick={zoom > 1}
+                onFlip={(event: any) => setCurrentPage(Number(event?.data || 0))}
+              >
+                {flipPages.map((page, index) =>
+                  page.type === 'cover' ? (
+                    <section className="dictionary-page dictionary-cover" key="cover">
+                      <FadeImage src="/book.jpg" alt="Supply Chain Management Terms book cover" eager />
+                    </section>
+                  ) : (
+                    <DictionaryPageView key={`page-${index}`} entries={page.entries} pageNumber={page.pageNumber} />
+                  )
+                )}
+              </HTMLFlipBook>
             </div>
           </div>
 
           <div className="dictionary-page-controls">
             <button onClick={prevPage} disabled={safePage === 0}>Previous</button>
             <span>
-              Page {Math.min(safePage + 1, pages.length || 1)} of {Math.max(pages.length, 1)}
+              Page {Math.min(safePage + 1, flipPages.length || 1)} of {Math.max(flipPages.length, 1)}
             </span>
             <button onClick={nextPage} disabled={safePage >= maxPage}>Next</button>
           </div>
 
           <div className="dictionary-open-list">
-            {filtered.slice(safePage * 16, safePage * 16 + 6).map((entry) => (
+            {filtered.slice(Math.max(0, safePage - (query ? 0 : 1)) * 8, Math.max(0, safePage - (query ? 0 : 1)) * 8 + 6).map((entry) => (
               <button key={getEntryId(entry)} onClick={() => onOpenTerm(entry)}>
                 Open {entry.term} in chat card
               </button>
