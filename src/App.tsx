@@ -3670,6 +3670,7 @@ export default function App() {
 
   const chatEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const suggestionsRequestRef = useRef(0)
 
   const stopWords = useMemo(
     () => /^(what is|what's|define|explain|describe|meaning of|tell me about|search for|look up|do you know)\s+/i,
@@ -3697,6 +3698,7 @@ export default function App() {
   }, [auth])
 
   useEffect(() => {
+    const requestId = ++suggestionsRequestRef.current
     if (serverBacked) {
       const query = input.trim()
       if (!query) {
@@ -3705,8 +3707,12 @@ export default function App() {
       }
       const timeout = window.setTimeout(() => {
         void searchServerWords(query, 5)
-          .then(setSuggestions)
-          .catch(() => setSuggestions([]))
+          .then((next) => {
+            if (suggestionsRequestRef.current === requestId) setSuggestions(next)
+          })
+          .catch(() => {
+            if (suggestionsRequestRef.current === requestId) setSuggestions([])
+          })
       }, 180)
       return () => window.clearTimeout(timeout)
     }
@@ -3739,6 +3745,7 @@ export default function App() {
   const handleSubmit = async (text: string) => {
     if (!text.trim()) return
     const originalQuery = text.trim()
+    suggestionsRequestRef.current += 1
     setInput('')
     setSuggestions([])
     setSelectedSug(-1)
@@ -3868,9 +3875,27 @@ export default function App() {
   }
 
   const openTerm = (entry: Entry) => {
+    suggestionsRequestRef.current += 1
+    setInput('')
+    setSuggestions([])
+    setSelectedSug(-1)
     setProfileView('home')
     setAboutOpen(false)
     setMessages([{ id: uuid(), role: 'bot', entry, timestamp: Date.now() }])
+  }
+
+  const handleRelatedPick = (messageId: string, entry: Entry) => {
+    suggestionsRequestRef.current += 1
+    setInput('')
+    setSuggestions([])
+    setSelectedSug(-1)
+    setMessages((current) =>
+      current.map((message) =>
+        message.id === messageId
+          ? { id: messageId, role: 'bot', entry, timestamp: Date.now() }
+          : message
+      )
+    )
   }
 
   const toggleFavorite = async (entry: Entry) => {
@@ -4180,7 +4205,7 @@ export default function App() {
                   <div className="bubble">
                     {m.loading && <ChatThinking />}
                     {m.content && <div style={{ padding: m.role === 'bot' ? '12px 0' : undefined }}>{m.content}</div>}
-                    {m.related?.length ? <WordSuggestions entries={m.related} onPick={openTerm} /> : null}
+                    {m.related?.length ? <WordSuggestions entries={m.related} onPick={(entry) => handleRelatedPick(m.id, entry)} /> : null}
                     {m.entry && (
                       <SmartCard
                         entry={m.entry}
