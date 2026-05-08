@@ -16,6 +16,8 @@ export default defineConfig(({ mode }) => {
   const elevenLabsOutputFormat = env.ELEVENLABS_OUTPUT_FORMAT || 'mp3_44100_128'
   const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL || env.VITE_SUPABASE_URL
   const supabaseServiceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY
+  const supabaseAnonKey = env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || env.VITE_SUPABASE_ANON_KEY
+  const paystackSecretKey = env.PAYSTACK_SECRET_KEY
 
   return {
     envPrefix: ['VITE_', 'NEXT_PUBLIC_'],
@@ -294,6 +296,204 @@ export default defineConfig(({ mode }) => {
                 res.setHeader('Content-Type', 'application/json')
                 res.end(JSON.stringify({ error: err?.message || 'Failed to fetch image' }))
               })
+          })
+
+          server.middlewares.use('/api/paystack/initialize', (req, res) => {
+            if (req.method !== 'POST') {
+              res.statusCode = 405
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify({ error: 'Method not allowed' }))
+              return
+            }
+
+            let body = ''
+            req.on('data', (chunk) => {
+              body += chunk
+            })
+
+            req.on('end', async () => {
+              try {
+                if (!supabaseUrl || !supabaseAnonKey || !paystackSecretKey) {
+                  res.statusCode = 500
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ error: 'Missing payment server configuration' }))
+                  return
+                }
+
+                const plans: any = {
+                  monthly: { amount: 200, durationDays: 31 },
+                  annual: { amount: 2000, durationDays: 366 },
+                }
+                const parsed = JSON.parse(body || '{}')
+                const planId = String(parsed.plan || '').toLowerCase()
+                const plan = plans[planId]
+                const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '')
+                if (!plan) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ error: 'Invalid subscription plan' }))
+                  return
+                }
+                if (!token) {
+                  res.statusCode = 401
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ error: 'Sign in before subscribing' }))
+                  return
+                }
+
+                const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+                  auth: { persistSession: false, autoRefreshToken: false },
+                })
+                const { data: userData, error: userError } = await authClient.auth.getUser(token)
+                if (userError || !userData.user?.email) {
+                  res.statusCode = 401
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ error: 'Could not verify signed-in user' }))
+                  return
+                }
+
+                const response = await fetch('https://api.paystack.co/transaction/initialize', {
+                  method: 'POST',
+                  headers: {
+                    Authorization: `Bearer ${paystackSecretKey}`,
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    amount: plan.amount,
+                    email: userData.user.email,
+                    currency: 'USD',
+                    callback_url: 'http://localhost:5173/',
+                    metadata: {
+                      user_id: userData.user.id,
+                      plan: planId,
+                      duration_days: plan.durationDays,
+                      product: 'scmpedia-premium',
+                    },
+                  }),
+                })
+                const payload = await response.json().catch(() => ({}))
+                if (!response.ok || !payload?.status || !payload?.data?.authorization_url) {
+                  res.statusCode = 502
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ error: payload?.message || 'Could not initialize Paystack checkout' }))
+                  return
+                }
+                res.statusCode = 200
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ authorizationUrl: payload.data.authorization_url, reference: payload.data.reference }))
+              } catch (err: any) {
+                res.statusCode = 500
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ error: err?.message || 'Could not initialize Paystack checkout' }))
+              }
+            })
+          })
+
+          server.middlewares.use('/api/paystack/verify', (req, res) => {
+            if (req.method !== 'POST') {
+              res.statusCode = 405
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify({ error: 'Method not allowed' }))
+              return
+            }
+
+            let body = ''
+            req.on('data', (chunk) => {
+              body += chunk
+            })
+
+            req.on('end', async () => {
+              try {
+                if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey || !paystackSecretKey) {
+                  res.statusCode = 500
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ error: 'Missing payment server configuration' }))
+                  return
+                }
+
+                const parsed = JSON.parse(body || '{}')
+                const reference = String(parsed.reference || '').trim()
+                const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '')
+                if (!reference) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ error: 'Missing Paystack reference' }))
+                  return
+                }
+                if (!token) {
+                  res.statusCode = 401
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ error: 'Sign in to verify payment' }))
+                  return
+                }
+
+                const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+                  auth: { persistSession: false, autoRefreshToken: false },
+                })
+                const { data: userData, error: userError } = await authClient.auth.getUser(token)
+                if (userError || !userData.user) {
+                  res.statusCode = 401
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ error: 'Could not verify signed-in user' }))
+                  return
+                }
+
+                const response = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, {
+                  headers: { Authorization: `Bearer ${paystackSecretKey}` },
+                })
+                const payment = await response.json().catch(() => ({}))
+                const plans: any = {
+                  monthly: { amount: 200, durationDays: 31 },
+                  annual: { amount: 2000, durationDays: 366 },
+                }
+                const planId = String(payment?.data?.metadata?.plan || '').toLowerCase()
+                const plan = plans[planId]
+                if (!response.ok || !payment?.status || payment?.data?.status !== 'success') {
+                  res.statusCode = 402
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ error: payment?.message || 'Payment has not been completed' }))
+                  return
+                }
+                if (!plan || payment.data.metadata?.user_id !== userData.user.id || Number(payment.data.amount) !== plan.amount) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ error: 'Payment does not match this subscription' }))
+                  return
+                }
+
+                const expiresAt = new Date()
+                expiresAt.setDate(expiresAt.getDate() + plan.durationDays)
+                const admin = createClient(supabaseUrl, supabaseServiceRoleKey, {
+                  auth: { persistSession: false, autoRefreshToken: false },
+                })
+                const { error: updateError } = await admin.auth.admin.updateUserById(userData.user.id, {
+                  app_metadata: {
+                    ...(userData.user.app_metadata || {}),
+                    scmpedia_subscription: {
+                      tier: 'premium',
+                      plan: planId,
+                      paystack_reference: reference,
+                      expires_at: expiresAt.toISOString(),
+                      updated_at: new Date().toISOString(),
+                    },
+                  },
+                })
+                if (updateError) {
+                  res.statusCode = 500
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ error: updateError.message || 'Could not activate subscription' }))
+                  return
+                }
+
+                res.statusCode = 200
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ tier: 'premium', plan: planId, expiresAt: expiresAt.toISOString() }))
+              } catch (err: any) {
+                res.statusCode = 500
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ error: err?.message || 'Could not verify Paystack payment' }))
+              }
+            })
           })
 
           server.middlewares.use('/api/words', async (req, res) => {

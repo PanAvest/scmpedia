@@ -52,6 +52,76 @@ body { margin: 0; font-family: "Google Sans", "Segoe UI", Roboto, Helvetica, Ari
 .indicator.ready { background: #14ae5c; box-shadow: 0 0 0 2px rgba(20, 174, 92, 0.2); }
 .indicator.error { background: #d93025; }
 
+.premium-badge {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px;
+  border-radius: 999px; background: #063f3a; color: #fff; font-size: 12px; font-weight: 800;
+}
+.premium-badge.free { background: var(--surface); color: var(--text-sub); border: 1px solid var(--border); }
+.pricing-modal { max-width: 820px; overflow: hidden; }
+.pricing-top {
+  display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: start; margin-bottom: 18px;
+}
+.pricing-status {
+  display: grid; gap: 8px; min-width: 190px; padding: 13px; border: 1px solid var(--border);
+  border-radius: 8px; background: var(--surface);
+}
+.pricing-meter { height: 8px; overflow: hidden; border-radius: 999px; background: #e5e7eb; }
+.pricing-meter span { display: block; width: 100%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #b65437, #063f3a); }
+.pricing-meter.free span { width: 34%; background: #b65437; }
+.pricing-benefits {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px;
+}
+.pricing-benefit {
+  display: grid; grid-template-columns: 30px 1fr; gap: 9px; align-items: center; padding: 11px;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--surface);
+}
+.pricing-benefit svg { color: var(--primary); }
+.pricing-benefit strong { display: block; font-size: 12px; }
+.pricing-benefit span { display: block; color: var(--text-sub); font-size: 11px; line-height: 1.35; }
+.pricing-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.pricing-card {
+  position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; width: 100%;
+  border: 1px solid var(--border); border-radius: 8px; padding: 18px; background: var(--card-bg);
+  color: var(--text-main); text-align: left; cursor: pointer; box-shadow: var(--shadow);
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+.pricing-card:hover { border-color: rgba(182,84,55,0.32); transform: translateY(-2px); box-shadow: 0 12px 30px rgba(0,0,0,0.12); }
+.pricing-card.selected { border-color: var(--primary); background: linear-gradient(180deg, rgba(182,84,55,0.08), var(--card-bg) 44%); box-shadow: 0 14px 34px rgba(182,84,55,0.16); }
+.pricing-card:disabled { cursor: wait; opacity: 0.78; }
+.pricing-card strong { font-size: 17px; }
+.pricing-card-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; }
+.pricing-radio {
+  width: 19px; height: 19px; border: 2px solid var(--border); border-radius: 50%; display: inline-flex;
+  align-items: center; justify-content: center; flex: 0 0 auto; background: #fff;
+}
+.pricing-card.selected .pricing-radio { border-color: var(--primary); }
+.pricing-card.selected .pricing-radio::after { content: ''; width: 9px; height: 9px; border-radius: 50%; background: var(--primary); }
+.pricing-ribbon {
+  position: static; align-self: flex-start; padding: 4px 8px; border-radius: 999px;
+  background: #063f3a; color: #fff; font-size: 11px; font-weight: 900;
+}
+.pricing-price { font-size: 30px; font-weight: 900; color: var(--primary); }
+.pricing-price span { color: var(--text-sub); font-size: 13px; font-weight: 700; }
+.pricing-copy { color: var(--text-sub); font-size: 14px; line-height: 1.5; }
+.pricing-features { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; color: var(--text-sub); font-size: 13px; }
+.pricing-features li { display: flex; gap: 7px; align-items: center; }
+.pricing-features svg { color: #14ae5c; flex: 0 0 auto; }
+.pricing-checkout {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 16px;
+  padding: 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface);
+}
+.pricing-choice { display: grid; gap: 3px; font-size: 13px; color: var(--text-sub); }
+.pricing-choice strong { color: var(--text-main); font-size: 15px; }
+.pricing-cta { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.pricing-error { margin-top: 12px; color: #d93025; font-size: 13px; font-weight: 700; }
+.limit-alert {
+  width: min(680px, 100%); padding: 16px; border-radius: 8px; background: #fff7ed;
+  border: 1px solid #fed7aa; color: #7c2d12; box-shadow: var(--shadow); line-height: 1.5;
+}
+.limit-alert strong { display: block; color: #9a3412; margin-bottom: 4px; }
+.premium-lock { opacity: 0.62; }
+.premium-lock-note { margin-top: 6px; color: var(--primary); font-size: 12px; font-weight: 800; }
+
 /* Settings Modal */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
 .modal { background: #fff; width: 100%; max-width: 480px; border-radius: 16px; padding: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); animation: pop-up 0.2s ease-out; }
@@ -306,6 +376,12 @@ mark { background: rgba(182, 84, 55, 0.2); color: inherit; padding: 0 2px; borde
   .send-btn { padding: 10px; margin-right: 4px; }
   .w-title { font-size: 28px; }
   .w-sub { font-size: 14px; }
+  .pricing-top { grid-template-columns: 1fr; }
+  .pricing-benefits { grid-template-columns: 1fr; }
+  .pricing-grid { grid-template-columns: 1fr; }
+  .pricing-checkout { align-items: stretch; flex-direction: column; }
+  .pricing-cta { justify-content: center; width: 100%; }
+  .pricing-modal { max-width: calc(100vw - 24px); }
 }
 
 @media (max-width: 480px) {
@@ -2032,6 +2108,9 @@ body {
   .header-controls {
     position: relative;
     width: auto;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
     gap: 0;
     z-index: 260;
   }
@@ -2331,6 +2410,70 @@ body {
     padding: 14px;
   }
 
+  .pricing-modal {
+    width: min(100%, calc(100vw - 20px));
+    max-height: calc(100dvh - 20px);
+  }
+
+  .pricing-top {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-bottom: 0;
+  }
+
+  .pricing-status {
+    min-width: 0;
+    padding: 10px;
+  }
+
+  .pricing-benefits {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .pricing-benefit {
+    grid-template-columns: 26px 1fr;
+    padding: 9px 10px;
+  }
+
+  .pricing-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .pricing-card {
+    gap: 8px;
+    padding: 13px;
+  }
+
+  .pricing-price {
+    font-size: 25px;
+  }
+
+  .pricing-copy,
+  .pricing-features {
+    font-size: 12px;
+  }
+
+  .pricing-checkout {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    margin-top: 10px;
+    padding: 11px;
+  }
+
+  .pricing-choice strong {
+    font-size: 13px;
+  }
+
+  .pricing-cta {
+    justify-content: center;
+    width: 100%;
+    white-space: normal;
+  }
+
   .setting-card {
     grid-template-columns: 36px 1fr;
     gap: 12px;
@@ -2346,6 +2489,8 @@ body {
 @media (max-width: 480px) {
   .header-controls {
     width: auto;
+    flex-direction: row;
+    align-items: center;
   }
 
   .feature-grid {
@@ -2527,6 +2672,12 @@ type Message = {
 type TTSProvider = 'elevenlabs' | 'browser'
 type AuthMode = 'signin' | 'signup' | 'forgot' | 'update'
 type ProfileView = 'home' | 'dashboard'
+type SubscriptionPlan = 'monthly' | 'annual'
+type SubscriptionState = {
+  tier: 'free' | 'premium'
+  plan?: SubscriptionPlan
+  expiresAt?: string
+}
 
 type FavoriteRow = {
   id: string
@@ -2546,6 +2697,8 @@ const ELEVENLABS_OUTPUT_FORMAT = 'mp3_44100_128'
 const LOCAL_ENTRIES_KEY = 'scmpedia-admin-entries-v1'
 const THEME_KEY = 'scmpedia-theme-v1'
 const DICTIONARY_MODE_KEY = 'scmpedia-dictionary-mode-v1'
+const FREE_USAGE_KEY = 'scmpedia-free-usage-v1'
+const FREE_DAILY_LIMIT = 2
 
 const uuid = () => Math.random().toString(36).substring(2, 9)
 const escapeHtml = (input: string) =>
@@ -2602,6 +2755,34 @@ const passwordChecks = (password: string) => [
   { label: 'Number', met: /\d/.test(password) },
   { label: 'Symbol', met: /[^A-Za-z0-9]/.test(password) },
 ]
+
+const todayKey = () => new Date().toISOString().slice(0, 10)
+
+const readFreeUsage = () => {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(FREE_USAGE_KEY) || '{}')
+    if (parsed?.day === todayKey()) return Number(parsed.count) || 0
+  } catch {
+    // reset invalid local usage state
+  }
+  return 0
+}
+
+const writeFreeUsage = (count: number) => {
+  localStorage.setItem(FREE_USAGE_KEY, JSON.stringify({ day: todayKey(), count }))
+}
+
+const getSubscriptionFromUser = (user: User | null): SubscriptionState => {
+  const subscription = user?.app_metadata?.scmpedia_subscription
+  if (!subscription || subscription.tier !== 'premium') return { tier: 'free' }
+  const expiresAt = typeof subscription.expires_at === 'string' ? subscription.expires_at : ''
+  if (expiresAt && new Date(expiresAt).getTime() <= Date.now()) return { tier: 'free' }
+  return {
+    tier: 'premium',
+    plan: subscription.plan === 'monthly' ? 'monthly' : 'annual',
+    expiresAt,
+  }
+}
 
 /* ------------------------------- LOGIC HOOKS ------------------------------- */
 
@@ -3039,7 +3220,16 @@ function useAuth() {
     await supabase.auth.signOut()
   }
 
-  return { session, user, loading, passwordRecovery, setPasswordRecovery, signOut }
+  const refreshUser = async () => {
+    if (!supabase) return null
+    const { data } = await supabase.auth.getUser()
+    setUser(data.user ?? null)
+    const sessionResult = await supabase.auth.getSession()
+    setSession(sessionResult.data.session)
+    return data.user ?? null
+  }
+
+  return { session, user, loading, passwordRecovery, setPasswordRecovery, signOut, refreshUser }
 }
 
 function useFavorites(user: User | null, allData: Entry[]) {
@@ -3132,6 +3322,87 @@ function useFavorites(user: User | null, allData: Entry[]) {
   return { favorites, favoriteEntries, favoriteTerms, loading, savingTerm, toggleFavorite, reload: loadFavorites }
 }
 
+function useSubscription(auth: ReturnType<typeof useAuth>) {
+  const [state, setState] = useState<SubscriptionState>(() => getSubscriptionFromUser(auth.user))
+  const [checkingOut, setCheckingOut] = useState<SubscriptionPlan | null>(null)
+  const [verifying, setVerifying] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    setState(getSubscriptionFromUser(auth.user))
+  }, [auth.user])
+
+  const verifyReference = useCallback(async (reference: string) => {
+    if (!auth.session?.access_token) return
+    setVerifying(true)
+    setError('')
+    try {
+      const response = await fetch('/api/paystack/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${auth.session.access_token}`,
+        },
+        body: JSON.stringify({ reference }),
+      })
+      const body = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(body?.error || 'Could not verify payment')
+      await auth.refreshUser()
+      setState({ tier: 'premium', plan: body.plan, expiresAt: body.expiresAt })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not verify payment')
+    } finally {
+      setVerifying(false)
+    }
+  }, [auth])
+
+  useEffect(() => {
+    const reference = new URLSearchParams(window.location.search).get('reference')
+    if (!reference || !auth.session?.access_token) return
+    void verifyReference(reference).finally(() => {
+      const url = new URL(window.location.href)
+      url.searchParams.delete('reference')
+      window.history.replaceState({}, '', url.toString())
+    })
+  }, [auth.session?.access_token, verifyReference])
+
+  const subscribe = async (plan: SubscriptionPlan) => {
+    if (!auth.user || !auth.session?.access_token) {
+      setError('Sign in before subscribing.')
+      return { needsAuth: true }
+    }
+    setCheckingOut(plan)
+    setError('')
+    try {
+      const response = await fetch('/api/paystack/initialize', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${auth.session.access_token}`,
+        },
+        body: JSON.stringify({ plan }),
+      })
+      const body = await response.json().catch(() => ({}))
+      if (!response.ok || !body?.authorizationUrl) throw new Error(body?.error || 'Could not start checkout')
+      window.location.href = body.authorizationUrl
+      return { needsAuth: false }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not start checkout')
+      setCheckingOut(null)
+      return { needsAuth: false }
+    }
+  }
+
+  return {
+    ...state,
+    isPremium: state.tier === 'premium',
+    checkingOut,
+    verifying,
+    error,
+    subscribe,
+  }
+}
+
 /* ------------------------------- UI COMPONENTS ------------------------------- */
 
 const SettingsDialog = ({
@@ -3145,6 +3416,8 @@ const SettingsDialog = ({
   dictionaryMode,
   setDictionaryMode,
   setSettingsOpen,
+  isPremium,
+  onRequirePremium,
 }: {
   open: boolean
   onClose: () => void
@@ -3156,8 +3429,14 @@ const SettingsDialog = ({
   dictionaryMode: boolean
   setDictionaryMode: (v: boolean) => void
   setSettingsOpen: (v: boolean) => void
+  isPremium: boolean
+  onRequirePremium: () => void
 }) => {
   if (!open) return null
+  const openPremium = () => {
+    setSettingsOpen(false)
+    onRequirePremium()
+  }
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -3175,7 +3454,7 @@ const SettingsDialog = ({
         </div>
 
         <div className="settings-body">
-          <div className="setting-card">
+          <div className={`setting-card ${!isPremium ? 'premium-lock' : ''}`}>
             <div className="setting-card-icon">
               <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M4 9v6h4l5 5V4L8 9H4Z" />
@@ -3256,16 +3535,28 @@ const SettingsDialog = ({
                 <div>
                   <label className="modal-label">Dark mode</label>
                   <div className="toggle-copy">Use a darker interface for lower-light reading.</div>
+                  {!isPremium && <div className="premium-lock-note">Premium feature</div>}
                 </div>
                 <label className="toggle-switch" aria-label="Dark mode">
-                  <input type="checkbox" checked={darkMode} onChange={(e) => setDarkMode(e.target.checked)} />
+                  <input
+                    type="checkbox"
+                    checked={darkMode}
+                    onChange={(e) => {
+                      if (!isPremium) {
+                        e.preventDefault()
+                        openPremium()
+                        return
+                      }
+                      setDarkMode(e.target.checked)
+                    }}
+                  />
                   <span className="toggle-slider"></span>
                 </label>
               </div>
             </div>
           </div>
 
-          <div className="setting-card">
+          <div className={`setting-card ${!isPremium ? 'premium-lock' : ''}`}>
             <div className="setting-card-icon">
               <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
@@ -3278,12 +3569,18 @@ const SettingsDialog = ({
                 <div>
                   <label className="modal-label">Dictionary mode</label>
                   <div className="toggle-copy">Browse scmpedia as a page-flipping dictionary instead of chat.</div>
+                  {!isPremium && <div className="premium-lock-note">Premium feature</div>}
                 </div>
                 <label className="toggle-switch" aria-label="Dictionary mode">
                   <input
                     type="checkbox"
                     checked={dictionaryMode}
                     onChange={(e) => {
+                      if (!isPremium) {
+                        e.preventDefault()
+                        openPremium()
+                        return
+                      }
                       setDictionaryMode(e.target.checked)
                       setSettingsOpen(false)
                     }}
@@ -3297,6 +3594,121 @@ const SettingsDialog = ({
           <div className="modal-actions">
             <button className="modal-btn primary" onClick={onClose}>
               Done
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const PricingDialog = ({
+  open,
+  onClose,
+  subscription,
+  onSubscribe,
+}: {
+  open: boolean
+  onClose: () => void
+  subscription: ReturnType<typeof useSubscription>
+  onSubscribe: (plan: SubscriptionPlan) => void
+}) => {
+  const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan>('annual')
+  if (!open) return null
+  const plans: Array<{ id: SubscriptionPlan; title: string; price: string; cadence: string; copy: string; badge?: string }> = [
+    { id: 'monthly', title: 'Monthly', price: '$2', cadence: 'per month', copy: 'Flexible premium access for regular lookup and study.' },
+    { id: 'annual', title: 'Annual', price: '$20', cadence: 'per year', copy: 'Best value for full-year access to scmpedia premium.', badge: 'Best value' },
+  ]
+  const selected = plans.find((plan) => plan.id === selectedPlan) || plans[1]
+  const checkingOut = Boolean(subscription.checkingOut)
+  const iconProps = { viewBox: '0 0 24 24', width: 18, height: 18, fill: 'none', stroke: 'currentColor', strokeWidth: 2 }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal pricing-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="pricing-top">
+          <div className="settings-head">
+            <div className="settings-mark">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7H14a3.5 3.5 0 0 1 0 7H6" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="settings-title">Pricing</h2>
+              <p className="settings-subtitle">Choose a premium plan to unlock full access.</p>
+            </div>
+          </div>
+          <div className="pricing-status">
+            <div className={subscription.isPremium ? 'premium-badge' : 'premium-badge free'}>
+              {subscription.isPremium ? `Premium ${subscription.plan || ''}` : 'Free tier'}
+            </div>
+            <div className={`pricing-meter ${subscription.isPremium ? '' : 'free'}`} aria-hidden="true">
+              <span />
+            </div>
+            <div className="pricing-copy">{subscription.isPremium ? 'Unlimited access is active.' : '2 free word searches per day.'}</div>
+          </div>
+        </div>
+
+        <div className="settings-body">
+          <div className="pricing-benefits" aria-label="Premium benefits">
+            <div className="pricing-benefit">
+              <svg {...iconProps}><path d="M4 12h16M13 5l7 7-7 7" /></svg>
+              <div><strong>Unlimited searches</strong><span>No daily search cap.</span></div>
+            </div>
+            <div className="pricing-benefit">
+              <svg {...iconProps}><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15Z" /></svg>
+              <div><strong>Dictionary mode</strong><span>Browse the full reference.</span></div>
+            </div>
+            <div className="pricing-benefit">
+              <svg {...iconProps}><path d="M12 3a6 6 0 0 0 9 7.5A9 9 0 1 1 12 3Z" /></svg>
+              <div><strong>Dark mode</strong><span>Premium reading controls.</span></div>
+            </div>
+          </div>
+
+          <div className="pricing-grid">
+            {plans.map((plan) => (
+              <button
+                key={plan.id}
+                className={`pricing-card ${selectedPlan === plan.id ? 'selected' : ''}`}
+                onClick={() => setSelectedPlan(plan.id)}
+                disabled={checkingOut}
+                aria-pressed={selectedPlan === plan.id}
+              >
+                {plan.badge && <span className="pricing-ribbon">{plan.badge}</span>}
+                <div className="pricing-card-top">
+                  <strong>{plan.title}</strong>
+                  <span className="pricing-radio" aria-hidden="true" />
+                </div>
+                <div className="pricing-price">{plan.price} <span>{plan.cadence}</span></div>
+                <div className="pricing-copy">{plan.copy}</div>
+                <ul className="pricing-features">
+                  <li><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m5 12 4 4L19 6" /></svg>Unlimited word searches</li>
+                  <li><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m5 12 4 4L19 6" /></svg>Dictionary mode access</li>
+                  <li><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m5 12 4 4L19 6" /></svg>Dark mode access</li>
+                </ul>
+              </button>
+            ))}
+          </div>
+
+          <div className="pricing-checkout">
+            <div className="pricing-choice">
+              <span>Selected plan</span>
+              <strong>{selected?.title} premium - {selected?.price} {selected?.cadence}</strong>
+            </div>
+            <button className="modal-btn primary pricing-cta" onClick={() => onSubscribe(selectedPlan)} disabled={checkingOut}>
+              {subscription.checkingOut === selectedPlan ? 'Opening Paystack...' : 'Continue to Paystack'}
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M7 17 17 7M8 7h9v9" />
+              </svg>
+            </button>
+          </div>
+
+          {subscription.verifying && <div className="api-hint">Verifying Paystack payment...</div>}
+          {subscription.error && <div className="pricing-error">{subscription.error}</div>}
+
+          <div className="modal-actions">
+            <button className="modal-btn secondary" onClick={onClose}>
+              Close
             </button>
           </div>
         </div>
@@ -4363,11 +4775,13 @@ export default function App() {
   const ai = useAI()
   const auth = useAuth()
   const favorites = useFavorites(auth.user, data)
+  const subscription = useSubscription(auth)
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [suggestions, setSuggestions] = useState<Entry[]>([])
   const [selectedSug, setSelectedSug] = useState(-1)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [pricingOpen, setPricingOpen] = useState(false)
   const [authOpen, setAuthOpen] = useState(false)
   const [authMode, setAuthMode] = useState<AuthMode>('signin')
   const [aboutOpen, setAboutOpen] = useState(false)
@@ -4405,6 +4819,12 @@ export default function App() {
       setMobileMenuOpen(false)
     }
   }, [dictionaryMode])
+
+  useEffect(() => {
+    if (subscription.isPremium) return
+    if (dictionaryMode) setDictionaryMode(false)
+    if (darkMode) setDarkMode(false)
+  }, [subscription.isPremium, dictionaryMode, darkMode])
 
   useEffect(() => {
     if (!auth.user && profileView === 'dashboard') {
@@ -4467,6 +4887,31 @@ export default function App() {
   const handleSubmit = async (text: string) => {
     if (!text.trim()) return
     const originalQuery = text.trim()
+    if (!subscription.isPremium) {
+      const usedToday = readFreeUsage()
+      if (usedToday >= FREE_DAILY_LIMIT) {
+        suggestionsRequestRef.current += 1
+        setInput('')
+        setSuggestions([])
+        setSelectedSug(-1)
+        setAboutOpen(false)
+        setProfileView('home')
+        setMobileMenuOpen(false)
+        setPricingOpen(true)
+        setMessages((prev) => [
+          ...prev,
+          { id: uuid(), role: 'user', content: originalQuery, timestamp: Date.now() },
+          {
+            id: uuid(),
+            role: 'bot',
+            content: 'You have exhausted your free tier for the day. Consider paying for the full tier to unlock unlimited searches, dictionary mode, and dark mode.',
+            timestamp: Date.now(),
+          },
+        ])
+        return
+      }
+      writeFreeUsage(usedToday + 1)
+    }
     suggestionsRequestRef.current += 1
     setInput('')
     setSuggestions([])
@@ -4571,6 +5016,7 @@ export default function App() {
 
   const goHome = () => {
     setSettingsOpen(false)
+    setPricingOpen(false)
     setAuthOpen(false)
     setDictionaryMode(false)
     setAboutOpen(false)
@@ -4584,9 +5030,25 @@ export default function App() {
 
   const openAuth = (mode: AuthMode = 'signin') => {
     setSettingsOpen(false)
+    setPricingOpen(false)
     setAuthMode(mode)
     setAuthOpen(true)
     setMobileMenuOpen(false)
+  }
+
+  const openPricing = () => {
+    setSettingsOpen(false)
+    setAuthOpen(false)
+    setPricingOpen(true)
+    setMobileMenuOpen(false)
+  }
+
+  const startSubscription = (plan: SubscriptionPlan) => {
+    if (!auth.user) {
+      openAuth('signin')
+      return
+    }
+    void subscription.subscribe(plan)
   }
 
   const openDashboard = () => {
@@ -4596,9 +5058,20 @@ export default function App() {
     }
     setDictionaryMode(false)
     setSettingsOpen(false)
+    setPricingOpen(false)
     setAboutOpen(false)
     setProfileView('dashboard')
     setMessages([])
+    setMobileMenuOpen(false)
+  }
+
+  const openAbout = () => {
+    setSettingsOpen(false)
+    setAuthOpen(false)
+    setPricingOpen(false)
+    setDictionaryMode(false)
+    setProfileView('home')
+    setAboutOpen((open) => !open)
     setMobileMenuOpen(false)
   }
 
@@ -4609,6 +5082,7 @@ export default function App() {
     setSelectedSug(-1)
     setSettingsOpen(false)
     setAuthOpen(false)
+    setPricingOpen(false)
     setDictionaryMode(false)
     setProfileView('home')
     setAboutOpen(false)
@@ -4649,7 +5123,10 @@ export default function App() {
           dictionaryMode={dictionaryMode}
           setDictionaryMode={setDictionaryMode}
           setSettingsOpen={setSettingsOpen}
+          isPremium={subscription.isPremium}
+          onRequirePremium={openPricing}
         />
+        <PricingDialog open={pricingOpen} onClose={() => setPricingOpen(false)} subscription={subscription} onSubscribe={startSubscription} />
         <AuthDialog open={authOpen} mode={authMode} setMode={setAuthMode} onClose={() => setAuthOpen(false)} darkMode={darkMode} />
 
         <div className={`header ${messages.length > 0 ? 'scrolled' : ''}`}>
@@ -4661,13 +5138,7 @@ export default function App() {
           <div className="header-controls">
             <button
               className={`settings-btn ${aboutOpen ? 'active' : ''}`}
-              onClick={() => {
-                setSettingsOpen(false)
-                setAuthOpen(false)
-                setDictionaryMode(false)
-                setAboutOpen((open) => !open)
-                setMobileMenuOpen(false)
-              }}
+              onClick={openAbout}
             >
               <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="12" r="10" />
@@ -4675,9 +5146,16 @@ export default function App() {
               </svg>
               What is scmpedia?
             </button>
+            <button className={`settings-btn ${pricingOpen ? 'active' : ''}`} onClick={openPricing}>
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7H14a3.5 3.5 0 0 1 0 7H6" />
+              </svg>
+              Pricing
+            </button>
             <button
               className="settings-btn"
               onClick={() => {
+                setPricingOpen(false)
                 setSettingsOpen(true)
                 setMobileMenuOpen(false)
               }}
@@ -4727,13 +5205,7 @@ export default function App() {
             <div className="mobile-menu" hidden={!mobileMenuOpen}>
               <button
                 className={`settings-btn ${aboutOpen ? 'active' : ''}`}
-                onClick={() => {
-                  setSettingsOpen(false)
-                  setAuthOpen(false)
-                  setDictionaryMode(false)
-                  setAboutOpen((open) => !open)
-                  setMobileMenuOpen(false)
-                }}
+                onClick={openAbout}
               >
                 <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="12" cy="12" r="10" />
@@ -4741,9 +5213,16 @@ export default function App() {
                 </svg>
                 What is scmpedia?
               </button>
+              <button className={`settings-btn ${pricingOpen ? 'active' : ''}`} onClick={openPricing}>
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7H14a3.5 3.5 0 0 1 0 7H6" />
+                </svg>
+                Pricing
+              </button>
               <button
                 className="settings-btn"
                 onClick={() => {
+                  setPricingOpen(false)
                   setSettingsOpen(true)
                   setMobileMenuOpen(false)
                 }}
