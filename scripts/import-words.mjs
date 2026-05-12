@@ -38,6 +38,8 @@ const normalize = (row) => ({
   examples: String(row.examples || row.Examples || ''),
 })
 
+const getSourceKeyBase = (term) => term.trim().toLowerCase()
+
 const chunk = (items, size) => {
   const chunks = []
   for (let index = 0; index < items.length; index += size) {
@@ -57,21 +59,32 @@ if (parsed.errors.length) {
   console.warn(parsed.errors[0])
 }
 
-const byTerm = new Map()
+const occurrenceByTerm = new Map()
+const entries = []
 for (const row of parsed.data) {
   const entry = normalize(row)
-  if (entry.term && entry.definition) byTerm.set(entry.term.toLowerCase(), entry)
+  if (!entry.term || !entry.definition) continue
+  const keyBase = getSourceKeyBase(entry.term)
+  const occurrence = (occurrenceByTerm.get(keyBase) || 0) + 1
+  occurrenceByTerm.set(keyBase, occurrence)
+  entries.push({
+    source_key: occurrence === 1 ? keyBase : `${keyBase}::${occurrence}`,
+    ...entry,
+  })
 }
 
-const entries = [...byTerm.values()]
 const supabase = createClient(supabaseUrl, serviceRoleKey, {
   auth: { persistSession: false, autoRefreshToken: false },
 })
 
 let uploaded = 0
 for (const batch of chunk(entries, 500)) {
-  const { error } = await supabase.from('words').upsert(batch, { onConflict: 'term' })
+  const { error } = await supabase.from('words').upsert(batch, { onConflict: 'source_key' })
   if (error) {
+    if (String(error.message || '').includes('source_key')) {
+      console.error('The words table is missing the source_key import column.')
+      console.error('Run supabase-allow-duplicate-words.sql in Supabase SQL Editor, then rerun this import.')
+    }
     console.error(error)
     process.exit(1)
   }

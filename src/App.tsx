@@ -57,62 +57,114 @@ body { margin: 0; font-family: "Google Sans", "Segoe UI", Roboto, Helvetica, Ari
   border-radius: 999px; background: #063f3a; color: #fff; font-size: 12px; font-weight: 800;
 }
 .premium-badge.free { background: var(--surface); color: var(--text-sub); border: 1px solid var(--border); }
-.pricing-modal { max-width: 820px; overflow: hidden; }
-.pricing-top {
-  display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: start; margin-bottom: 18px;
+.pricing-modal {
+  --pricing-green: #004f46;
+  --pricing-green-2: #007060;
+  --pricing-green-soft: #e7f3ef;
+  --pricing-cream: #fbf8f1;
+  --pricing-line: #dce3db;
+  position: relative;
+  width: min(860px, calc(100vw - 36px));
+  max-width: none;
+  overflow: hidden;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: linear-gradient(90deg, var(--pricing-cream) 0%, #fff 42%, #fff 100%);
 }
-.pricing-status {
-  display: grid; gap: 8px; min-width: 190px; padding: 13px; border: 1px solid var(--border);
-  border-radius: 8px; background: var(--surface);
+.pricing-close {
+  position: absolute; top: 18px; right: 18px; z-index: 2; width: 36px; height: 36px;
+  display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 8px;
+  background: transparent; color: #122420; cursor: pointer; transition: background 0.18s ease, transform 0.18s ease;
 }
-.pricing-meter { height: 8px; overflow: hidden; border-radius: 999px; background: #e5e7eb; }
-.pricing-meter span { display: block; width: 100%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #b65437, #063f3a); }
-.pricing-meter.free span { width: 34%; background: #b65437; }
-.pricing-benefits {
-  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px;
+.pricing-close:hover { background: rgba(0, 79, 70, 0.08); transform: translateY(-1px); }
+.pricing-shell { display: grid; grid-template-columns: minmax(280px, 0.95fr) minmax(360px, 1.35fr); min-height: 520px; }
+.pricing-left {
+  display: flex; flex-direction: column; gap: 22px; padding: 46px 42px 38px 48px;
+  border-right: 1px solid rgba(220, 227, 219, 0.68);
+  background:
+    radial-gradient(circle at 16% 14%, rgba(255, 138, 29, 0.12), transparent 28%),
+    linear-gradient(180deg, rgba(255,255,255,0.66), rgba(251,248,241,0.72));
 }
-.pricing-benefit {
-  display: grid; grid-template-columns: 30px 1fr; gap: 9px; align-items: center; padding: 11px;
-  border: 1px solid var(--border); border-radius: 8px; background: var(--surface);
+.pricing-brand-logo { width: 132px; height: auto; object-fit: contain; }
+.pricing-brand-dark { display: none; }
+.pricing-intro { display: grid; gap: 14px; }
+.pricing-intro h2 { margin: 0; color: #073c35; font-size: 35px; line-height: 1.08; font-weight: 800; letter-spacing: -0.03em; }
+.pricing-intro p { margin: 0; color: #465650; font-size: 15px; line-height: 1.65; font-weight: 450; }
+.pricing-status-pill {
+  width: fit-content; display: inline-flex; align-items: center; gap: 9px; padding: 10px 13px;
+  border-radius: 8px; background: #e7f3ef; color: #073c35; font-size: 13px; font-weight: 850;
 }
-.pricing-benefit svg { color: var(--primary); }
-.pricing-benefit strong { display: block; font-size: 12px; }
-.pricing-benefit span { display: block; color: var(--text-sub); font-size: 11px; line-height: 1.35; }
+.pricing-status-pill svg { color: var(--pricing-green); }
+.pricing-benefits { display: grid; gap: 0; margin: 6px 0 0; padding: 0; list-style: none; }
+.pricing-benefits li {
+  display: grid; grid-template-columns: 40px 1fr; align-items: center; gap: 13px; padding: 13px 0;
+  border-bottom: 1px solid rgba(220, 227, 219, 0.78);
+  color: #223530; font-size: 14px; font-weight: 650; line-height: 1.3;
+}
+.pricing-feature-icon {
+  width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 8px; background: #e7f3ef; color: var(--pricing-green);
+  box-shadow: inset 0 0 0 1px rgba(0, 79, 70, 0.08);
+}
+.pricing-feature-icon svg {
+  width: 25px; height: 25px; stroke-linecap: round; stroke-linejoin: round;
+}
+.pricing-feature-icon .pricing-icon-accent {
+  color: #d47a23;
+}
+.pricing-trust {
+  margin-top: auto; display: grid; grid-template-columns: 30px 1fr; align-items: center; gap: 10px;
+  color: #465650; font-size: 13px; line-height: 1.4;
+}
+.pricing-trust span {
+  width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%; background: #fff0df; color: #d47a23;
+}
+.pricing-right { display: flex; flex-direction: column; gap: 18px; padding: 82px 42px 38px 34px; }
 .pricing-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .pricing-card {
-  position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; width: 100%;
-  border: 1px solid var(--border); border-radius: 8px; padding: 18px; background: var(--card-bg);
-  color: var(--text-main); text-align: left; cursor: pointer; box-shadow: var(--shadow);
+  position: relative; min-height: 214px; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; width: 100%;
+  border: 1px solid var(--pricing-line); border-radius: 8px; padding: 22px; background: #fff;
+  color: #102521; text-align: left; cursor: pointer; box-shadow: 0 12px 30px rgba(22, 34, 30, 0.08);
   transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
 }
-.pricing-card:hover { border-color: rgba(182,84,55,0.32); transform: translateY(-2px); box-shadow: 0 12px 30px rgba(0,0,0,0.12); }
-.pricing-card.selected { border-color: var(--primary); background: linear-gradient(180deg, rgba(182,84,55,0.08), var(--card-bg) 44%); box-shadow: 0 14px 34px rgba(182,84,55,0.16); }
+.pricing-card:hover { border-color: rgba(0,79,70,0.34); transform: translateY(-2px); box-shadow: 0 18px 38px rgba(22, 34, 30, 0.12); }
+.pricing-card.selected { border-color: var(--pricing-green); background: linear-gradient(180deg, rgba(231,243,239,0.9), #fff 52%); box-shadow: 0 18px 42px rgba(0, 79, 70, 0.13); }
 .pricing-card:disabled { cursor: wait; opacity: 0.78; }
-.pricing-card strong { font-size: 17px; }
+.pricing-card strong { font-size: 18px; color: #073c35; }
 .pricing-card-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; }
 .pricing-radio {
-  width: 19px; height: 19px; border: 2px solid var(--border); border-radius: 50%; display: inline-flex;
+  width: 20px; height: 20px; border: 2px solid #d5ddd4; border-radius: 50%; display: inline-flex;
   align-items: center; justify-content: center; flex: 0 0 auto; background: #fff;
 }
-.pricing-card.selected .pricing-radio { border-color: var(--primary); }
-.pricing-card.selected .pricing-radio::after { content: ''; width: 9px; height: 9px; border-radius: 50%; background: var(--primary); }
+.pricing-card.selected .pricing-radio { border-color: var(--pricing-green); box-shadow: 0 0 0 3px rgba(0, 79, 70, 0.1); }
+.pricing-card.selected .pricing-radio::after { content: ''; width: 9px; height: 9px; border-radius: 50%; background: var(--pricing-green); }
 .pricing-ribbon {
-  position: static; align-self: flex-start; padding: 4px 8px; border-radius: 999px;
-  background: #063f3a; color: #fff; font-size: 11px; font-weight: 900;
+  align-self: flex-start; padding: 6px 10px; border-radius: 8px;
+  background: #fff0df; color: #223530; font-size: 12px; font-weight: 900;
 }
-.pricing-price { font-size: 30px; font-weight: 900; color: var(--primary); }
-.pricing-price span { color: var(--text-sub); font-size: 13px; font-weight: 700; }
-.pricing-copy { color: var(--text-sub); font-size: 14px; line-height: 1.5; }
-.pricing-features { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; color: var(--text-sub); font-size: 13px; }
-.pricing-features li { display: flex; gap: 7px; align-items: center; }
-.pricing-features svg { color: #14ae5c; flex: 0 0 auto; }
+.pricing-price { margin-top: 10px; font-size: 31px; line-height: 1; font-weight: 800; color: #073c35; letter-spacing: -0.025em; }
+.pricing-period { color: #293a35; font-size: 14px; font-weight: 700; }
+.pricing-copy { margin-top: auto; color: #4b5a55; font-size: 14px; line-height: 1.55; }
 .pricing-checkout {
-  display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 16px;
-  padding: 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface);
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  padding: 16px 18px; border: 1px solid var(--pricing-line); border-radius: 8px; background: rgba(255,255,255,0.82);
 }
-.pricing-choice { display: grid; gap: 3px; font-size: 13px; color: var(--text-sub); }
-.pricing-choice strong { color: var(--text-main); font-size: 15px; }
-.pricing-cta { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.pricing-choice { display: grid; gap: 3px; font-size: 13px; color: #58665f; }
+.pricing-choice strong { color: #102521; font-size: 16px; }
+.pricing-choice em { color: #102521; font-size: 14px; font-style: normal; font-weight: 700; }
+.pricing-summary-pill {
+  display: inline-flex; align-items: center; justify-content: center; padding: 8px 11px; border-radius: 8px;
+  background: #d7ebe5; color: #073c35; font-size: 12px; font-weight: 900; white-space: nowrap;
+}
+.pricing-cta {
+  width: 100%; min-height: 56px; display: inline-flex; align-items: center; justify-content: center; gap: 16px;
+  border-radius: 8px; background: linear-gradient(135deg, var(--pricing-green), var(--pricing-green-2));
+  color: #fff; font-size: 17px; font-weight: 950; white-space: normal; box-shadow: 0 18px 34px rgba(0, 79, 70, 0.22);
+}
+.pricing-cta:hover { transform: translateY(-1px); box-shadow: 0 22px 42px rgba(0, 79, 70, 0.28); }
+.pricing-secure {
+  display: flex; align-items: center; justify-content: center; gap: 7px; color: #68746f; font-size: 13px; font-weight: 650;
+}
 .pricing-error { margin-top: 12px; color: #d93025; font-size: 13px; font-weight: 700; }
 .limit-alert {
   width: min(680px, 100%); padding: 16px; border-radius: 8px; background: #fff7ed;
@@ -376,12 +428,16 @@ mark { background: rgba(182, 84, 55, 0.2); color: inherit; padding: 0 2px; borde
   .send-btn { padding: 10px; margin-right: 4px; }
   .w-title { font-size: 28px; }
   .w-sub { font-size: 14px; }
-  .pricing-top { grid-template-columns: 1fr; }
-  .pricing-benefits { grid-template-columns: 1fr; }
+  .pricing-modal { width: min(100%, calc(100vw - 20px)); max-height: calc(100dvh - 20px); overflow-y: auto; }
+  .pricing-shell { grid-template-columns: 1fr; min-height: 0; }
+  .pricing-left { padding: 32px 22px 24px; border-right: 0; border-bottom: 1px solid rgba(220, 227, 219, 0.78); }
+  .pricing-right { padding: 24px 22px 26px; }
+  .pricing-intro h2 { font-size: 28px; }
   .pricing-grid { grid-template-columns: 1fr; }
+  .pricing-card { min-height: 0; }
   .pricing-checkout { align-items: stretch; flex-direction: column; }
+  .pricing-summary-pill { width: fit-content; }
   .pricing-cta { justify-content: center; width: 100%; }
-  .pricing-modal { max-width: calc(100vw - 24px); }
 }
 
 @media (max-width: 480px) {
@@ -1223,6 +1279,7 @@ body {
   padding: 18px;
   background: rgba(0, 28, 24, 0.5);
   backdrop-filter: blur(8px);
+  z-index: 500;
   animation: overlay-in 0.2s ease both;
 }
 
@@ -1235,6 +1292,12 @@ body {
   padding: 0;
   box-shadow: 0 28px 80px rgba(0, 28, 24, 0.28);
   animation: modal-rise 0.26s cubic-bezier(.2,.8,.2,1) both;
+}
+
+.modal.pricing-modal {
+  width: min(860px, calc(100vw - 36px));
+  max-width: none;
+  max-height: calc(100dvh - 36px);
 }
 
 .settings-head {
@@ -1401,6 +1464,12 @@ body {
   font-weight: 850;
 }
 
+.modal-btn.primary.pricing-cta {
+  min-height: 56px;
+  background: linear-gradient(135deg, var(--pricing-green), var(--pricing-green-2));
+  font-size: 17px;
+}
+
 :root[data-theme="dark"] .header {
   background: rgba(17, 20, 18, 0.9);
   border-bottom-color: rgba(43, 51, 45, 0.9);
@@ -1470,6 +1539,85 @@ body {
 :root[data-theme="dark"] .strength-checks span {
   background: #111412;
   border-color: #2b332d;
+}
+
+:root[data-theme="dark"] .pricing-modal {
+  --pricing-green: #0f806f;
+  --pricing-green-2: #10a58f;
+  --pricing-green-soft: rgba(16, 128, 111, 0.16);
+  --pricing-cream: #151914;
+  --pricing-line: #303a33;
+  background: linear-gradient(90deg, #151914 0%, #111412 46%, #111412 100%);
+}
+
+:root[data-theme="dark"] .pricing-left {
+  background:
+    radial-gradient(circle at 16% 14%, rgba(255, 138, 29, 0.1), transparent 28%),
+    linear-gradient(180deg, rgba(23,28,25,0.82), rgba(17,20,18,0.98));
+  border-color: #303a33;
+}
+
+:root[data-theme="dark"] .pricing-brand-light { display: none; }
+:root[data-theme="dark"] .pricing-brand-dark { display: block; }
+
+:root[data-theme="dark"] .pricing-close {
+  color: #eff7f3;
+}
+
+:root[data-theme="dark"] .pricing-close:hover {
+  background: rgba(255,255,255,0.08);
+}
+
+:root[data-theme="dark"] .pricing-intro h2,
+:root[data-theme="dark"] .pricing-card strong,
+:root[data-theme="dark"] .pricing-price,
+:root[data-theme="dark"] .pricing-choice strong,
+:root[data-theme="dark"] .pricing-choice em {
+  color: #eff7f3;
+}
+
+:root[data-theme="dark"] .pricing-intro p,
+:root[data-theme="dark"] .pricing-benefits li,
+:root[data-theme="dark"] .pricing-copy,
+:root[data-theme="dark"] .pricing-period,
+:root[data-theme="dark"] .pricing-trust,
+:root[data-theme="dark"] .pricing-secure {
+  color: #b9c6bf;
+}
+
+:root[data-theme="dark"] .pricing-status-pill,
+:root[data-theme="dark"] .pricing-summary-pill {
+  background: rgba(16, 128, 111, 0.18);
+  color: #dff6ef;
+}
+
+:root[data-theme="dark"] .pricing-feature-icon {
+  background: rgba(16, 128, 111, 0.16);
+  color: #8be7d5;
+  box-shadow: inset 0 0 0 1px rgba(139, 231, 213, 0.12);
+}
+
+:root[data-theme="dark"] .pricing-card,
+:root[data-theme="dark"] .pricing-checkout {
+  background: #171c19;
+  border-color: #303a33;
+  box-shadow: 0 18px 42px rgba(0,0,0,0.28);
+}
+
+:root[data-theme="dark"] .pricing-card.selected {
+  background: linear-gradient(180deg, rgba(16,128,111,0.18), #171c19 54%);
+  border-color: #20b69f;
+}
+
+:root[data-theme="dark"] .pricing-radio {
+  background: #111412;
+  border-color: #465249;
+}
+
+:root[data-theme="dark"] .pricing-ribbon,
+:root[data-theme="dark"] .pricing-trust span {
+  background: rgba(255, 138, 29, 0.14);
+  color: #ffd3a8;
 }
 
 .auth-modal {
@@ -2413,28 +2561,31 @@ body {
   .pricing-modal {
     width: min(100%, calc(100vw - 20px));
     max-height: calc(100dvh - 20px);
+    overflow-y: auto;
   }
 
-  .pricing-top {
+  .pricing-shell {
     grid-template-columns: 1fr;
-    gap: 10px;
-    margin-bottom: 0;
+    min-height: 0;
   }
 
-  .pricing-status {
-    min-width: 0;
-    padding: 10px;
+  .pricing-left {
+    gap: 18px;
+    padding: 32px 22px 24px;
+    border-right: 0;
+    border-bottom: 1px solid rgba(220, 227, 219, 0.78);
   }
 
-  .pricing-benefits {
-    grid-template-columns: 1fr;
-    gap: 8px;
-    margin-bottom: 10px;
+  .pricing-right {
+    padding: 24px 22px 26px;
   }
 
-  .pricing-benefit {
-    grid-template-columns: 26px 1fr;
-    padding: 9px 10px;
+  .pricing-brand-logo {
+    width: 122px;
+  }
+
+  .pricing-intro h2 {
+    font-size: 28px;
   }
 
   .pricing-grid {
@@ -2444,15 +2595,15 @@ body {
 
   .pricing-card {
     gap: 8px;
-    padding: 13px;
+    min-height: 0;
+    padding: 18px;
   }
 
   .pricing-price {
-    font-size: 25px;
+    font-size: 28px;
   }
 
-  .pricing-copy,
-  .pricing-features {
+  .pricing-copy {
     font-size: 12px;
   }
 
@@ -2465,7 +2616,7 @@ body {
   }
 
   .pricing-choice strong {
-    font-size: 13px;
+    font-size: 15px;
   }
 
   .pricing-cta {
@@ -3614,102 +3765,175 @@ const PricingDialog = ({
   onSubscribe: (plan: SubscriptionPlan) => void
 }) => {
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan>('annual')
+  const [freeUsedToday, setFreeUsedToday] = useState(() => readFreeUsage())
+  useEffect(() => {
+    if (!open) return
+    const syncUsage = () => setFreeUsedToday(readFreeUsage())
+    syncUsage()
+    window.addEventListener('storage', syncUsage)
+    return () => window.removeEventListener('storage', syncUsage)
+  }, [open])
+
   if (!open) return null
-  const plans: Array<{ id: SubscriptionPlan; title: string; price: string; cadence: string; copy: string; badge?: string }> = [
-    { id: 'monthly', title: 'Monthly', price: '$2', cadence: 'per month', copy: 'Flexible premium access for regular lookup and study.' },
-    { id: 'annual', title: 'Annual', price: '$20', cadence: 'per year', copy: 'Best value for full-year access to scmpedia premium.', badge: 'Best value' },
+  const plans: Array<{ id: SubscriptionPlan; title: string; price: string; period: string; copy: string; detail: string; badge?: string; summaryPill: string }> = [
+    { id: 'monthly', title: 'Monthly', price: 'GH₵22.58', period: '/ month', copy: 'Flexible access.', detail: 'Cancel anytime.', summaryPill: 'Cancel anytime' },
+    { id: 'annual', title: 'Annual', price: 'GH₵225.78', period: '/ year', copy: 'Save more with', detail: 'full-year access.', badge: 'Best value', summaryPill: 'Best value' },
   ]
   const selected = plans.find((plan) => plan.id === selectedPlan) || plans[1]
   const checkingOut = Boolean(subscription.checkingOut)
-  const iconProps = { viewBox: '0 0 24 24', width: 18, height: 18, fill: 'none', stroke: 'currentColor', strokeWidth: 2 }
+  const freeSearchesLeft = Math.max(FREE_DAILY_LIMIT - freeUsedToday, 0)
+  const statusText = subscription.isPremium
+    ? `Premium ${subscription.plan || ''}`.trim()
+    : `Free plan · ${freeSearchesLeft} ${freeSearchesLeft === 1 ? 'search' : 'searches'} left today`
+  const benefitIconProps = { viewBox: '0 0 32 32', width: 25, height: 25, fill: 'none', stroke: 'currentColor', strokeWidth: 2 }
+  const benefits = [
+    {
+      title: 'Unlimited word searches',
+      icon: (
+        <svg {...benefitIconProps}>
+          <path d="M14.5 21.5a7 7 0 1 0 0-14 7 7 0 0 0 0 14Z" />
+          <path d="m19.5 19.5 4.5 4.5" />
+          <path d="M8.5 6.5c2-2 5.3-2.6 8.2-1.4" />
+          <path d="M24.5 11.5c1.7 2.9 1.3 6.7-1.2 9.2" />
+          <path className="pricing-icon-accent" d="M23.5 5.5v4M21.5 7.5h4" />
+        </svg>
+      ),
+    },
+    {
+      title: 'Full dictionary/reference mode',
+      icon: (
+        <svg {...benefitIconProps}>
+          <path d="M8 7.5h8.5a4 4 0 0 1 4 4V25H12a4 4 0 0 0-4 4V7.5Z" />
+          <path d="M24 7.5h-7.5a4 4 0 0 0-4 4V29" />
+          <path d="M11 12h5M11 16h5M19 13.5h3" />
+          <path className="pricing-icon-accent" d="M21.5 20.5h2.8M21.5 23.5h2.8" />
+        </svg>
+      ),
+    },
+    {
+      title: 'Dark mode workspace',
+      icon: (
+        <svg {...benefitIconProps}>
+          <rect x="6" y="8" width="20" height="14" rx="3" />
+          <path d="M10 25h12M16 22v3" />
+          <path d="M17.6 12.1a4.8 4.8 0 0 0 5.1 6.7 6.2 6.2 0 1 1-5.1-6.7Z" />
+          <path className="pricing-icon-accent" d="M10 12h3" />
+        </svg>
+      ),
+    },
+    {
+      title: 'Faster study flow',
+      icon: (
+        <svg {...benefitIconProps}>
+          <path d="M7 9.5h10.5a3 3 0 0 1 3 3V24H10a3 3 0 0 1-3-3V9.5Z" />
+          <path d="M11 14h5M11 18h4" />
+          <path d="M22 7 15.5 18h5L18 26l7-12h-5l2-7Z" />
+          <path className="pricing-icon-accent" d="M25 22h2.5M24 25h2.5" />
+        </svg>
+      ),
+    },
+  ]
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal pricing-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="pricing-top">
-          <div className="settings-head">
-            <div className="settings-mark">
-              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7H14a3.5 3.5 0 0 1 0 7H6" />
+        <button className="pricing-close" onClick={onClose} aria-label="Close pricing modal">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M18 6 6 18M6 6l12 12" />
+          </svg>
+        </button>
+
+        <div className="pricing-shell">
+          <div className="pricing-left">
+            <FadeImage className="pricing-brand-logo pricing-brand-light" src="/logo.png" alt="scmpedia" eager />
+            <FadeImage className="pricing-brand-logo pricing-brand-dark" src="/white-logo.png" alt="scmpedia" eager />
+            <div className="pricing-intro">
+              <h2>Unlock SCMpedia Premium</h2>
+              <p>Search freely, study faster, and access the full supply chain dictionary without daily limits.</p>
+            </div>
+            <div className="pricing-status-pill">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.4">
+                <rect x="5" y="10" width="14" height="10" rx="2" />
+                <path d="M8 10V7a4 4 0 0 1 8 0v3" />
               </svg>
+              {statusText}
             </div>
-            <div>
-              <h2 className="settings-title">Pricing</h2>
-              <p className="settings-subtitle">Choose a premium plan to unlock full access.</p>
-            </div>
-          </div>
-          <div className="pricing-status">
-            <div className={subscription.isPremium ? 'premium-badge' : 'premium-badge free'}>
-              {subscription.isPremium ? `Premium ${subscription.plan || ''}` : 'Free tier'}
-            </div>
-            <div className={`pricing-meter ${subscription.isPremium ? '' : 'free'}`} aria-hidden="true">
-              <span />
-            </div>
-            <div className="pricing-copy">{subscription.isPremium ? 'Unlimited access is active.' : '2 free word searches per day.'}</div>
-          </div>
-        </div>
 
-        <div className="settings-body">
-          <div className="pricing-benefits" aria-label="Premium benefits">
-            <div className="pricing-benefit">
-              <svg {...iconProps}><path d="M4 12h16M13 5l7 7-7 7" /></svg>
-              <div><strong>Unlimited searches</strong><span>No daily search cap.</span></div>
-            </div>
-            <div className="pricing-benefit">
-              <svg {...iconProps}><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15Z" /></svg>
-              <div><strong>Dictionary mode</strong><span>Browse the full reference.</span></div>
-            </div>
-            <div className="pricing-benefit">
-              <svg {...iconProps}><path d="M12 3a6 6 0 0 0 9 7.5A9 9 0 1 1 12 3Z" /></svg>
-              <div><strong>Dark mode</strong><span>Premium reading controls.</span></div>
+            <ul className="pricing-benefits" aria-label="Premium benefits">
+              {benefits.map((benefit) => (
+                <li key={benefit.title}>
+                  <span className="pricing-feature-icon" aria-hidden="true">
+                    {benefit.icon}
+                  </span>
+                  <span>{benefit.title}</span>
+                </li>
+              ))}
+            </ul>
+
+            <div className="pricing-trust">
+              <span aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
+                  <path d="m9 12 2 2 4-5" />
+                </svg>
+              </span>
+              Trusted by supply chain students and professionals.
             </div>
           </div>
 
-          <div className="pricing-grid">
-            {plans.map((plan) => (
-              <button
-                key={plan.id}
-                className={`pricing-card ${selectedPlan === plan.id ? 'selected' : ''}`}
-                onClick={() => setSelectedPlan(plan.id)}
-                disabled={checkingOut}
-                aria-pressed={selectedPlan === plan.id}
-              >
-                {plan.badge && <span className="pricing-ribbon">{plan.badge}</span>}
-                <div className="pricing-card-top">
-                  <strong>{plan.title}</strong>
-                  <span className="pricing-radio" aria-hidden="true" />
-                </div>
-                <div className="pricing-price">{plan.price} <span>{plan.cadence}</span></div>
-                <div className="pricing-copy">{plan.copy}</div>
-                <ul className="pricing-features">
-                  <li><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m5 12 4 4L19 6" /></svg>Unlimited word searches</li>
-                  <li><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m5 12 4 4L19 6" /></svg>Dictionary mode access</li>
-                  <li><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m5 12 4 4L19 6" /></svg>Dark mode access</li>
-                </ul>
-              </button>
-            ))}
-          </div>
-
-          <div className="pricing-checkout">
-            <div className="pricing-choice">
-              <span>Selected plan</span>
-              <strong>{selected?.title} premium - {selected?.price} {selected?.cadence}</strong>
+          <div className="pricing-right">
+            <div className="pricing-grid">
+              {plans.map((plan) => {
+                const isSelected = selectedPlan === plan.id
+                return (
+                  <button
+                    key={plan.id}
+                    className={`pricing-card ${isSelected ? 'selected' : ''}`}
+                    onClick={() => setSelectedPlan(plan.id)}
+                    disabled={checkingOut}
+                    aria-pressed={isSelected}
+                  >
+                    <div className="pricing-card-top">
+                      <strong>{plan.title}</strong>
+                      <span className="pricing-radio" aria-hidden="true" />
+                    </div>
+                    <div className="pricing-price">{plan.price}</div>
+                    <div className="pricing-period">{plan.period}</div>
+                    {plan.badge && <span className="pricing-ribbon">★ {plan.badge}</span>}
+                    <div className="pricing-copy">
+                      {plan.copy}<br />{plan.detail}
+                    </div>
+                  </button>
+                )
+              })}
             </div>
+
+            <div className="pricing-checkout">
+              <div className="pricing-choice">
+                <span>Selected plan</span>
+                <strong>{selected.title}</strong>
+                <em>{selected.price} {selected.period}</em>
+              </div>
+              <span className="pricing-summary-pill">{selected.summaryPill}</span>
+            </div>
+
             <button className="modal-btn primary pricing-cta" onClick={() => onSubscribe(selectedPlan)} disabled={checkingOut}>
-              {subscription.checkingOut === selectedPlan ? 'Opening Paystack...' : 'Continue to Paystack'}
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M7 17 17 7M8 7h9v9" />
+              {subscription.checkingOut === selectedPlan ? 'Opening payment...' : 'Pay by card, bank, or mobile money'}
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <path d="M5 12h14M13 5l7 7-7 7" />
               </svg>
             </button>
-          </div>
 
-          {subscription.verifying && <div className="api-hint">Verifying Paystack payment...</div>}
-          {subscription.error && <div className="pricing-error">{subscription.error}</div>}
+            <div className="pricing-secure">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <rect x="5" y="10" width="14" height="10" rx="2" />
+                <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+              </svg>
+              Secure checkout powered by Paystack.
+            </div>
 
-          <div className="modal-actions">
-            <button className="modal-btn secondary" onClick={onClose}>
-              Close
-            </button>
+            {subscription.verifying && <div className="api-hint">Verifying payment...</div>}
+            {subscription.error && <div className="pricing-error">{subscription.error}</div>}
           </div>
         </div>
       </div>

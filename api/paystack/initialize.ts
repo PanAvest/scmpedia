@@ -6,8 +6,8 @@ const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || pr
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY
 
 const plans = {
-  monthly: { amount: 200, label: 'SCMPEDIA Monthly', durationDays: 31 },
-  annual: { amount: 2000, label: 'SCMPEDIA Annual', durationDays: 366 },
+  monthly: { amount: 2258, label: 'SCMPEDIA Monthly', durationDays: 31 },
+  annual: { amount: 22578, label: 'SCMPEDIA Annual', durationDays: 366 },
 } as const
 
 type PlanId = keyof typeof plans
@@ -62,7 +62,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     body: JSON.stringify({
       amount: plan.amount,
       email: userData.user.email,
-      currency: 'USD',
+      currency: 'GHS',
       callback_url: origin,
       metadata: {
         user_id: userData.user.id,
@@ -75,7 +75,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const body = await response.json().catch(() => ({}))
   if (!response.ok || !body?.status || !body?.data?.authorization_url) {
-    res.status(502).json({ error: body?.message || 'Could not initialize Paystack checkout' })
+    res.status(502).json({ error: body?.message || 'Could not initialize checkout' })
     return
   }
 

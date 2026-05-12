@@ -321,8 +321,8 @@ export default defineConfig(({ mode }) => {
                 }
 
                 const plans: any = {
-                  monthly: { amount: 200, durationDays: 31 },
-                  annual: { amount: 2000, durationDays: 366 },
+                  monthly: { amount: 2258, durationDays: 31 },
+                  annual: { amount: 22578, durationDays: 366 },
                 }
                 const parsed = JSON.parse(body || '{}')
                 const planId = String(parsed.plan || '').toLowerCase()
@@ -361,7 +361,7 @@ export default defineConfig(({ mode }) => {
                   body: JSON.stringify({
                     amount: plan.amount,
                     email: userData.user.email,
-                    currency: 'USD',
+                    currency: 'GHS',
                     callback_url: 'http://localhost:5173/',
                     metadata: {
                       user_id: userData.user.id,
@@ -375,7 +375,7 @@ export default defineConfig(({ mode }) => {
                 if (!response.ok || !payload?.status || !payload?.data?.authorization_url) {
                   res.statusCode = 502
                   res.setHeader('Content-Type', 'application/json')
-                  res.end(JSON.stringify({ error: payload?.message || 'Could not initialize Paystack checkout' }))
+                  res.end(JSON.stringify({ error: payload?.message || 'Could not initialize checkout' }))
                   return
                 }
                 res.statusCode = 200
@@ -384,7 +384,7 @@ export default defineConfig(({ mode }) => {
               } catch (err: any) {
                 res.statusCode = 500
                 res.setHeader('Content-Type', 'application/json')
-                res.end(JSON.stringify({ error: err?.message || 'Could not initialize Paystack checkout' }))
+                res.end(JSON.stringify({ error: err?.message || 'Could not initialize checkout' }))
               }
             })
           })
@@ -417,7 +417,7 @@ export default defineConfig(({ mode }) => {
                 if (!reference) {
                   res.statusCode = 400
                   res.setHeader('Content-Type', 'application/json')
-                  res.end(JSON.stringify({ error: 'Missing Paystack reference' }))
+                  res.end(JSON.stringify({ error: 'Missing payment reference' }))
                   return
                 }
                 if (!token) {
@@ -443,8 +443,8 @@ export default defineConfig(({ mode }) => {
                 })
                 const payment = await response.json().catch(() => ({}))
                 const plans: any = {
-                  monthly: { amount: 200, durationDays: 31 },
-                  annual: { amount: 2000, durationDays: 366 },
+                  monthly: { amount: 2258, durationDays: 31 },
+                  annual: { amount: 22578, durationDays: 366 },
                 }
                 const planId = String(payment?.data?.metadata?.plan || '').toLowerCase()
                 const plan = plans[planId]
@@ -491,7 +491,7 @@ export default defineConfig(({ mode }) => {
               } catch (err: any) {
                 res.statusCode = 500
                 res.setHeader('Content-Type', 'application/json')
-                res.end(JSON.stringify({ error: err?.message || 'Could not verify Paystack payment' }))
+                res.end(JSON.stringify({ error: err?.message || 'Could not verify payment' }))
               }
             })
           })

@@ -7,8 +7,8 @@ const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY
 
 const plans = {
-  monthly: { amount: 200, durationDays: 31 },
-  annual: { amount: 2000, durationDays: 366 },
+  monthly: { amount: 2258, durationDays: 31 },
+  annual: { amount: 22578, durationDays: 366 },
 } as const
 
 type PlanId = keyof typeof plans
@@ -37,7 +37,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const reference = String(req.body?.reference || '').trim()
   if (!reference) {
-    res.status(400).json({ error: 'Missing Paystack reference' })
+    res.status(400).json({ error: 'Missing payment reference' })
     return
   }
 

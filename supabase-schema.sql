@@ -2,7 +2,8 @@ create extension if not exists "pgcrypto";
 
 create table if not exists public.words (
   id uuid primary key default gen_random_uuid(),
-  term text not null unique,
+  source_key text not null unique,
+  term text not null,
   definition text not null,
   synonyms text,
   tags text,
