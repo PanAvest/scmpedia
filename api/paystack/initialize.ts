@@ -52,6 +52,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
+  const subscription = userData.user.app_metadata?.scmpedia_subscription
+  const expiresAt = typeof subscription?.expires_at === 'string' ? subscription.expires_at : ''
+  if (subscription?.tier === 'premium' && (!expiresAt || new Date(expiresAt).getTime() > Date.now())) {
+    res.status(409).json({ error: expiresAt ? `You are paid until ${new Date(expiresAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}. You can change plans after your current plan expires.` : 'You already have an active premium plan.' })
+    return
+  }
+
   const origin = String(req.headers.origin || `https://${req.headers.host}`)
   const response = await fetch('https://api.paystack.co/transaction/initialize', {
     method: 'POST',

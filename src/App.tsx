@@ -156,10 +156,19 @@ body { margin: 0; font-family: "Google Sans", "Segoe UI", Roboto, Helvetica, Ari
   display: inline-flex; align-items: center; justify-content: center; padding: 8px 11px; border-radius: 8px;
   background: #d7ebe5; color: #073c35; font-size: 12px; font-weight: 900; white-space: nowrap;
 }
+.pricing-active-note {
+  display: flex; align-items: center; gap: 8px; padding: 12px 13px; border-radius: 8px;
+  background: #e7f3ef; color: #073c35; font-size: 13px; font-weight: 750; line-height: 1.45;
+}
 .pricing-cta {
   width: 100%; min-height: 56px; display: inline-flex; align-items: center; justify-content: center; gap: 16px;
   border-radius: 8px; background: linear-gradient(135deg, var(--pricing-green), var(--pricing-green-2));
   color: #fff; font-size: 17px; font-weight: 950; white-space: normal; box-shadow: 0 18px 34px rgba(0, 79, 70, 0.22);
+}
+.pricing-cta:disabled {
+  cursor: not-allowed;
+  opacity: 0.78;
+  box-shadow: none;
 }
 .pricing-cta:hover { transform: translateY(-1px); box-shadow: 0 22px 42px rgba(0, 79, 70, 0.28); }
 .pricing-secure {
@@ -1586,7 +1595,8 @@ body {
 }
 
 :root[data-theme="dark"] .pricing-status-pill,
-:root[data-theme="dark"] .pricing-summary-pill {
+:root[data-theme="dark"] .pricing-summary-pill,
+:root[data-theme="dark"] .pricing-active-note {
   background: rgba(16, 128, 111, 0.18);
   color: #dff6ef;
 }
@@ -1897,6 +1907,37 @@ body {
 .dashboard-head p {
   margin: 0;
   color: rgba(255,255,255,0.82);
+}
+
+.dashboard-plan {
+  min-width: min(280px, 100%);
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.1);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
+}
+
+.dashboard-plan-label {
+  color: rgba(255,255,255,0.64);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dashboard-plan strong {
+  color: #fff;
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+.dashboard-plan span {
+  color: rgba(255,255,255,0.82);
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .favorite-grid {
@@ -2434,6 +2475,11 @@ body {
     padding: 22px 16px;
   }
 
+  .dashboard-plan {
+    width: 100%;
+    min-width: 0;
+  }
+
   .favorite-grid {
     grid-template-columns: 1fr;
   }
@@ -2935,6 +2981,15 @@ const getSubscriptionFromUser = (user: User | null): SubscriptionState => {
   }
 }
 
+const formatSubscriptionDate = (value?: string) => {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
+}
+
+const getPlanLabel = (plan?: SubscriptionPlan) => (plan === 'monthly' ? 'Monthly' : plan === 'annual' ? 'Annual' : 'Free')
+
 /* ------------------------------- LOGIC HOOKS ------------------------------- */
 
 // 1. DATA HOOK
@@ -3366,6 +3421,17 @@ function useAuth() {
     return () => listener.subscription.unsubscribe()
   }, [])
 
+  useEffect(() => {
+    if (!supabase || !session?.access_token) return
+    let cancelled = false
+    supabase.auth.getUser().then(({ data }) => {
+      if (!cancelled) setUser(data.user ?? null)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [session?.access_token])
+
   const signOut = async () => {
     if (!supabase) return
     await supabase.auth.signOut()
@@ -3521,6 +3587,11 @@ function useSubscription(auth: ReturnType<typeof useAuth>) {
     if (!auth.user || !auth.session?.access_token) {
       setError('Sign in before subscribing.')
       return { needsAuth: true }
+    }
+    if (state.tier === 'premium') {
+      const expiresLabel = formatSubscriptionDate(state.expiresAt)
+      setError(expiresLabel ? `You are paid until ${expiresLabel}. You can change plans after your current plan expires.` : 'You already have an active premium plan.')
+      return { needsAuth: false }
     }
     setCheckingOut(plan)
     setError('')
@@ -3769,10 +3840,11 @@ const PricingDialog = ({
   useEffect(() => {
     if (!open) return
     const syncUsage = () => setFreeUsedToday(readFreeUsage())
+    if (subscription.isPremium && subscription.plan) setSelectedPlan(subscription.plan)
     syncUsage()
     window.addEventListener('storage', syncUsage)
     return () => window.removeEventListener('storage', syncUsage)
-  }, [open])
+  }, [open, subscription.isPremium, subscription.plan])
 
   if (!open) return null
   const plans: Array<{ id: SubscriptionPlan; title: string; price: string; period: string; copy: string; detail: string; badge?: string; summaryPill: string }> = [
@@ -3781,9 +3853,13 @@ const PricingDialog = ({
   ]
   const selected = plans.find((plan) => plan.id === selectedPlan) || plans[1]
   const checkingOut = Boolean(subscription.checkingOut)
+  const hasActivePlan = subscription.isPremium
+  const paidUntil = formatSubscriptionDate(subscription.expiresAt)
   const freeSearchesLeft = Math.max(FREE_DAILY_LIMIT - freeUsedToday, 0)
   const statusText = subscription.isPremium
-    ? `Premium ${subscription.plan || ''}`.trim()
+    ? paidUntil
+      ? `${getPlanLabel(subscription.plan)} plan · paid until ${paidUntil}`
+      : `${getPlanLabel(subscription.plan)} plan · active`
     : `Free plan · ${freeSearchesLeft} ${freeSearchesLeft === 1 ? 'search' : 'searches'} left today`
   const benefitIconProps = { viewBox: '0 0 32 32', width: 25, height: 25, fill: 'none', stroke: 'currentColor', strokeWidth: 2 }
   const benefits = [
@@ -3889,8 +3965,10 @@ const PricingDialog = ({
                   <button
                     key={plan.id}
                     className={`pricing-card ${isSelected ? 'selected' : ''}`}
-                    onClick={() => setSelectedPlan(plan.id)}
-                    disabled={checkingOut}
+                    onClick={() => {
+                      if (!hasActivePlan) setSelectedPlan(plan.id)
+                    }}
+                    disabled={checkingOut || hasActivePlan}
                     aria-pressed={isSelected}
                   >
                     <div className="pricing-card-top">
@@ -3910,15 +3988,24 @@ const PricingDialog = ({
 
             <div className="pricing-checkout">
               <div className="pricing-choice">
-                <span>Selected plan</span>
+                <span>{hasActivePlan ? 'Current plan' : 'Selected plan'}</span>
                 <strong>{selected.title}</strong>
                 <em>{selected.price} {selected.period}</em>
               </div>
               <span className="pricing-summary-pill">{selected.summaryPill}</span>
             </div>
 
-            <button className="modal-btn primary pricing-cta" onClick={() => onSubscribe(selectedPlan)} disabled={checkingOut}>
-              {subscription.checkingOut === selectedPlan ? 'Opening payment...' : 'Pay by card, bank, or mobile money'}
+            {hasActivePlan && (
+              <div className="pricing-active-note">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.4">
+                  <path d="m5 12 4 4L19 6" />
+                </svg>
+                {paidUntil ? `Paid until ${paidUntil}. You can choose a new plan after this date.` : 'Your premium plan is active.'}
+              </div>
+            )}
+
+            <button className="modal-btn primary pricing-cta" onClick={() => onSubscribe(selectedPlan)} disabled={checkingOut || hasActivePlan}>
+              {hasActivePlan && paidUntil ? `Paid until ${paidUntil}` : subscription.checkingOut === selectedPlan ? 'Opening payment...' : 'Pay by card, bank, or mobile money'}
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2">
                 <path d="M5 12h14M13 5l7 7-7 7" />
               </svg>
@@ -4417,12 +4504,14 @@ const AuthDialog = ({
 
 const DashboardPage = ({
   user,
+  subscription,
   entries,
   loading,
   onBack,
   onOpenTerm,
 }: {
   user: User | null
+  subscription: ReturnType<typeof useSubscription>
   entries: Entry[]
   loading: boolean
   onBack: () => void
@@ -4430,6 +4519,8 @@ const DashboardPage = ({
 }) => {
   const meta = user?.user_metadata || {}
   const displayName = [meta.first_name, meta.last_name].filter(Boolean).join(' ') || user?.email || 'Your profile'
+  const planLabel = getPlanLabel(subscription.plan)
+  const expiresLabel = formatSubscriptionDate(subscription.expiresAt)
 
   return (
     <div className="dashboard-page">
@@ -4438,6 +4529,17 @@ const DashboardPage = ({
           <div className="home-kicker">Personal dashboard</div>
           <h1>{displayName}</h1>
           <p>{user?.email}</p>
+        </div>
+        <div className="dashboard-plan" aria-label="Subscription plan">
+          <div className="dashboard-plan-label">Your plan</div>
+          <strong>{subscription.isPremium ? `${planLabel} Premium` : 'Free plan'}</strong>
+          <span>
+            {subscription.isPremium
+              ? expiresLabel
+                ? `Paid until ${expiresLabel}`
+                : 'Premium access is active'
+              : `${Math.max(FREE_DAILY_LIMIT - readFreeUsage(), 0)} free searches left today`}
+          </span>
         </div>
         <button className="about-back" onClick={onBack}>Back to search</button>
       </section>
@@ -5510,6 +5612,7 @@ export default function App() {
           ) : profileView === 'dashboard' ? (
             <DashboardPage
               user={auth.user}
+              subscription={subscription}
               entries={favorites.favoriteEntries}
               loading={favorites.loading}
               onBack={goHome}

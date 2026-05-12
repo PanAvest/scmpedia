@@ -351,6 +351,15 @@ export default defineConfig(({ mode }) => {
                   res.end(JSON.stringify({ error: 'Could not verify signed-in user' }))
                   return
                 }
+                const subscription = (userData.user as any).app_metadata?.scmpedia_subscription
+                const expiresAt = typeof subscription?.expires_at === 'string' ? subscription.expires_at : ''
+                if (subscription?.tier === 'premium' && (!expiresAt || new Date(expiresAt).getTime() > Date.now())) {
+                  const expiresLabel = expiresAt ? new Date(expiresAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : ''
+                  res.statusCode = 409
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ error: expiresLabel ? `You are paid until ${expiresLabel}. You can change plans after your current plan expires.` : 'You already have an active premium plan.' }))
+                  return
+                }
 
                 const response = await fetch('https://api.paystack.co/transaction/initialize', {
                   method: 'POST',
