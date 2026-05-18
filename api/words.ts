@@ -24,6 +24,21 @@ const isMissingSourceKeyError = (error: any) => String(error?.message || '').inc
 
 const withoutSourceKey = (rows: any[]) => rows.map(({ source_key, ...row }) => row)
 
+const wordUpdatePayload = (row: any) => {
+  const entry = normalizeWord(row)
+  return {
+    source_key: entry.source_key || undefined,
+    term: entry.term,
+    definition: entry.definition,
+    synonyms: entry.synonyms,
+    tags: entry.tags,
+    pos: entry.pos,
+    pronunciation: entry.pronunciation,
+    examples: entry.examples,
+    updated_at: new Date().toISOString(),
+  }
+}
+
 const normalizeWord = (row: any) => ({
   id: row?.id ? String(row.id) : undefined,
   source_key: String(row?.source_key || row?.sourceKey || row?.SourceKey || '').trim(),
@@ -67,7 +82,7 @@ const prepareImportRows = (rows: any[]) => {
   return prepared
 }
 
-const chunk = <T,>(items: T[], size: number) => {
+const chunk = <T>(items: T[], size: number) => {
   const chunks: T[][] = []
   for (let index = 0; index < items.length; index += size) {
     chunks.push(items.slice(index, index + size))
@@ -75,7 +90,11 @@ const chunk = <T,>(items: T[], size: number) => {
   return chunks
 }
 
-const normalizeSearchText = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+const normalizeSearchText = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
 const SEARCH_STOP_WORDS = new Set([
   'a',
   'an',
@@ -168,7 +187,7 @@ const searchAcronym = (value: string) => {
           'work',
           'works',
           'you',
-        ].includes(token)
+        ].includes(token),
     )
   return tokens.length >= 3 ? tokens.map((token) => token[0]).join('') : ''
 }
@@ -267,7 +286,9 @@ const rankWords = (rows: any[], q: string, limit: number) => {
 const uniqueWords = (rows: any[]) => {
   const seen = new Set<string>()
   return rows.filter((row) => {
-    const key = String(row?.source_key || row?.term || '').trim().toLowerCase()
+    const key = String(row?.source_key || row?.term || '')
+      .trim()
+      .toLowerCase()
     if (!key || seen.has(key)) return false
     seen.add(key)
     return true
@@ -283,10 +304,7 @@ const editDistance = (a: string, b: string) => {
     previous[0] = i
     for (let j = 1; j <= right.length; j += 1) {
       const tmp = previous[j] ?? 0
-      previous[j] =
-        left[i - 1] === right[j - 1]
-          ? before
-          : Math.min((previous[j] ?? 0) + 1, (previous[j - 1] ?? 0) + 1, before + 1)
+      previous[j] = left[i - 1] === right[j - 1] ? before : Math.min((previous[j] ?? 0) + 1, (previous[j - 1] ?? 0) + 1, before + 1)
       before = tmp
     }
   }
@@ -341,15 +359,15 @@ const tokenRankWords = (rows: any[], q: string, limit: number) => {
             ? -6
             : tokenPhrase && (term.includes(tokenPhrase) || synonyms.includes(tokenPhrase))
               ? -5
-          : tokens.length > 1 && tokens.every((token) => term.includes(token))
-            ? -3
-            : tokens.some((token) => definition.startsWith(token)) && tokens.every((token) => haystack.includes(token))
-              ? -3
-            : tokenPhrase && definition.startsWith(tokenPhrase)
-              ? -2
-              : tokenPhrase && definition.includes(tokenPhrase)
-                ? -1
-                : 0
+              : tokens.length > 1 && tokens.every((token) => term.includes(token))
+                ? -3
+                : tokens.some((token) => definition.startsWith(token)) && tokens.every((token) => haystack.includes(token))
+                  ? -3
+                  : tokenPhrase && definition.startsWith(tokenPhrase)
+                    ? -2
+                    : tokenPhrase && definition.includes(tokenPhrase)
+                      ? -1
+                      : 0
       const tokenScore = tokens.reduce((total, token) => {
         if (term === token || synonyms === token) return total
         if (term.includes(token) || synonyms.includes(token)) return total + 0.25
@@ -389,6 +407,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const rows = Array.isArray(req.body?.words) ? req.body.words : []
+    const singleRow = rows.length === 1 ? normalizeWord(rows[0]) : null
+    if (singleRow?.id && singleRow.term && singleRow.definition) {
+      try {
+        const payload = wordUpdatePayload(rows[0])
+        const { source_key, ...payloadWithoutSourceKey } = payload
+        let update = await client.from('words').update(payload).eq('id', singleRow.id)
+        if (isMissingSourceKeyError(update.error)) {
+          update = await client.from('words').update(payloadWithoutSourceKey).eq('id', singleRow.id)
+        }
+        if (update.error) throw update.error
+        res.setHeader('Cache-Control', 'no-store')
+        res.status(200).json({ imported: 1, updated: true })
+      } catch (error: any) {
+        res.status(500).json({ error: error?.message || 'Failed to update word' })
+      }
+      return
+    }
+
     const words = prepareImportRows(rows).slice(0, 10000)
     if (!words.length) {
       res.status(400).json({ error: 'No valid words to import' })
@@ -437,7 +473,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       else query = query.eq('term', term)
       const { error } = await query
       if (isMissingSourceKeyError(error) && sourceKey) {
-        res.status(400).json({ error: 'Delete by source_key is not supported by the current words table' })
+        res.status(400).json({
+          error: 'Delete by source_key is not supported by the current words table',
+        })
         return
       }
       if (error) throw error
@@ -480,7 +518,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       if (error) throw error
       res.setHeader('Cache-Control', adminRequest ? 'no-store' : 's-maxage=300, stale-while-revalidate=600')
-      res.status(200).json({ words: data || [], nextOffset: offset + (data?.length || 0), count })
+      res.status(200).json({
+        words: data || [],
+        nextOffset: offset + (data?.length || 0),
+        count,
+      })
       return
     }
 

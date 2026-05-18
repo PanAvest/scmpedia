@@ -139,9 +139,7 @@ function AdminApp() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return entries
-      .map((entry, index) => ({ entry, index }))
-      .filter(({ entry }) => !q || entry.term.toLowerCase().includes(q))
+    return entries.map((entry, index) => ({ entry, index })).filter(({ entry }) => !q || entry.term.toLowerCase().includes(q))
   }, [entries, query])
 
   const showStatus = (message: string, tone: 'default' | 'success' | 'warn' | 'error' = 'default') => {
@@ -149,9 +147,19 @@ function AdminApp() {
     setStatusTone(tone)
   }
 
+  const updateDraft = (patch: Partial<Entry>) => {
+    setDraft((current) => ({ ...current, ...patch }))
+    setDirty(true)
+  }
+
   const persistEntries = (next: Entry[]) => {
     localStorage.setItem(LOCAL_ENTRIES_KEY, JSON.stringify(next))
-    window.dispatchEvent(new StorageEvent('storage', { key: LOCAL_ENTRIES_KEY, newValue: JSON.stringify(next) }))
+    window.dispatchEvent(
+      new StorageEvent('storage', {
+        key: LOCAL_ENTRIES_KEY,
+        newValue: JSON.stringify(next),
+      }),
+    )
   }
 
   const normalizeRow = (row: any): Entry => ({
@@ -254,7 +262,7 @@ function AdminApp() {
           firstPage.count && firstPage.words.length < firstPage.count
             ? `Loaded first ${firstPage.words.length} of ${firstPage.count} terms. Continuing in background...`
             : `Loaded ${firstPage.words.length} server terms`,
-          firstPage.count && firstPage.words.length < firstPage.count ? 'default' : 'success'
+          firstPage.count && firstPage.words.length < firstPage.count ? 'default' : 'success',
         )
 
         if (!firstPage.count || firstPage.words.length < firstPage.count) {
@@ -303,7 +311,9 @@ function AdminApp() {
       const sources = ['/scmpedia_full_UPDATED.csv', '/scmpedia_full.csv']
       let csv = ''
       for (const src of sources) {
-        const res = await fetch(`${src}?v=${Date.now()}`, { cache: 'no-store' })
+        const res = await fetch(`${src}?v=${Date.now()}`, {
+          cache: 'no-store',
+        })
         if (!res.ok) continue
         csv = await res.text()
         if (csv) break
@@ -342,11 +352,13 @@ function AdminApp() {
   const handleSelect = (entry: Entry, index: number) => {
     setSelectedIndex(index)
     setDraft({ ...entry })
+    setDirty(false)
   }
 
   const handleNew = () => {
     setSelectedIndex(null)
     setDraft(defaultEntry)
+    setDirty(false)
   }
 
   const handleSave = async () => {
@@ -434,7 +446,9 @@ function AdminApp() {
     try {
       const Papa = await loadPapa()
       const csv = Papa.unparse(entries)
-      const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' })
+      const blob = new Blob([`\uFEFF${csv}`], {
+        type: 'text/csv;charset=utf-8',
+      })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -514,7 +528,14 @@ function AdminApp() {
           <button className="btn btn-secondary" onClick={loadCsv} disabled={loading}>
             Reload CSV
           </button>
-          <label className="btn btn-secondary" style={{ margin: 0 }}>
+          <label
+            className="btn btn-secondary"
+            style={{
+              margin: 0,
+              opacity: loading ? 0.5 : 1,
+              pointerEvents: loading ? 'none' : 'auto',
+            }}
+          >
             Upload CSV
             <input
               type="file"
@@ -537,19 +558,17 @@ function AdminApp() {
           <div className="panel-title-row">
             <div className="panel-title">Entries</div>
             <div className="count-pill">
-              {entries.length}{totalCount ? ` / ${totalCount}` : ''} terms
+              {entries.length}
+              {totalCount ? ` / ${totalCount}` : ''} terms
             </div>
           </div>
-          <input
-            className="search-input"
-            placeholder="Search terms..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
+          <input className="search-input" placeholder="Search terms..." value={query} onChange={(e) => setQuery(e.target.value)} />
           {(loading || backgroundLoading) && (
             <div className="loading-strip">
               <span className="spinner" />
-              <span>{loading ? 'Loading first terms...' : `Loading more terms${totalCount ? ` (${entries.length}/${totalCount})` : ''}...`}</span>
+              <span>
+                {loading ? 'Loading first terms...' : `Loading more terms${totalCount ? ` (${entries.length}/${totalCount})` : ''}...`}
+              </span>
             </div>
           )}
           <div className="list">
@@ -588,83 +607,64 @@ function AdminApp() {
               <div className="skeleton-field full" />
             </div>
           ) : (
-          <div className="form-grid">
-            <div className="form-row">
-              <label className="label">Term</label>
-              <input
-                className="input"
-                value={draft.term}
-                onChange={(e) => setDraft({ ...draft, term: e.target.value })}
-              />
+            <div className="form-grid">
+              <div className="form-row">
+                <label className="label">Term</label>
+                <input className="input" value={draft.term} onChange={(e) => updateDraft({ term: e.target.value })} />
+              </div>
+              <div className="form-row">
+                <label className="label">Part of Speech</label>
+                <input className="input" value={draft.pos || ''} onChange={(e) => updateDraft({ pos: e.target.value })} />
+              </div>
+              <div className="form-row full">
+                <label className="label">Definition</label>
+                <textarea className="textarea" value={draft.definition} onChange={(e) => updateDraft({ definition: e.target.value })} />
+              </div>
+              <div className="form-row">
+                <label className="label">Pronunciation</label>
+                <input
+                  className="input"
+                  value={draft.pronunciation || ''}
+                  onChange={(e) => updateDraft({ pronunciation: e.target.value })}
+                />
+              </div>
+              <div className="form-row">
+                <label className="label">Synonyms</label>
+                <input className="input" value={draft.synonyms || ''} onChange={(e) => updateDraft({ synonyms: e.target.value })} />
+              </div>
+              <div className="form-row full">
+                <label className="label">Tags</label>
+                <input className="input" value={draft.tags || ''} onChange={(e) => updateDraft({ tags: e.target.value })} />
+              </div>
+              <div className="form-row full">
+                <label className="label">Example</label>
+                <textarea className="textarea" value={draft.examples || ''} onChange={(e) => updateDraft({ examples: e.target.value })} />
+              </div>
             </div>
-            <div className="form-row">
-              <label className="label">Part of Speech</label>
-              <input
-                className="input"
-                value={draft.pos || ''}
-                onChange={(e) => setDraft({ ...draft, pos: e.target.value })}
-              />
-            </div>
-            <div className="form-row full">
-              <label className="label">Definition</label>
-              <textarea
-                className="textarea"
-                value={draft.definition}
-                onChange={(e) => setDraft({ ...draft, definition: e.target.value })}
-              />
-            </div>
-            <div className="form-row">
-              <label className="label">Pronunciation</label>
-              <input
-                className="input"
-                value={draft.pronunciation || ''}
-                onChange={(e) => setDraft({ ...draft, pronunciation: e.target.value })}
-              />
-            </div>
-            <div className="form-row">
-              <label className="label">Synonyms</label>
-              <input
-                className="input"
-                value={draft.synonyms || ''}
-                onChange={(e) => setDraft({ ...draft, synonyms: e.target.value })}
-              />
-            </div>
-            <div className="form-row full">
-              <label className="label">Tags</label>
-              <input
-                className="input"
-                value={draft.tags || ''}
-                onChange={(e) => setDraft({ ...draft, tags: e.target.value })}
-              />
-            </div>
-            <div className="form-row full">
-              <label className="label">Example</label>
-              <textarea
-                className="textarea"
-                value={draft.examples || ''}
-                onChange={(e) => setDraft({ ...draft, examples: e.target.value })}
-              />
-            </div>
-          </div>
           )}
 
-          <div style={{ display: 'flex', gap: '10px', marginTop: '16px', flexWrap: 'wrap' }}>
-            <button className="btn btn-secondary" onClick={handleNew}>
+          <div
+            style={{
+              display: 'flex',
+              gap: '10px',
+              marginTop: '16px',
+              flexWrap: 'wrap',
+            }}
+          >
+            <button className="btn btn-secondary" onClick={handleNew} disabled={loading}>
               New Entry
             </button>
-            <button className="btn btn-primary" onClick={handleSave}>
+            <button className="btn btn-primary" onClick={handleSave} disabled={loading}>
               {selectedIndex === null ? 'Add Entry' : 'Save Entry'}
             </button>
-            <button className="btn btn-danger" onClick={handleDelete} disabled={selectedIndex === null}>
+            <button className="btn btn-danger" onClick={handleDelete} disabled={loading || selectedIndex === null}>
               Delete Word
             </button>
             <div className={`status ${statusTone === 'default' ? '' : statusTone}`}>
               {dirty ? `${status} Download CSV when ready.` : status}
             </div>
           </div>
-          <div className="helper">
-            Admin changes are saved in this browser immediately for the search page. Download the UTF-8 CSV when you want to update the server file.
-          </div>
+          <div className="helper">Admin changes save directly to the server. Download the UTF-8 CSV when you want a backup copy.</div>
         </section>
       </main>
     </div>

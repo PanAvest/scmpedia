@@ -17,6 +17,8 @@ export default defineConfig(({ mode }) => {
   const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL || env.VITE_SUPABASE_URL
   const supabaseServiceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY
   const supabaseAnonKey = env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || env.VITE_SUPABASE_ANON_KEY
+  const adminUser = env.SCMPEDIA_ADMIN_USER || env.VITE_SCMPEDIA_ADMIN_USER || 'scmpedia-admin'
+  const adminPass = env.SCMPEDIA_ADMIN_PASS || env.VITE_SCMPEDIA_ADMIN_PASS || 'scmpedia-2026'
   const paystackSecretKey = env.PAYSTACK_SECRET_KEY
   return {
     envPrefix: ['VITE_', 'NEXT_PUBLIC_'],
@@ -145,7 +147,11 @@ export default defineConfig(({ mode }) => {
               } catch (err: any) {
                 res.statusCode = 500
                 res.setHeader('Content-Type', 'application/json')
-                res.end(JSON.stringify({ error: err?.message || 'AI request failed' }))
+                res.end(
+                  JSON.stringify({
+                    error: err?.message || 'AI request failed',
+                  }),
+                )
               }
             })
           })
@@ -185,7 +191,7 @@ export default defineConfig(({ mode }) => {
                 const modelId = String(parsed.modelId || elevenLabsModelId).trim()
                 const outputFormat = String(parsed.outputFormat || elevenLabsOutputFormat).trim()
                 const url = `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(
-                  voiceId
+                  voiceId,
                 )}?output_format=${encodeURIComponent(outputFormat)}`
 
                 const response = await fetch(url, {
@@ -205,7 +211,11 @@ export default defineConfig(({ mode }) => {
                 if (!response.ok) {
                   res.statusCode = response.status
                   res.setHeader('Content-Type', 'application/json')
-                  res.end(JSON.stringify({ error: payload.toString('utf8').slice(0, 500) }))
+                  res.end(
+                    JSON.stringify({
+                      error: payload.toString('utf8').slice(0, 500),
+                    }),
+                  )
                   return
                 }
 
@@ -216,7 +226,11 @@ export default defineConfig(({ mode }) => {
               } catch (err: any) {
                 res.statusCode = 500
                 res.setHeader('Content-Type', 'application/json')
-                res.end(JSON.stringify({ error: err?.message || 'Failed to generate audio' }))
+                res.end(
+                  JSON.stringify({
+                    error: err?.message || 'Failed to generate audio',
+                  }),
+                )
               }
             })
           })
@@ -307,7 +321,7 @@ export default defineConfig(({ mode }) => {
               .join(' ')
             const hasContext = context.some((term) => q.toLowerCase().includes(term))
             const isPhysicalTerm = visualTerms.some((word) =>
-              ['ghana', 'tricycle', 'tricycles', 'cargo', 'carrier', 'vehicle', 'motor', 'truck'].includes(word)
+              ['ghana', 'tricycle', 'tricycles', 'cargo', 'carrier', 'vehicle', 'motor', 'truck'].includes(word),
             )
             const isShortAcronym = /^[A-Z0-9]{2,5}$/.test(cleanText(q)) && definitionWords.length > 0
             const contextualQuery = [
@@ -340,16 +354,30 @@ export default defineConfig(({ mode }) => {
               if (!isShortAcronym && haystack.includes(q.toLowerCase())) score += 20
               for (const term of context) if (haystack.includes(term)) score += 6
               if (/\b(diagram|infographic|concept|process|management|logistics|warehouse|procurement)\b/.test(haystack)) score += 5
-              if (/\b(logo|icon|clipart|meme|wallpaper|template|ppt|pdf|book cover|headshot|portrait|scandal|political|politics)\b/.test(haystack)) score -= 25
-              if (/\b(song|songs|music|album|lyrics|soundcloud|spotify|stream|listen online|radio|mixtape|playlist|artist)\b/.test(haystack)) score -= 70
-              if (/\b(school|schools|student|students|spring play|stage|theatre|theater|concert|embassy|training certificate|media training|ceremony)\b/.test(haystack)) score -= 80
+              if (
+                /\b(logo|icon|clipart|meme|wallpaper|template|ppt|pdf|book cover|headshot|portrait|scandal|political|politics)\b/.test(
+                  haystack,
+                )
+              )
+                score -= 25
+              if (
+                /\b(song|songs|music|album|lyrics|soundcloud|spotify|stream|listen online|radio|mixtape|playlist|artist)\b/.test(haystack)
+              )
+                score -= 70
+              if (
+                /\b(school|schools|student|students|spring play|stage|theatre|theater|concert|embassy|training certificate|media training|ceremony)\b/.test(
+                  haystack,
+                )
+              )
+                score -= 80
               if (visualTerms.length && !visualTerms.some((word) => haystack.includes(word))) score -= 35
               if (isShortAcronym) {
                 const expandedHits = expandedWords.filter((word) => haystack.includes(word)).length
                 if (expandedWords.length && expandedHits < Math.min(2, expandedWords.length)) score -= 90
                 if (haystack.includes(cleanText(q).toLowerCase()) && expandedHits === 0) score -= 40
               }
-              if (/\b(researchgate|gbcghanaonline|upfrica|alibaba|alamy|ghanabusinessnews|citinewsroom|graphic)\b/.test(haystack)) score += 14
+              if (/\b(researchgate|gbcghanaonline|upfrica|alibaba|alamy|ghanabusinessnews|citinewsroom|graphic)\b/.test(haystack))
+                score += 14
               if (/\b(tiktok|instagram|facebook|lookaside|fbcdn)\b/.test(haystack)) score -= 16
               const pixels = Number(item?.image?.width || 0) * Number(item?.image?.height || 0)
               return score + Math.min(6, Math.floor(pixels / 500000))
@@ -359,7 +387,11 @@ export default defineConfig(({ mode }) => {
                 .filter(Boolean)
                 .join(' ')
                 .toLowerCase()
-              if (/\b(song|songs|music|album|lyrics|soundcloud|spotify|stream|listen online|school|schools|student|students|spring play|stage|theatre|theater|concert|embassy|media training|ceremony)\b/.test(haystack)) {
+              if (
+                /\b(song|songs|music|album|lyrics|soundcloud|spotify|stream|listen online|school|schools|student|students|spring play|stage|theatre|theater|concert|embassy|media training|ceremony)\b/.test(
+                  haystack,
+                )
+              ) {
                 return false
               }
               if (isShortAcronym) {
@@ -386,7 +418,7 @@ export default defineConfig(({ mode }) => {
                 const body = await response.text()
                 if (!response.ok) throw new Error(body.slice(0, 500))
                 return JSON.parse(body)
-              })
+              }),
             )
               .then((responses) => {
                 const seen = new Set<string>()
@@ -395,11 +427,15 @@ export default defineConfig(({ mode }) => {
                   .filter((result: any) => {
                     const key = String(result?.link || result?.image?.thumbnailLink || '')
                     if (!key || seen.has(key)) return false
-                    if (exclude && (String(result?.link || '') === exclude || String(result?.image?.thumbnailLink || '') === exclude)) return false
+                    if (exclude && (String(result?.link || '') === exclude || String(result?.image?.thumbnailLink || '') === exclude))
+                      return false
                     seen.add(key)
                     return typeof result?.link === 'string' || typeof result?.image?.thumbnailLink === 'string'
                   })
-                  .map((result: any) => ({ result, score: scoreResult(result) }))
+                  .map((result: any) => ({
+                    result,
+                    score: scoreResult(result),
+                  }))
                   .filter(({ result, score }: any) => isReliableResult(result, score))
                   .sort((a: any, b: any) => b.score - a.score)
                 const item = scoredItems[0]?.result
@@ -416,20 +452,26 @@ export default defineConfig(({ mode }) => {
                 res.statusCode = 200
                 res.setHeader('Content-Type', 'application/json')
                 res.setHeader('Cache-Control', 'no-store')
-                res.end(JSON.stringify({
-                  url: link || thumbnail,
-                  thumbnail,
-                  link,
-                  width: item?.image?.width || null,
-                  height: item?.image?.height || null,
-                  title: item?.title || '',
-                  contextLink: item?.image?.contextLink || '',
-                }))
+                res.end(
+                  JSON.stringify({
+                    url: link || thumbnail,
+                    thumbnail,
+                    link,
+                    width: item?.image?.width || null,
+                    height: item?.image?.height || null,
+                    title: item?.title || '',
+                    contextLink: item?.image?.contextLink || '',
+                  }),
+                )
               })
               .catch((err: any) => {
                 res.statusCode = 500
                 res.setHeader('Content-Type', 'application/json')
-                res.end(JSON.stringify({ error: err?.message || 'Failed to fetch image' }))
+                res.end(
+                  JSON.stringify({
+                    error: err?.message || 'Failed to fetch image',
+                  }),
+                )
               })
           })
 
@@ -451,7 +493,11 @@ export default defineConfig(({ mode }) => {
                 if (!supabaseUrl || !supabaseAnonKey || !paystackSecretKey) {
                   res.statusCode = 500
                   res.setHeader('Content-Type', 'application/json')
-                  res.end(JSON.stringify({ error: 'Missing payment server configuration' }))
+                  res.end(
+                    JSON.stringify({
+                      error: 'Missing payment server configuration',
+                    }),
+                  )
                   return
                 }
 
@@ -483,16 +529,32 @@ export default defineConfig(({ mode }) => {
                 if (userError || !userData.user?.email) {
                   res.statusCode = 401
                   res.setHeader('Content-Type', 'application/json')
-                  res.end(JSON.stringify({ error: 'Could not verify signed-in user' }))
+                  res.end(
+                    JSON.stringify({
+                      error: 'Could not verify signed-in user',
+                    }),
+                  )
                   return
                 }
                 const subscription = (userData.user as any).app_metadata?.scmpedia_subscription
                 const expiresAt = typeof subscription?.expires_at === 'string' ? subscription.expires_at : ''
                 if (subscription?.tier === 'premium' && (!expiresAt || new Date(expiresAt).getTime() > Date.now())) {
-                  const expiresLabel = expiresAt ? new Date(expiresAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : ''
+                  const expiresLabel = expiresAt
+                    ? new Date(expiresAt).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                      })
+                    : ''
                   res.statusCode = 409
                   res.setHeader('Content-Type', 'application/json')
-                  res.end(JSON.stringify({ error: expiresLabel ? `You are paid until ${expiresLabel}. You can change plans after your current plan expires.` : 'You already have an active premium plan.' }))
+                  res.end(
+                    JSON.stringify({
+                      error: expiresLabel
+                        ? `You are paid until ${expiresLabel}. You can change plans after your current plan expires.`
+                        : 'You already have an active premium plan.',
+                    }),
+                  )
                   return
                 }
 
@@ -519,16 +581,29 @@ export default defineConfig(({ mode }) => {
                 if (!response.ok || !payload?.status || !payload?.data?.authorization_url) {
                   res.statusCode = 502
                   res.setHeader('Content-Type', 'application/json')
-                  res.end(JSON.stringify({ error: payload?.message || 'Could not initialize checkout' }))
+                  res.end(
+                    JSON.stringify({
+                      error: payload?.message || 'Could not initialize checkout',
+                    }),
+                  )
                   return
                 }
                 res.statusCode = 200
                 res.setHeader('Content-Type', 'application/json')
-                res.end(JSON.stringify({ authorizationUrl: payload.data.authorization_url, reference: payload.data.reference }))
+                res.end(
+                  JSON.stringify({
+                    authorizationUrl: payload.data.authorization_url,
+                    reference: payload.data.reference,
+                  }),
+                )
               } catch (err: any) {
                 res.statusCode = 500
                 res.setHeader('Content-Type', 'application/json')
-                res.end(JSON.stringify({ error: err?.message || 'Could not initialize checkout' }))
+                res.end(
+                  JSON.stringify({
+                    error: err?.message || 'Could not initialize checkout',
+                  }),
+                )
               }
             })
           })
@@ -551,7 +626,11 @@ export default defineConfig(({ mode }) => {
                 if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey || !paystackSecretKey) {
                   res.statusCode = 500
                   res.setHeader('Content-Type', 'application/json')
-                  res.end(JSON.stringify({ error: 'Missing payment server configuration' }))
+                  res.end(
+                    JSON.stringify({
+                      error: 'Missing payment server configuration',
+                    }),
+                  )
                   return
                 }
 
@@ -578,7 +657,11 @@ export default defineConfig(({ mode }) => {
                 if (userError || !userData.user) {
                   res.statusCode = 401
                   res.setHeader('Content-Type', 'application/json')
-                  res.end(JSON.stringify({ error: 'Could not verify signed-in user' }))
+                  res.end(
+                    JSON.stringify({
+                      error: 'Could not verify signed-in user',
+                    }),
+                  )
                   return
                 }
 
@@ -595,13 +678,21 @@ export default defineConfig(({ mode }) => {
                 if (!response.ok || !payment?.status || payment?.data?.status !== 'success') {
                   res.statusCode = 402
                   res.setHeader('Content-Type', 'application/json')
-                  res.end(JSON.stringify({ error: payment?.message || 'Payment has not been completed' }))
+                  res.end(
+                    JSON.stringify({
+                      error: payment?.message || 'Payment has not been completed',
+                    }),
+                  )
                   return
                 }
                 if (!plan || payment.data.metadata?.user_id !== userData.user.id || Number(payment.data.amount) !== plan.amount) {
                   res.statusCode = 400
                   res.setHeader('Content-Type', 'application/json')
-                  res.end(JSON.stringify({ error: 'Payment does not match this subscription' }))
+                  res.end(
+                    JSON.stringify({
+                      error: 'Payment does not match this subscription',
+                    }),
+                  )
                   return
                 }
 
@@ -625,23 +716,37 @@ export default defineConfig(({ mode }) => {
                 if (updateError) {
                   res.statusCode = 500
                   res.setHeader('Content-Type', 'application/json')
-                  res.end(JSON.stringify({ error: updateError.message || 'Could not activate subscription' }))
+                  res.end(
+                    JSON.stringify({
+                      error: updateError.message || 'Could not activate subscription',
+                    }),
+                  )
                   return
                 }
 
                 res.statusCode = 200
                 res.setHeader('Content-Type', 'application/json')
-                res.end(JSON.stringify({ tier: 'premium', plan: planId, expiresAt: expiresAt.toISOString() }))
+                res.end(
+                  JSON.stringify({
+                    tier: 'premium',
+                    plan: planId,
+                    expiresAt: expiresAt.toISOString(),
+                  }),
+                )
               } catch (err: any) {
                 res.statusCode = 500
                 res.setHeader('Content-Type', 'application/json')
-                res.end(JSON.stringify({ error: err?.message || 'Could not verify payment' }))
+                res.end(
+                  JSON.stringify({
+                    error: err?.message || 'Could not verify payment',
+                  }),
+                )
               }
             })
           })
 
           server.middlewares.use('/api/words', async (req, res) => {
-            if (req.method !== 'GET') {
+            if (!['GET', 'POST', 'DELETE'].includes(req.method || '')) {
               res.statusCode = 405
               res.setHeader('Content-Type', 'application/json')
               res.end(JSON.stringify({ error: 'Method not allowed' }))
@@ -651,11 +756,198 @@ export default defineConfig(({ mode }) => {
             if (!supabaseUrl || !supabaseServiceRoleKey) {
               res.statusCode = 500
               res.setHeader('Content-Type', 'application/json')
-              res.end(JSON.stringify({ error: 'Missing Supabase service configuration' }))
+              res.end(
+                JSON.stringify({
+                  error: 'Missing Supabase service configuration',
+                }),
+              )
               return
             }
 
             const url = new URL(req.url || '', 'http://localhost')
+            const client = createClient(supabaseUrl, supabaseServiceRoleKey, {
+              auth: { persistSession: false, autoRefreshToken: false },
+            })
+            const isMissingSourceKeyError = (error: any) => String(error?.message || '').includes('source_key')
+            const hasAdminAccess = () =>
+              String(req.headers['x-admin-user'] || '').trim() === adminUser &&
+              String(req.headers['x-admin-pass'] || '').trim() === adminPass
+            const readJsonBody = async () =>
+              new Promise<any>((resolve, reject) => {
+                let body = ''
+                req.on('data', (chunk) => {
+                  body += chunk
+                })
+                req.on('error', reject)
+                req.on('end', () => {
+                  try {
+                    resolve(JSON.parse(body || '{}'))
+                  } catch (error) {
+                    reject(error)
+                  }
+                })
+              })
+            const normalizeWord = (row: any) => ({
+              id: row?.id ? String(row.id) : undefined,
+              source_key: String(row?.source_key || row?.sourceKey || row?.SourceKey || '').trim(),
+              term: String(row?.term || row?.Term || '').trim(),
+              definition: String(row?.definition || row?.Definition || '').trim(),
+              synonyms: String(row?.synonyms || row?.Synonyms || ''),
+              tags: String(row?.tags || row?.Tags || ''),
+              pos: String(row?.pos || row?.Pos || ''),
+              pronunciation: String(row?.pronunciation || row?.Pronunciation || ''),
+              examples: String(row?.examples || row?.Examples || ''),
+            })
+            const withoutSourceKey = (rows: any[]) => rows.map(({ source_key, ...row }) => row)
+            const wordUpdatePayload = (row: any) => {
+              const entry = normalizeWord(row)
+              return {
+                source_key: entry.source_key || undefined,
+                term: entry.term,
+                definition: entry.definition,
+                synonyms: entry.synonyms,
+                tags: entry.tags,
+                pos: entry.pos,
+                pronunciation: entry.pronunciation,
+                examples: entry.examples,
+                updated_at: new Date().toISOString(),
+              }
+            }
+            const prepareImportRows = (rows: any[]) => {
+              const occurrenceByTerm = new Map<string, number>()
+              const prepared = []
+              for (const row of rows) {
+                const entry = normalizeWord(row)
+                if (!entry.term || !entry.definition) continue
+                const keyBase = entry.source_key || entry.term.toLowerCase()
+                const occurrence = (occurrenceByTerm.get(keyBase) || 0) + 1
+                occurrenceByTerm.set(keyBase, occurrence)
+                prepared.push({
+                  source_key: entry.source_key || (occurrence === 1 ? keyBase : `${keyBase}::${occurrence}`),
+                  term: entry.term,
+                  definition: entry.definition,
+                  synonyms: entry.synonyms,
+                  tags: entry.tags,
+                  pos: entry.pos,
+                  pronunciation: entry.pronunciation,
+                  examples: entry.examples,
+                  updated_at: new Date().toISOString(),
+                })
+              }
+              return prepared
+            }
+            const chunkRows = <T>(items: T[], size: number) => {
+              const chunks: T[][] = []
+              for (let index = 0; index < items.length; index += size) chunks.push(items.slice(index, index + size))
+              return chunks
+            }
+            if (req.method === 'POST') {
+              if (!hasAdminAccess()) {
+                res.statusCode = 401
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ error: 'Unauthorized' }))
+                return
+              }
+              try {
+                const parsed = await readJsonBody()
+                const rows = Array.isArray(parsed?.words) ? parsed.words : []
+                const singleRow = rows.length === 1 ? normalizeWord(rows[0]) : null
+                if (singleRow?.id && singleRow.term && singleRow.definition) {
+                  const payload = wordUpdatePayload(rows[0])
+                  const { source_key, ...payloadWithoutSourceKey } = payload
+                  let update = await client.from('words').update(payload).eq('id', singleRow.id)
+                  if (isMissingSourceKeyError(update.error)) {
+                    update = await client.from('words').update(payloadWithoutSourceKey).eq('id', singleRow.id)
+                  }
+                  if (update.error) throw update.error
+                  res.statusCode = 200
+                  res.setHeader('Content-Type', 'application/json')
+                  res.setHeader('Cache-Control', 'no-store')
+                  res.end(JSON.stringify({ imported: 1, updated: true }))
+                  return
+                }
+                const words = prepareImportRows(rows).slice(0, 10000)
+                if (!words.length) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ error: 'No valid words to import' }))
+                  return
+                }
+                let uploaded = 0
+                for (const batch of chunkRows(words, 500)) {
+                  const { error } = await client.from('words').upsert(batch, { onConflict: 'source_key' })
+                  if (isMissingSourceKeyError(error)) {
+                    const fallback = await client.from('words').upsert(withoutSourceKey(batch), { onConflict: 'term' })
+                    if (fallback.error) throw fallback.error
+                    uploaded += batch.length
+                    continue
+                  }
+                  if (error) throw error
+                  uploaded += batch.length
+                }
+                res.statusCode = 200
+                res.setHeader('Content-Type', 'application/json')
+                res.setHeader('Cache-Control', 'no-store')
+                res.end(JSON.stringify({ imported: uploaded }))
+              } catch (err: any) {
+                res.statusCode = 500
+                res.setHeader('Content-Type', 'application/json')
+                res.end(
+                  JSON.stringify({
+                    error: err?.message || 'Failed to import words',
+                  }),
+                )
+              }
+              return
+            }
+            if (req.method === 'DELETE') {
+              if (!hasAdminAccess()) {
+                res.statusCode = 401
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ error: 'Unauthorized' }))
+                return
+              }
+              const id = url.searchParams.get('id')?.trim() || ''
+              const sourceKey = url.searchParams.get('source_key')?.trim() || ''
+              const term = url.searchParams.get('term')?.trim() || ''
+              if (!id && !sourceKey && !term) {
+                res.statusCode = 400
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ error: 'Missing word identifier' }))
+                return
+              }
+              try {
+                let query = client.from('words').delete()
+                if (id) query = query.eq('id', id)
+                else if (sourceKey) query = query.eq('source_key', sourceKey)
+                else query = query.eq('term', term)
+                const { error } = await query
+                if (isMissingSourceKeyError(error) && sourceKey) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(
+                    JSON.stringify({
+                      error: 'Delete by source_key is not supported by the current words table',
+                    }),
+                  )
+                  return
+                }
+                if (error) throw error
+                res.statusCode = 200
+                res.setHeader('Content-Type', 'application/json')
+                res.setHeader('Cache-Control', 'no-store')
+                res.end(JSON.stringify({ deleted: true }))
+              } catch (err: any) {
+                res.statusCode = 500
+                res.setHeader('Content-Type', 'application/json')
+                res.end(
+                  JSON.stringify({
+                    error: err?.message || 'Failed to delete word',
+                  }),
+                )
+              }
+              return
+            }
             const q = url.searchParams.get('q')?.trim() || ''
             const terms = url.searchParams.get('terms')?.trim() || ''
             const browse = url.searchParams.get('browse') === '1'
@@ -671,9 +963,6 @@ export default defineConfig(({ mode }) => {
             }
 
             try {
-              const client = createClient(supabaseUrl, supabaseServiceRoleKey, {
-                auth: { persistSession: false, autoRefreshToken: false },
-              })
               if (browse) {
                 const { data, error, count } = await client
                   .from('words')
@@ -683,7 +972,13 @@ export default defineConfig(({ mode }) => {
                 if (error) throw error
                 res.statusCode = 200
                 res.setHeader('Content-Type', 'application/json')
-                res.end(JSON.stringify({ words: data || [], nextOffset: offset + (data?.length || 0), count }))
+                res.end(
+                  JSON.stringify({
+                    words: data || [],
+                    nextOffset: offset + (data?.length || 0),
+                    count,
+                  }),
+                )
                 return
               }
 
@@ -700,13 +995,17 @@ export default defineConfig(({ mode }) => {
                       .split(',')
                       .map((term) => term.trim())
                       .filter(Boolean)
-                      .slice(0, 25)
+                      .slice(0, 25),
                   )
                 data = response.data
                 error = response.error
               }
               if (error) throw error
-              const normalizeSearchText = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+              const normalizeSearchText = (value: string) =>
+                value
+                  .toLowerCase()
+                  .replace(/[^a-z0-9]+/g, ' ')
+                  .trim()
               const searchStopWords = new Set([
                 'a',
                 'an',
@@ -756,49 +1055,49 @@ export default defineConfig(({ mode }) => {
                   .filter((token) => token.length >= 3 && !searchStopWords.has(token))
               const searchAcronym = (value: string) => {
                 const tokens = normalizeSearchText(value)
-                    .split(/\s+/)
-                    .filter(
-                      (token) =>
-                        token.length >= 2 &&
-                        ![
-                          'a',
-                          'an',
-                          'are',
-                          'about',
-                          'can',
-                          'could',
-                          'define',
-                          'describe',
-                          'does',
-                          'explain',
-                          'help',
-                          'how',
-                          'is',
-                          'looking',
-                          'look',
-                          'mean',
-                          'meaning',
-                          'me',
-                          'need',
-                          'please',
-                          'search',
-                          'show',
-                          'tell',
-                          'term',
-                          'the',
-                          'this',
-                          'to',
-                          'understand',
-                          'want',
-                          'what',
-                          'whats',
-                          'with',
-                          'word',
-                          'work',
-                          'works',
-                          'you',
-                        ].includes(token)
-                    )
+                  .split(/\s+/)
+                  .filter(
+                    (token) =>
+                      token.length >= 2 &&
+                      ![
+                        'a',
+                        'an',
+                        'are',
+                        'about',
+                        'can',
+                        'could',
+                        'define',
+                        'describe',
+                        'does',
+                        'explain',
+                        'help',
+                        'how',
+                        'is',
+                        'looking',
+                        'look',
+                        'mean',
+                        'meaning',
+                        'me',
+                        'need',
+                        'please',
+                        'search',
+                        'show',
+                        'tell',
+                        'term',
+                        'the',
+                        'this',
+                        'to',
+                        'understand',
+                        'want',
+                        'what',
+                        'whats',
+                        'with',
+                        'word',
+                        'work',
+                        'works',
+                        'you',
+                      ].includes(token),
+                  )
                 return tokens.length >= 3 ? tokens.map((token) => token[0]).join('') : ''
               }
               const editDistance = (a: string, b: string) => {
@@ -810,10 +1109,7 @@ export default defineConfig(({ mode }) => {
                   previous[0] = i
                   for (let j = 1; j <= right.length; j += 1) {
                     const tmp = previous[j]
-                    previous[j] =
-                      left[i - 1] === right[j - 1]
-                        ? before
-                        : Math.min(previous[j] + 1, previous[j - 1] + 1, before + 1)
+                    previous[j] = left[i - 1] === right[j - 1] ? before : Math.min(previous[j] + 1, previous[j - 1] + 1, before + 1)
                     before = tmp
                   }
                 }
@@ -913,21 +1209,18 @@ export default defineConfig(({ mode }) => {
                             : tokens.length > 1 && tokens.every((token) => term.includes(token))
                               ? -3
                               : tokens.some((token) => definition.startsWith(token)) && tokens.every((token) => haystack.includes(token))
-                            ? -3
-                          : tokenPhrase && definition.startsWith(tokenPhrase)
-                            ? -2
-                            : tokenPhrase && definition.includes(tokenPhrase)
-                              ? -1
-                              : 0
+                                ? -3
+                                : tokenPhrase && definition.startsWith(tokenPhrase)
+                                  ? -2
+                                  : tokenPhrase && definition.includes(tokenPhrase)
+                                    ? -1
+                                    : 0
                     const tokenScore = tokens.reduce((total, token) => {
                       if (term === token || synonyms === token) return total
                       if (term.includes(token) || synonyms.includes(token)) return total + 0.25
                       if (definition.startsWith(token) || tags.includes(token)) return total + 0.5
                       if (haystack.includes(token)) return total + 1
-                      const bestDistance = haystackWords.reduce(
-                        (best, word) => Math.min(best, editDistance(token, word)),
-                        token.length
-                      )
+                      const bestDistance = haystackWords.reduce((best, word) => Math.min(best, editDistance(token, word)), token.length)
                       return total + Math.min(4, bestDistance + 1)
                     }, 0)
                     const acronymScore = acronym.length >= 2 && compactTerm === acronym ? -4 : 0
@@ -955,14 +1248,20 @@ export default defineConfig(({ mode }) => {
                 const phrases = uniqueSearchPhrases(q)
                 const acronym = searchAcronym(q)
                 for (const phrase of phrases) {
-                  await run(client.from('words').select('id,term,definition,synonyms,tags,pronunciation,pos,examples').ilike('term', phrase).limit(50))
+                  await run(
+                    client
+                      .from('words')
+                      .select('id,term,definition,synonyms,tags,pronunciation,pos,examples')
+                      .ilike('term', phrase)
+                      .limit(50),
+                  )
                   await run(
                     client
                       .from('words')
                       .select('id,term,definition,synonyms,tags,pronunciation,pos,examples')
                       .ilike('term', `${phrase}%`)
                       .order('term', { ascending: true })
-                      .limit(250)
+                      .limit(250),
                   )
                   await run(
                     client
@@ -970,15 +1269,33 @@ export default defineConfig(({ mode }) => {
                       .select('id,term,definition,synonyms,tags,pronunciation,pos,examples')
                       .ilike('term', `%${phrase}%`)
                       .order('term', { ascending: true })
-                      .limit(250)
+                      .limit(250),
                   )
                 }
                 if (acronym) {
-                  await run(client.from('words').select('id,term,definition,synonyms,tags,pronunciation,pos,examples').ilike('term', acronym).limit(50))
+                  await run(
+                    client
+                      .from('words')
+                      .select('id,term,definition,synonyms,tags,pronunciation,pos,examples')
+                      .ilike('term', acronym)
+                      .limit(50),
+                  )
                 }
                 for (const phrase of phrases) {
-                  await run(client.from('words').select('id,term,definition,synonyms,tags,pronunciation,pos,examples').ilike('definition', `%${phrase}%`).limit(250))
-                  await run(client.from('words').select('id,term,definition,synonyms,tags,pronunciation,pos,examples').ilike('tags', `%${phrase}%`).limit(100))
+                  await run(
+                    client
+                      .from('words')
+                      .select('id,term,definition,synonyms,tags,pronunciation,pos,examples')
+                      .ilike('definition', `%${phrase}%`)
+                      .limit(250),
+                  )
+                  await run(
+                    client
+                      .from('words')
+                      .select('id,term,definition,synonyms,tags,pronunciation,pos,examples')
+                      .ilike('tags', `%${phrase}%`)
+                      .limit(100),
+                  )
                 }
                 for (const token of searchTokens(q).slice(0, 5)) {
                   await run(
@@ -987,9 +1304,15 @@ export default defineConfig(({ mode }) => {
                       .select('id,term,definition,synonyms,tags,pronunciation,pos,examples')
                       .ilike('term', `%${token}%`)
                       .order('term', { ascending: true })
-                      .limit(250)
+                      .limit(250),
                   )
-                  await run(client.from('words').select('id,term,definition,synonyms,tags,pronunciation,pos,examples').ilike('definition', `%${token}%`).limit(250))
+                  await run(
+                    client
+                      .from('words')
+                      .select('id,term,definition,synonyms,tags,pronunciation,pos,examples')
+                      .ilike('definition', `%${token}%`)
+                      .limit(250),
+                  )
                 }
                 const seen = new Set<string>()
                 return rows.filter((row) => {
@@ -1040,7 +1363,11 @@ export default defineConfig(({ mode }) => {
             } catch (err: any) {
               res.statusCode = 500
               res.setHeader('Content-Type', 'application/json')
-              res.end(JSON.stringify({ error: err?.message || 'Failed to search words' }))
+              res.end(
+                JSON.stringify({
+                  error: err?.message || 'Failed to search words',
+                }),
+              )
             }
           })
         },
