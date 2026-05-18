@@ -39,6 +39,8 @@ On Vercel, add the same variables in Project Settings. The AI explanation button
 
 Words are served from Supabase through the server-only `/api/words` endpoint. Keep `SUPABASE_SERVICE_ROLE_KEY` in local/Vercel server environment variables, never in frontend code.
 
+CSV uploads in `/admin` are imported into Supabase through `/api/words`. If you change the admin credentials, set both the server variables (`SCMPEDIA_ADMIN_USER`, `SCMPEDIA_ADMIN_PASS`) and the matching Vite variables (`VITE_SCMPEDIA_ADMIN_USER`, `VITE_SCMPEDIA_ADMIN_PASS`) so the admin page and API agree.
+
 ## Build
 
 ```bash

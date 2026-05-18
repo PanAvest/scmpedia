@@ -18,7 +18,6 @@ export default defineConfig(({ mode }) => {
   const supabaseServiceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY
   const supabaseAnonKey = env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || env.VITE_SUPABASE_ANON_KEY
   const paystackSecretKey = env.PAYSTACK_SECRET_KEY
-
   return {
     envPrefix: ['VITE_', 'NEXT_PUBLIC_'],
     plugins: [
@@ -232,6 +231,8 @@ export default defineConfig(({ mode }) => {
 
             const url = new URL(req.url || '', 'http://localhost')
             const q = url.searchParams.get('q')?.trim() || ''
+            const definition = url.searchParams.get('definition')?.trim() || ''
+            const exclude = url.searchParams.get('exclude')?.trim() || ''
             if (!q) {
               res.statusCode = 400
               res.setHeader('Content-Type', 'application/json')
@@ -246,37 +247,162 @@ export default defineConfig(({ mode }) => {
               return
             }
 
-            const params = new URLSearchParams({
-              key: cseKey,
-              cx: cseCx,
-              q,
-              searchType: 'image',
-              num: '1',
-              safe: 'active',
-            })
-            const apiUrl = `https://www.googleapis.com/customsearch/v1?${params.toString()}`
+            const cleanText = (value: string) =>
+              value
+                .replace(/[^\p{L}\p{N}\s'-]/gu, ' ')
+                .replace(/\s+/g, ' ')
+                .trim()
+            const wordsFrom = (value: string) =>
+              cleanText(value)
+                .toLowerCase()
+                .split(' ')
+                .filter((word) => word.length > 2)
+            const stopWords = new Set(['the', 'and', 'that', 'with', 'from', 'this', 'their', 'are', 'for', 'used', 'into', 'more'])
+            const context = ['supply chain', 'logistics', 'procurement', 'inventory', 'warehouse', 'operations management']
+            const visualWords = [
+              'ghana',
+              'tricycle',
+              'tricycles',
+              'cargo',
+              'carrier',
+              'carriers',
+              'waste',
+              'goods',
+              'truck',
+              'vehicle',
+              'motor',
+              'warehouse',
+              'forklift',
+              'container',
+              'port',
+              'ship',
+              'pallet',
+              'inventory',
+              'procurement',
+              'factory',
+              'supplier',
+              'highway',
+              'road',
+              'roadway',
+              'route',
+              'routing',
+              'transportation',
+              'corridor',
+              'corridors',
+              'traffic',
+            ]
+            const expandedTermFromDefinition = (value: string) => {
+              const seeMatch = value.match(/^\s*see\s*:\s*([^.;]+)/i)
+              if (seeMatch?.[1]) return cleanText(seeMatch[1])
+              const colonMatch = value.match(/^\s*([^:]{4,90})\s*:/)
+              if (colonMatch?.[1]) return cleanText(colonMatch[1])
+              return ''
+            }
+            const expandedTerm = expandedTermFromDefinition(definition)
+            const definitionWords = wordsFrom([expandedTerm, definition].filter(Boolean).join(' ')).filter((word) => !stopWords.has(word))
+            const visualTerms = definitionWords.filter((word) => visualWords.includes(word)).slice(0, 6)
+            const fallbackTerms = definitionWords
+              .filter((word) => !visualTerms.includes(word))
+              .slice(0, 8)
+              .join(' ')
+            const hasContext = context.some((term) => q.toLowerCase().includes(term))
+            const isPhysicalTerm = visualTerms.some((word) =>
+              ['ghana', 'tricycle', 'tricycles', 'cargo', 'carrier', 'vehicle', 'motor', 'truck'].includes(word)
+            )
+            const isShortAcronym = /^[A-Z0-9]{2,5}$/.test(cleanText(q)) && definitionWords.length > 0
+            const contextualQuery = [
+              cleanText(q),
+              visualTerms.slice(0, 4).join(' '),
+              visualTerms.length ? '' : fallbackTerms,
+              hasContext || isPhysicalTerm ? '' : 'supply chain logistics',
+            ]
+              .filter(Boolean)
+              .join(' ')
+            const definitionContext = [
+              isShortAcronym ? '' : cleanText(q),
+              expandedTerm,
+              fallbackTerms,
+              'supply chain procurement logistics operations',
+            ]
+              .filter(Boolean)
+              .join(' ')
+            const imageQueries = Array.from(new Set([isShortAcronym ? definitionContext : cleanText(q), contextualQuery].filter(Boolean)))
+            const scoreResult = (item: any) => {
+              const haystack = [item?.title, item?.snippet, item?.displayLink, item?.link, item?.image?.contextLink]
+                .filter(Boolean)
+                .join(' ')
+                .toLowerCase()
+              const queryWords = isShortAcronym ? [] : wordsFrom(q)
+              const expandedWords = wordsFrom(expandedTerm).filter((word) => !stopWords.has(word))
+              let score = 0
+              for (const word of queryWords) if (haystack.includes(word)) score += 18
+              for (const word of visualTerms) if (haystack.includes(word)) score += 12
+              if (!isShortAcronym && haystack.includes(q.toLowerCase())) score += 20
+              for (const term of context) if (haystack.includes(term)) score += 6
+              if (/\b(diagram|infographic|concept|process|management|logistics|warehouse|procurement)\b/.test(haystack)) score += 5
+              if (/\b(logo|icon|clipart|meme|wallpaper|template|ppt|pdf|book cover|headshot|portrait|scandal|political|politics)\b/.test(haystack)) score -= 25
+              if (/\b(song|songs|music|album|lyrics|soundcloud|spotify|stream|listen online|radio|mixtape|playlist|artist)\b/.test(haystack)) score -= 70
+              if (/\b(school|schools|student|students|spring play|stage|theatre|theater|concert|embassy|training certificate|media training|ceremony)\b/.test(haystack)) score -= 80
+              if (visualTerms.length && !visualTerms.some((word) => haystack.includes(word))) score -= 35
+              if (isShortAcronym) {
+                const expandedHits = expandedWords.filter((word) => haystack.includes(word)).length
+                if (expandedWords.length && expandedHits < Math.min(2, expandedWords.length)) score -= 90
+                if (haystack.includes(cleanText(q).toLowerCase()) && expandedHits === 0) score -= 40
+              }
+              if (/\b(researchgate|gbcghanaonline|upfrica|alibaba|alamy|ghanabusinessnews|citinewsroom|graphic)\b/.test(haystack)) score += 14
+              if (/\b(tiktok|instagram|facebook|lookaside|fbcdn)\b/.test(haystack)) score -= 16
+              const pixels = Number(item?.image?.width || 0) * Number(item?.image?.height || 0)
+              return score + Math.min(6, Math.floor(pixels / 500000))
+            }
+            const isReliableResult = (item: any, score: number) => {
+              const haystack = [item?.title, item?.snippet, item?.displayLink, item?.link, item?.image?.contextLink]
+                .filter(Boolean)
+                .join(' ')
+                .toLowerCase()
+              if (/\b(song|songs|music|album|lyrics|soundcloud|spotify|stream|listen online|school|schools|student|students|spring play|stage|theatre|theater|concert|embassy|media training|ceremony)\b/.test(haystack)) {
+                return false
+              }
+              if (isShortAcronym) {
+                const expandedWords = wordsFrom(expandedTerm).filter((word) => !stopWords.has(word))
+                const expandedHits = expandedWords.filter((word) => haystack.includes(word)).length
+                return score >= 18 && (!expandedWords.length || expandedHits >= Math.min(2, expandedWords.length))
+              }
+              return score >= 10
+            }
 
-            fetch(apiUrl)
-              .then(async (response) => {
+            Promise.all(
+              imageQueries.map(async (imageQuery) => {
+                const params = new URLSearchParams({
+                  key: cseKey,
+                  cx: cseCx,
+                  q: imageQuery,
+                  searchType: 'image',
+                  num: '10',
+                  imgSize: 'large',
+                  safe: 'active',
+                })
+                if (wordsFrom(q).length <= 5 && !definition) params.set('exactTerms', cleanText(q))
+                const response = await fetch(`https://www.googleapis.com/customsearch/v1?${params.toString()}`)
                 const body = await response.text()
-                if (!response.ok) {
-                  res.statusCode = response.status
-                  res.setHeader('Content-Type', 'application/json')
-                  res.end(JSON.stringify({ error: body.slice(0, 500) }))
-                  return
-                }
-
-                let data: any
-                try {
-                  data = JSON.parse(body)
-                } catch {
-                  res.statusCode = 502
-                  res.setHeader('Content-Type', 'application/json')
-                  res.end(JSON.stringify({ error: 'Invalid response from Google' }))
-                  return
-                }
-
-                const item = data?.items?.[0]
+                if (!response.ok) throw new Error(body.slice(0, 500))
+                return JSON.parse(body)
+              })
+            )
+              .then((responses) => {
+                const seen = new Set<string>()
+                const scoredItems = responses
+                  .flatMap((data) => (Array.isArray(data?.items) ? data.items : []))
+                  .filter((result: any) => {
+                    const key = String(result?.link || result?.image?.thumbnailLink || '')
+                    if (!key || seen.has(key)) return false
+                    if (exclude && (String(result?.link || '') === exclude || String(result?.image?.thumbnailLink || '') === exclude)) return false
+                    seen.add(key)
+                    return typeof result?.link === 'string' || typeof result?.image?.thumbnailLink === 'string'
+                  })
+                  .map((result: any) => ({ result, score: scoreResult(result) }))
+                  .filter(({ result, score }: any) => isReliableResult(result, score))
+                  .sort((a: any, b: any) => b.score - a.score)
+                const item = scoredItems[0]?.result
                 const link = typeof item?.link === 'string' ? item.link : ''
                 const thumbnail = typeof item?.image?.thumbnailLink === 'string' ? item.image.thumbnailLink : ''
 
@@ -289,7 +415,16 @@ export default defineConfig(({ mode }) => {
 
                 res.statusCode = 200
                 res.setHeader('Content-Type', 'application/json')
-                res.end(JSON.stringify({ url: link || thumbnail, thumbnail }))
+                res.setHeader('Cache-Control', 'no-store')
+                res.end(JSON.stringify({
+                  url: link || thumbnail,
+                  thumbnail,
+                  link,
+                  width: item?.image?.width || null,
+                  height: item?.image?.height || null,
+                  title: item?.title || '',
+                  contextLink: item?.image?.contextLink || '',
+                }))
               })
               .catch((err: any) => {
                 res.statusCode = 500
@@ -525,7 +660,7 @@ export default defineConfig(({ mode }) => {
             const terms = url.searchParams.get('terms')?.trim() || ''
             const browse = url.searchParams.get('browse') === '1'
             const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 8, 1), 25)
-            const browseLimit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 300, 50), 500)
+            const browseLimit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 300, 50), 1000)
             const offset = Math.max(Number(url.searchParams.get('offset')) || 0, 0)
             const searchLimit = terms ? limit : 100
             if (!q && !terms && !browse) {
@@ -552,26 +687,120 @@ export default defineConfig(({ mode }) => {
                 return
               }
 
-              let query = client
-                .from('words')
-                .select('id,term,definition,synonyms,tags,pronunciation,pos,examples')
-                .limit(searchLimit)
-
+              let data: any[] | null = []
+              let error: any = null
               if (terms) {
-                query = query.in(
-                  'term',
-                  terms
-                    .split(',')
-                    .map((term) => term.trim())
-                    .filter(Boolean)
-                    .slice(0, 25)
-                )
-              } else {
-                query = query.or(`term.ilike.%${q}%,definition.ilike.%${q}%,tags.ilike.%${q}%`)
+                const response = await client
+                  .from('words')
+                  .select('id,term,definition,synonyms,tags,pronunciation,pos,examples')
+                  .limit(searchLimit)
+                  .in(
+                    'term',
+                    terms
+                      .split(',')
+                      .map((term) => term.trim())
+                      .filter(Boolean)
+                      .slice(0, 25)
+                  )
+                data = response.data
+                error = response.error
               }
-
-              const { data, error } = await query
               if (error) throw error
+              const normalizeSearchText = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+              const searchStopWords = new Set([
+                'a',
+                'an',
+                'and',
+                'are',
+                'about',
+                'can',
+                'could',
+                'define',
+                'describe',
+                'does',
+                'explain',
+                'for',
+                'from',
+                'help',
+                'how',
+                'in',
+                'is',
+                'looking',
+                'look',
+                'mean',
+                'meaning',
+                'me',
+                'need',
+                'of',
+                'please',
+                'search',
+                'show',
+                'tell',
+                'term',
+                'the',
+                'this',
+                'to',
+                'understand',
+                'want',
+                'what',
+                'whats',
+                'with',
+                'word',
+                'work',
+                'works',
+                'you',
+              ])
+              const searchTokens = (value: string) =>
+                normalizeSearchText(value)
+                  .split(/\s+/)
+                  .filter((token) => token.length >= 3 && !searchStopWords.has(token))
+              const searchAcronym = (value: string) => {
+                const tokens = normalizeSearchText(value)
+                    .split(/\s+/)
+                    .filter(
+                      (token) =>
+                        token.length >= 2 &&
+                        ![
+                          'a',
+                          'an',
+                          'are',
+                          'about',
+                          'can',
+                          'could',
+                          'define',
+                          'describe',
+                          'does',
+                          'explain',
+                          'help',
+                          'how',
+                          'is',
+                          'looking',
+                          'look',
+                          'mean',
+                          'meaning',
+                          'me',
+                          'need',
+                          'please',
+                          'search',
+                          'show',
+                          'tell',
+                          'term',
+                          'the',
+                          'this',
+                          'to',
+                          'understand',
+                          'want',
+                          'what',
+                          'whats',
+                          'with',
+                          'word',
+                          'work',
+                          'works',
+                          'you',
+                        ].includes(token)
+                    )
+                return tokens.length >= 3 ? tokens.map((token) => token[0]).join('') : ''
+              }
               const editDistance = (a: string, b: string) => {
                 const left = a.toLowerCase()
                 const right = b.toLowerCase()
@@ -592,16 +821,41 @@ export default defineConfig(({ mode }) => {
               }
               const rankWords = (rows: any[]) => {
                 const needle = q.toLowerCase()
+                const compactNeedle = needle.replace(/[^a-z0-9]/g, '')
+                const tokens = searchTokens(needle)
+                const acronym = searchAcronym(needle)
+                const tokenPhrase = tokens.join(' ')
                 const score = (row: any) => {
                   const term = String(row?.term || '').toLowerCase()
                   const definition = String(row?.definition || '').toLowerCase()
+                  const synonyms = String(row?.synonyms || '').toLowerCase()
                   const tags = String(row?.tags || '').toLowerCase()
+                  const haystack = [term, definition, synonyms, tags].join(' ')
+                  const compactTerm = term.replace(/[^a-z0-9]/g, '')
+                  const compactDefinition = definition.replace(/[^a-z0-9]/g, '')
+                  const compactSynonyms = synonyms.replace(/[^a-z0-9]/g, '')
                   if (term === needle) return 0
+                  if (compactTerm && compactTerm === compactNeedle) return 0.2
+                  if (acronym.length >= 2 && compactTerm === acronym && tokens.some((token) => definition.startsWith(token))) return 0.25
+                  if (tokenPhrase && term === tokenPhrase) return 0.3
+                  if (tokenPhrase && (term.startsWith(`${tokenPhrase} `) || term.startsWith(`${tokenPhrase}-`))) return 0.4
+                  if (tokenPhrase && (term.includes(tokenPhrase) || synonyms.includes(tokenPhrase))) return 0.8
+                  if (tokens.length > 1 && tokens.every((token) => term.includes(token))) return 1
+                  if (acronym.length >= 2 && compactTerm === acronym) return 1.5
                   if (term.startsWith(`${needle} `) || term.startsWith(`${needle}-`) || term.startsWith(needle)) return 1
                   if (term.includes(needle)) return 2
-                  if (tags.includes(needle)) return 3
-                  if (definition.includes(needle)) return 4
-                  return 5
+                  if (synonyms === needle || compactSynonyms === compactNeedle) return 2.2
+                  if (tokens.some((token) => definition.startsWith(token))) return 2.3
+                  if (definition.startsWith(needle) || compactDefinition.startsWith(compactNeedle)) return 2.5
+                  if (synonyms.includes(needle) || compactSynonyms.includes(compactNeedle)) return 3
+                  if (tags.includes(needle)) return 4
+                  if (definition.includes(needle) || compactDefinition.includes(compactNeedle)) return 5
+                  if (tokens.length) {
+                    const matchedTokens = tokens.filter((token) => haystack.includes(token)).length
+                    if (matchedTokens === tokens.length) return 6
+                    if (matchedTokens) return 7 + (tokens.length - matchedTokens)
+                  }
+                  return 20
                 }
                 return [...rows]
                   .sort((a, b) => {
@@ -635,7 +889,140 @@ export default defineConfig(({ mode }) => {
                   .slice(0, limit)
                   .map(({ row }) => row)
               }
-              let words = terms ? data || [] : rankWords(data || [])
+              const tokenRankWords = (rows: any[]) => {
+                const tokens = searchTokens(q)
+                if (!tokens.length) return []
+                const acronym = searchAcronym(q)
+                const tokenPhrase = tokens.join(' ')
+                return [...rows]
+                  .map((row) => {
+                    const term = normalizeSearchText(String(row?.term || ''))
+                    const compactTerm = term.replace(/[^a-z0-9]/g, '')
+                    const definition = normalizeSearchText(String(row?.definition || ''))
+                    const synonyms = normalizeSearchText(String(row?.synonyms || ''))
+                    const tags = normalizeSearchText(String(row?.tags || ''))
+                    const haystack = [term, definition, synonyms, tags].join(' ')
+                    const haystackWords = haystack.split(/\s+/).filter(Boolean)
+                    const phraseScore =
+                      tokenPhrase && term === tokenPhrase
+                        ? -8
+                        : tokenPhrase && (term.startsWith(`${tokenPhrase} `) || term.startsWith(`${tokenPhrase}-`))
+                          ? -6
+                          : tokenPhrase && (term.includes(tokenPhrase) || synonyms.includes(tokenPhrase))
+                            ? -5
+                            : tokens.length > 1 && tokens.every((token) => term.includes(token))
+                              ? -3
+                              : tokens.some((token) => definition.startsWith(token)) && tokens.every((token) => haystack.includes(token))
+                            ? -3
+                          : tokenPhrase && definition.startsWith(tokenPhrase)
+                            ? -2
+                            : tokenPhrase && definition.includes(tokenPhrase)
+                              ? -1
+                              : 0
+                    const tokenScore = tokens.reduce((total, token) => {
+                      if (term === token || synonyms === token) return total
+                      if (term.includes(token) || synonyms.includes(token)) return total + 0.25
+                      if (definition.startsWith(token) || tags.includes(token)) return total + 0.5
+                      if (haystack.includes(token)) return total + 1
+                      const bestDistance = haystackWords.reduce(
+                        (best, word) => Math.min(best, editDistance(token, word)),
+                        token.length
+                      )
+                      return total + Math.min(4, bestDistance + 1)
+                    }, 0)
+                    const acronymScore = acronym.length >= 2 && compactTerm === acronym ? -4 : 0
+                    const score = tokenScore + acronymScore + phraseScore
+                    return { row, score }
+                  })
+                  .filter(({ score }) => score <= Math.max(2, tokens.length * 2.5))
+                  .sort((a, b) => {
+                    if (a.score !== b.score) return a.score - b.score
+                    return String(a.row?.term || '').localeCompare(String(b.row?.term || ''))
+                  })
+                  .slice(0, limit)
+                  .map(({ row }) => row)
+              }
+              const uniqueSearchPhrases = (value: string) =>
+                Array.from(new Set([value.trim(), searchTokens(value).join(' ')].map((phrase) => phrase.trim()).filter(Boolean)))
+              const collectSearchCandidates = async () => {
+                const rows: any[] = []
+                const add = (next: any[] | null) => rows.push(...(next || []))
+                const run = async (query: any) => {
+                  const { data: next, error: nextError } = await query
+                  if (nextError) throw nextError
+                  add(next)
+                }
+                const phrases = uniqueSearchPhrases(q)
+                const acronym = searchAcronym(q)
+                for (const phrase of phrases) {
+                  await run(client.from('words').select('id,term,definition,synonyms,tags,pronunciation,pos,examples').ilike('term', phrase).limit(50))
+                  await run(
+                    client
+                      .from('words')
+                      .select('id,term,definition,synonyms,tags,pronunciation,pos,examples')
+                      .ilike('term', `${phrase}%`)
+                      .order('term', { ascending: true })
+                      .limit(250)
+                  )
+                  await run(
+                    client
+                      .from('words')
+                      .select('id,term,definition,synonyms,tags,pronunciation,pos,examples')
+                      .ilike('term', `%${phrase}%`)
+                      .order('term', { ascending: true })
+                      .limit(250)
+                  )
+                }
+                if (acronym) {
+                  await run(client.from('words').select('id,term,definition,synonyms,tags,pronunciation,pos,examples').ilike('term', acronym).limit(50))
+                }
+                for (const phrase of phrases) {
+                  await run(client.from('words').select('id,term,definition,synonyms,tags,pronunciation,pos,examples').ilike('definition', `%${phrase}%`).limit(250))
+                  await run(client.from('words').select('id,term,definition,synonyms,tags,pronunciation,pos,examples').ilike('tags', `%${phrase}%`).limit(100))
+                }
+                for (const token of searchTokens(q).slice(0, 5)) {
+                  await run(
+                    client
+                      .from('words')
+                      .select('id,term,definition,synonyms,tags,pronunciation,pos,examples')
+                      .ilike('term', `%${token}%`)
+                      .order('term', { ascending: true })
+                      .limit(250)
+                  )
+                  await run(client.from('words').select('id,term,definition,synonyms,tags,pronunciation,pos,examples').ilike('definition', `%${token}%`).limit(250))
+                }
+                const seen = new Set<string>()
+                return rows.filter((row) => {
+                  const key = String(row?.term || '').toLowerCase()
+                  if (!key || seen.has(key)) return false
+                  seen.add(key)
+                  return true
+                })
+              }
+              if (!terms && q) data = await collectSearchCandidates()
+              const seenWords = new Set<string>()
+              const rows = (data || []).filter((row) => {
+                const key = String(row?.term || '').toLowerCase()
+                if (!key || seenWords.has(key)) return false
+                seenWords.add(key)
+                return true
+              })
+              let words = terms ? rows : rankWords(rows)
+              if (!terms && q && !words.length) {
+                const tokens = searchTokens(q)
+                const tokenFilters = tokens
+                  .slice(0, 5)
+                  .flatMap((token) => [`term.ilike.%${token}%`, `definition.ilike.%${token}%`, `tags.ilike.%${token}%`])
+                if (tokenFilters.length) {
+                  const { data: tokenCandidates, error: tokenCandidateError } = await client
+                    .from('words')
+                    .select('id,term,definition,synonyms,tags,pronunciation,pos,examples')
+                    .or(tokenFilters.join(','))
+                    .limit(5000)
+                  if (tokenCandidateError) throw tokenCandidateError
+                  words = tokenRankWords(tokenCandidates || [])
+                }
+              }
               if (!terms && q && !words.length) {
                 const first = q.trim()[0] || ''
                 const { data: candidates, error: candidateError } = await client

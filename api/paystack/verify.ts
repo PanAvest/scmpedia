@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node'
+import type { VercelRequest, VercelResponse } from '../vercel-types'
 import { createClient } from '@supabase/supabase-js'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL
@@ -13,7 +13,7 @@ const plans = {
 
 type PlanId = keyof typeof plans
 
-const getBearerToken = (header?: string) => {
+const getBearerToken = (header?: string | string[]) => {
   const match = String(header || '').match(/^Bearer\s+(.+)$/i)
   return match?.[1] || ''
 }

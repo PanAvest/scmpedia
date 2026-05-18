@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node'
+import type { VercelRequest, VercelResponse } from './vercel-types'
 
 const BASE_URL = process.env.POLLINATIONS_BASE_URL || 'https://gen.pollinations.ai'
 const API_KEY = process.env.POLLINATIONS_API_KEY

@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import ReactDOM from 'react-dom/client'
 
 type Entry = {
+  id?: string
+  source_key?: string
   term: string
   definition: string
   synonyms?: string
@@ -16,8 +18,8 @@ type PapaParse = {
   unparse: (data: any) => string
 }
 
-const ADMIN_USER = 'scmpedia-admin'
-const ADMIN_PASS = 'scmpedia-2026'
+const ADMIN_USER = import.meta.env.VITE_SCMPEDIA_ADMIN_USER || 'scmpedia-admin'
+const ADMIN_PASS = import.meta.env.VITE_SCMPEDIA_ADMIN_PASS || 'scmpedia-2026'
 const LOCAL_ENTRIES_KEY = 'scmpedia-admin-entries-v1'
 
 const STYLES = `
@@ -54,12 +56,22 @@ body { margin: 0; font-family: "Google Sans", "Segoe UI", Roboto, Helvetica, Ari
 .admin-main { flex: 1; display: grid; grid-template-columns: 320px 1fr; gap: 20px; padding: 20px 24px 24px; align-items: start; }
 .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; }
 .panel-title { font-weight: 600; margin-bottom: 10px; color: var(--text-sub); font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; }
+.panel-title-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.panel-title-row .panel-title { margin-bottom: 0; }
+.count-pill { border-radius: 999px; background: var(--surface-2); color: var(--text-sub); font-size: 11px; font-weight: 700; padding: 5px 8px; }
 
 .search-input { width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: 14px; }
 .list { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; max-height: 65vh; overflow-y: auto; }
 .list-item { padding: 10px 12px; border-radius: 10px; background: var(--surface-2); cursor: pointer; transition: background 0.2s ease, transform 0.2s ease; }
 .list-item:hover { background: #e9e3d9; }
 .list-item.active { background: rgba(182, 84, 55, 0.12); color: var(--primary-dark); font-weight: 600; }
+.loading-strip { display: flex; align-items: center; gap: 8px; margin-top: 10px; color: var(--text-sub); font-size: 12px; font-weight: 600; }
+.spinner { width: 16px; height: 16px; border-radius: 50%; border: 2px solid rgba(182,84,55,0.18); border-top-color: var(--primary); animation: spin 0.8s linear infinite; flex: 0 0 auto; }
+.skeleton-list { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.skeleton-item { height: 38px; border-radius: 10px; background: linear-gradient(90deg, #f2eee8 0%, #fff 45%, #f2eee8 90%); background-size: 220% 100%; animation: shimmer 1.1s ease-in-out infinite; }
+.skeleton-form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.skeleton-field { height: 62px; border-radius: 10px; background: linear-gradient(90deg, #f2eee8 0%, #fff 45%, #f2eee8 90%); background-size: 220% 100%; animation: shimmer 1.1s ease-in-out infinite; }
+.skeleton-field.full { grid-column: 1 / -1; height: 116px; }
 
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .form-row { display: flex; flex-direction: column; gap: 6px; }
@@ -83,11 +95,14 @@ body { margin: 0; font-family: "Google Sans", "Segoe UI", Roboto, Helvetica, Ari
 
 @keyframes pop-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes fade-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes shimmer { 0% { background-position: 140% 0; } 100% { background-position: -80% 0; } }
 
 @media (max-width: 900px) {
   .admin-main { grid-template-columns: 1fr; padding: 16px; }
   .list { max-height: 260px; }
   .form-grid { grid-template-columns: 1fr; }
+  .skeleton-form { grid-template-columns: 1fr; }
 }
 @media (max-width: 600px) {
   .admin-header { flex-direction: column; align-items: flex-start; gap: 12px; }
@@ -116,6 +131,8 @@ function AdminApp() {
   const [query, setQuery] = useState('')
   const [dirty, setDirty] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [backgroundLoading, setBackgroundLoading] = useState(false)
+  const [totalCount, setTotalCount] = useState<number | null>(null)
   const [status, setStatus] = useState('Ready')
   const [statusTone, setStatusTone] = useState<'default' | 'success' | 'warn' | 'error'>('default')
   const papaRef = useRef<PapaParse | null>(null)
@@ -138,6 +155,8 @@ function AdminApp() {
   }
 
   const normalizeRow = (row: any): Entry => ({
+    id: row.id ? String(row.id) : undefined,
+    source_key: String(row.source_key || row.sourceKey || row.SourceKey || '').trim() || undefined,
     term: String(row.term || row.Term || '').trim(),
     definition: String(row.definition || row.Definition || '').trim(),
     synonyms: String(row.synonyms || row.Synonyms || ''),
@@ -166,10 +185,107 @@ function AdminApp() {
       document.head.appendChild(script)
     })
 
+  const adminHeaders = () => ({
+    'Content-Type': 'application/json',
+    'x-admin-user': user,
+    'x-admin-pass': pass,
+  })
+
+  const delay = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms))
+
+  const fetchWordsPage = async (offset: number, limit = 1000) => {
+    const res = await fetch(`/api/words?browse=1&limit=${limit}&offset=${offset}`, {
+      cache: 'no-store',
+      headers: adminHeaders(),
+    })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(body?.error || 'Failed to load server dictionary')
+    const words = Array.isArray(body?.words) ? body.words.map(normalizeRow).filter((e: Entry) => e.term && e.definition) : []
+    return {
+      words,
+      nextOffset: Number(body?.nextOffset || offset + words.length),
+      count: typeof body?.count === 'number' ? body.count : null,
+    }
+  }
+
+  const loadServerEntries = async (onBatch?: (batch: Entry[], loaded: number, count: number | null) => void) => {
+    let offset = 0
+    let all: Entry[] = []
+
+    while (true) {
+      const page = await fetchWordsPage(offset)
+      const next = page.words
+      all = [...all, ...next]
+      onBatch?.(next, all.length, page.count)
+      if (!next.length || next.length < 1000) break
+      offset = page.nextOffset
+      await delay(120)
+    }
+
+    return all
+  }
+
+  const syncWords = async (words: Entry[]) => {
+    const res = await fetch('/api/words', {
+      method: 'POST',
+      headers: adminHeaders(),
+      body: JSON.stringify({ words }),
+    })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(body?.error || 'Failed to save words to server')
+    return Number(body?.imported || 0)
+  }
+
   const loadCsv = async () => {
     setLoading(true)
-    showStatus('Loading CSV...')
+    setBackgroundLoading(false)
+    setTotalCount(null)
+    showStatus('Loading dictionary...')
     try {
+      const firstPage = await fetchWordsPage(0)
+      if (firstPage.words.length) {
+        setEntries(firstPage.words)
+        setSelectedIndex(null)
+        setDraft(defaultEntry)
+        setDirty(false)
+        setTotalCount(firstPage.count)
+        setLoading(false)
+        showStatus(
+          firstPage.count && firstPage.words.length < firstPage.count
+            ? `Loaded first ${firstPage.words.length} of ${firstPage.count} terms. Continuing in background...`
+            : `Loaded ${firstPage.words.length} server terms`,
+          firstPage.count && firstPage.words.length < firstPage.count ? 'default' : 'success'
+        )
+
+        if (!firstPage.count || firstPage.words.length < firstPage.count) {
+          setBackgroundLoading(true)
+          const all = [...firstPage.words]
+          let offset = firstPage.nextOffset
+          try {
+            while (true) {
+              await delay(160)
+              const page = await fetchWordsPage(offset)
+              if (!page.words.length) break
+              all.push(...page.words)
+              setEntries([...all])
+              setTotalCount(page.count)
+              showStatus(`Loaded ${all.length}${page.count ? ` of ${page.count}` : ''} server terms...`)
+              if (page.words.length < 1000 || (page.count && all.length >= page.count)) break
+              offset = page.nextOffset
+            }
+            persistEntries(all)
+            showStatus(`Loaded ${all.length} server terms`, 'success')
+          } catch (err: any) {
+            showStatus(`${err?.message || 'Could not finish loading all terms'}. Showing ${all.length} loaded terms.`, 'warn')
+          } finally {
+            setBackgroundLoading(false)
+          }
+        } else {
+          persistEntries(firstPage.words)
+        }
+        return
+      }
+
       const localEntries = localStorage.getItem(LOCAL_ENTRIES_KEY)
       if (localEntries) {
         const parsedLocal = JSON.parse(localEntries)
@@ -192,7 +308,7 @@ function AdminApp() {
         csv = await res.text()
         if (csv) break
       }
-      if (!csv) throw new Error('Failed to load CSV')
+      if (!csv) throw new Error('Failed to load dictionary')
       const parsed = Papa.parse(csv, { header: true, skipEmptyLines: true })
       const data = parsed.data.map(normalizeRow).filter((e: Entry) => e.term && e.definition)
       setEntries(data)
@@ -202,9 +318,10 @@ function AdminApp() {
       persistEntries(data)
       showStatus(`Loaded ${data.length} terms`, 'success')
     } catch (err: any) {
-      showStatus(err?.message || 'Failed to load CSV', 'error')
+      showStatus(err?.message || 'Failed to load dictionary', 'error')
     } finally {
       setLoading(false)
+      setBackgroundLoading(false)
     }
   }
 
@@ -232,7 +349,7 @@ function AdminApp() {
     setDraft(defaultEntry)
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!draft.term.trim() || !draft.definition.trim()) {
       showStatus('Term and definition are required.', 'error')
       return
@@ -248,20 +365,30 @@ function AdminApp() {
       }
     }
 
-    const next = [...entries]
-    if (isNew) {
-      next.unshift(cleanDraft)
-    } else {
-      next[selectedIndex] = cleanDraft
+    setLoading(true)
+    showStatus(isNew ? 'Adding word to server...' : 'Saving word to server...')
+    try {
+      await syncWords([cleanDraft])
+      const refreshed = await loadServerEntries()
+      const next = refreshed.length
+        ? refreshed
+        : isNew
+          ? [cleanDraft, ...entries]
+          : entries.map((entry, index) => (index === selectedIndex ? cleanDraft : entry))
+      const savedIndex = next.findIndex((entry) => entry.term.toLowerCase() === cleanDraft.term.toLowerCase())
+      setEntries(next)
+      persistEntries(next)
+      setSelectedIndex(savedIndex >= 0 ? savedIndex : isNew ? 0 : selectedIndex)
+      setDirty(false)
+      showStatus(isNew ? 'Added to server.' : 'Changes saved to server.', 'success')
+    } catch (err: any) {
+      showStatus(err?.message || 'Save failed', 'error')
+    } finally {
+      setLoading(false)
     }
-    setEntries(next)
-    persistEntries(next)
-    if (isNew) setSelectedIndex(0)
-    setDirty(true)
-    showStatus(isNew ? 'Added.' : 'Changes saved.', 'success')
   }
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (selectedIndex === null) {
       showStatus('Select a word before deleting.', 'warn')
       return
@@ -272,13 +399,34 @@ function AdminApp() {
       showStatus('Not deleted.', 'warn')
       return
     }
-    const next = entries.filter((_, index) => index !== selectedIndex)
-    setEntries(next)
-    persistEntries(next)
-    setSelectedIndex(null)
-    setDraft(defaultEntry)
-    setDirty(true)
-    showStatus('Deleted.', 'success')
+    setLoading(true)
+    showStatus('Deleting word from server...')
+    try {
+      const entry = entries[selectedIndex]
+      if (!entry) throw new Error('Selected word was not found')
+      const params = new URLSearchParams()
+      if (entry.id) params.set('id', entry.id)
+      else if (entry.source_key) params.set('source_key', entry.source_key)
+      else params.set('term', entry.term)
+      const res = await fetch(`/api/words?${params.toString()}`, {
+        method: 'DELETE',
+        headers: adminHeaders(),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body?.error || 'Delete failed')
+
+      const next = entries.filter((_, index) => index !== selectedIndex)
+      setEntries(next)
+      persistEntries(next)
+      setSelectedIndex(null)
+      setDraft(defaultEntry)
+      setDirty(false)
+      showStatus('Deleted from server.', 'success')
+    } catch (err: any) {
+      showStatus(err?.message || 'Delete failed', 'error')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleDownload = async () => {
@@ -309,12 +457,15 @@ function AdminApp() {
       const text = await file.text()
       const parsed = Papa.parse(text, { header: true, skipEmptyLines: true })
       const data = parsed.data.map(normalizeRow).filter((e: Entry) => e.term && e.definition)
-      setEntries(data)
-      persistEntries(data)
+      const imported = await syncWords(data)
+      const refreshed = await loadServerEntries()
+      const next = refreshed.length ? refreshed : data
+      setEntries(next)
+      persistEntries(next)
       setSelectedIndex(null)
       setDraft(defaultEntry)
-      setDirty(true)
-      showStatus(`Loaded ${data.length} entries from upload.`, 'success')
+      setDirty(false)
+      showStatus(`Uploaded ${imported} entries to the server.`, 'success')
     } catch (err: any) {
       showStatus(err?.message || 'Upload failed', 'error')
     } finally {
@@ -369,7 +520,10 @@ function AdminApp() {
               type="file"
               accept=".csv"
               hidden
-              onChange={(e) => handleUpload(e.target.files?.[0])}
+              onChange={(e) => {
+                handleUpload(e.target.files?.[0])
+                e.currentTarget.value = ''
+              }}
             />
           </label>
           <button className="btn btn-primary" onClick={handleDownload} disabled={!entries.length}>
@@ -380,29 +534,60 @@ function AdminApp() {
 
       <main className="admin-main">
         <section className="panel">
-          <div className="panel-title">Entries</div>
+          <div className="panel-title-row">
+            <div className="panel-title">Entries</div>
+            <div className="count-pill">
+              {entries.length}{totalCount ? ` / ${totalCount}` : ''} terms
+            </div>
+          </div>
           <input
             className="search-input"
             placeholder="Search terms..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
+          {(loading || backgroundLoading) && (
+            <div className="loading-strip">
+              <span className="spinner" />
+              <span>{loading ? 'Loading first terms...' : `Loading more terms${totalCount ? ` (${entries.length}/${totalCount})` : ''}...`}</span>
+            </div>
+          )}
           <div className="list">
-            {filtered.map(({ entry, index }) => (
-              <div
-                key={`${entry.term}-${index}`}
-                className={`list-item ${selectedIndex === index ? 'active' : ''}`}
-                onClick={() => handleSelect(entry, index)}
-              >
-                {entry.term}
+            {loading && !entries.length ? (
+              <div className="skeleton-list">
+                {Array.from({ length: 9 }, (_, index) => (
+                  <div className="skeleton-item" key={index} />
+                ))}
               </div>
-            ))}
-            {!filtered.length && <div className="helper">No matching terms.</div>}
+            ) : (
+              <>
+                {filtered.map(({ entry, index }) => (
+                  <div
+                    key={`${entry.term}-${index}`}
+                    className={`list-item ${selectedIndex === index ? 'active' : ''}`}
+                    onClick={() => handleSelect(entry, index)}
+                  >
+                    {entry.term}
+                  </div>
+                ))}
+                {!filtered.length && <div className="helper">No matching terms.</div>}
+              </>
+            )}
           </div>
         </section>
 
         <section className="panel">
           <div className="panel-title">Editor</div>
+          {loading && !entries.length ? (
+            <div className="skeleton-form">
+              <div className="skeleton-field" />
+              <div className="skeleton-field" />
+              <div className="skeleton-field full" />
+              <div className="skeleton-field" />
+              <div className="skeleton-field" />
+              <div className="skeleton-field full" />
+            </div>
+          ) : (
           <div className="form-grid">
             <div className="form-row">
               <label className="label">Term</label>
@@ -461,6 +646,7 @@ function AdminApp() {
               />
             </div>
           </div>
+          )}
 
           <div style={{ display: 'flex', gap: '10px', marginTop: '16px', flexWrap: 'wrap' }}>
             <button className="btn btn-secondary" onClick={handleNew}>

@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node'
+import type { VercelRequest, VercelResponse } from './vercel-types'
 
 const API_KEY = process.env.ELEVENLABS_API_KEY
 const DEFAULT_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || 'VR5rq02kIGuHRg0JKxB6'

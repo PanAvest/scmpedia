@@ -129,7 +129,7 @@ body { margin: 0; font-family: "Google Sans", "Segoe UI", Roboto, Helvetica, Ari
 }
 .pricing-card:hover { border-color: rgba(0,79,70,0.34); transform: translateY(-2px); box-shadow: 0 18px 38px rgba(22, 34, 30, 0.12); }
 .pricing-card.selected { border-color: var(--pricing-green); background: linear-gradient(180deg, rgba(231,243,239,0.9), #fff 52%); box-shadow: 0 18px 42px rgba(0, 79, 70, 0.13); }
-.pricing-card:disabled { cursor: wait; opacity: 0.78; }
+.pricing-card:disabled { cursor: not-allowed; opacity: 0.78; }
 .pricing-card strong { font-size: 18px; color: #073c35; }
 .pricing-card-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; }
 .pricing-radio {
@@ -221,6 +221,8 @@ body { margin: 0; font-family: "Google Sans", "Segoe UI", Roboto, Helvetica, Ari
 .term-title { margin: 0; font-size: 24px; font-weight: 700; color: var(--text-main); letter-spacing: -0.5px; }
 .term-pos { font-size: 12px; font-weight: 600; color: var(--primary); background: var(--primary-bg); padding: 2px 8px; border-radius: 99px; text-transform: uppercase; }
 .term-pron { font-family: monospace; color: var(--text-sub); font-size: 14px; }
+.term-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: -2px 0 10px; }
+.term-tag { border: 1px solid rgba(182, 84, 55, 0.22); border-radius: 999px; background: var(--primary-bg); color: var(--primary); padding: 3px 9px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0; }
 .term-def { font-size: 16px; color: #333; margin-bottom: 16px; line-height: 1.6; }
 
 /* Card Actions */
@@ -278,6 +280,10 @@ body { margin: 0; font-family: "Google Sans", "Segoe UI", Roboto, Helvetica, Ari
 .mini-read-btn:hover { background: #f0fdf4; }
 .context-img { width: 100%; height: 220px; object-fit: cover; border-radius: 8px; margin-top: 12px; border: 1px solid var(--border); background: #f0f0f0; }
 .context-img.placeholder { display: flex; align-items: center; justify-content: center; color: #7a7a7a; font-size: 12px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; }
+.image-source-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; color: var(--text-sub); font-size: 11px; line-height: 1.35; }
+.image-source-row span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.image-source-row button, .image-source-row a { border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--primary); padding: 4px 7px; font: inherit; font-weight: 700; text-decoration: none; cursor: pointer; }
+.image-source-row button:disabled { opacity: 0.55; cursor: wait; }
 
 .regen-btn {
   width: 100%; margin-top: 12px; padding: 8px; background: var(--surface); border: 1px solid var(--border);
@@ -387,6 +393,85 @@ body { margin: 0; font-family: "Google Sans", "Segoe UI", Roboto, Helvetica, Ari
 .predictive-item:hover, .predictive-item.selected { background: var(--surface-hover); }
 .p-term { font-weight: 500; color: var(--text-main); }
 .p-def { font-size: 12px; color: var(--text-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60%; }
+.predictive-skeleton { padding: 12px 16px; display: grid; grid-template-columns: 34% 1fr; gap: 16px; align-items: center; border-bottom: 1px solid var(--surface); }
+.predictive-skeleton:last-child { border-bottom: none; }
+.skel { display: block; border-radius: 999px; background: linear-gradient(90deg, var(--surface-2) 0%, rgba(255,255,255,0.78) 48%, var(--surface-2) 100%); background-size: 220% 100%; animation: skeleton-sheen 1.1s ease-in-out infinite; }
+.skel.term { height: 13px; }
+.skel.def { height: 11px; }
+.ai-skeleton { display: grid; gap: 12px; margin-top: 12px; }
+.ai-skeleton-line { height: 13px; border-radius: 999px; background: linear-gradient(90deg, var(--surface-2) 0%, rgba(255,255,255,0.78) 48%, var(--surface-2) 100%); background-size: 220% 100%; animation: skeleton-sheen 1.1s ease-in-out infinite; }
+.ai-skeleton-line.short { width: 58%; }
+.ai-skeleton-line.mid { width: 82%; }
+.ai-skeleton-block { height: 72px; border-radius: 8px; background: linear-gradient(90deg, var(--surface-2) 0%, rgba(255,255,255,0.78) 48%, var(--surface-2) 100%); background-size: 220% 100%; animation: skeleton-sheen 1.1s ease-in-out infinite; }
+.ai-image-skeleton { background: linear-gradient(90deg, var(--surface-2) 0%, rgba(255,255,255,0.78) 48%, var(--surface-2) 100%); background-size: 220% 100%; animation: skeleton-sheen 1.1s ease-in-out infinite; color: transparent; }
+.ai-loading-panel {
+  margin-top: 12px;
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid rgba(47, 111, 104, 0.18);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(231, 243, 239, 0.52), rgba(255,255,255,0.92));
+}
+.ai-loading-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  color: var(--text-main);
+}
+.ai-loading-orb {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, var(--primary), #007060, #ff8a1d, var(--primary));
+  animation: ai-orb-spin 1.8s linear infinite;
+  position: relative;
+}
+.ai-loading-orb::after {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  background: var(--card-bg);
+}
+.ai-loading-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.ai-loading-title {
+  font-size: 14px;
+  font-weight: 850;
+}
+.ai-loading-subtitle {
+  color: var(--text-sub);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.ai-loading-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.ai-loading-step {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.82);
+  color: var(--text-sub);
+  font-size: 11px;
+  font-weight: 800;
+}
+.ai-loading-step.active {
+  border-color: rgba(47, 111, 104, 0.34);
+  background: rgba(231, 243, 239, 0.92);
+  color: var(--accent);
+}
 
 /* Input Bar */
 .input-wrapper { background: var(--surface); border-radius: 28px; display: flex; align-items: center; border: 1px solid transparent; transition: box-shadow 0.2s, border-color 0.2s, transform 0.2s; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
@@ -409,6 +494,8 @@ body { margin: 0; font-family: "Google Sans", "Segoe UI", Roboto, Helvetica, Ari
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes bounce-bar { 0%, 100% { height: 4px; } 50% { height: 100%; } }
 @keyframes pulse-opacity { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+@keyframes skeleton-sheen { 0% { background-position: 140% 0; } 100% { background-position: -80% 0; } }
+@keyframes ai-orb-spin { to { transform: rotate(360deg); } }
 @keyframes fade-in-out { 0% { opacity: 0; transform: translateY(2px); } 10% { opacity: 1; transform: translateY(0); } 90% { opacity: 1; } 100% { opacity: 0; transform: translateY(-2px); } }
 mark { background: rgba(182, 84, 55, 0.2); color: inherit; padding: 0 2px; border-radius: 2px; }
 
@@ -566,8 +653,7 @@ body {
 }
 
 .header,
-.chat-window,
-.input-area {
+.chat-window {
   position: relative;
 }
 
@@ -1249,7 +1335,12 @@ body {
 }
 
 .input-area {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: linear-gradient(to top, rgba(246,247,244,1) 70%, rgba(246,247,244,0));
+  z-index: 220;
 }
 
 .input-wrapper {
@@ -2274,6 +2365,15 @@ body {
 }
 
 @media (max-width: 760px) {
+  :root {
+    --input-offset: 118px;
+  }
+
+  .app-container {
+    height: 100dvh;
+    overflow: hidden;
+  }
+
   .header {
     align-items: center;
     min-height: 62px;
@@ -2350,7 +2450,17 @@ body {
   }
 
   .chat-window {
+    height: calc(100dvh - 62px);
+    min-height: 0;
     padding-top: 10px;
+    padding-bottom: calc(var(--input-offset) + var(--safe-bottom));
+    align-items: stretch;
+    scroll-padding-bottom: calc(var(--input-offset) + var(--safe-bottom));
+  }
+
+  .chat-window > .width-constraint {
+    max-width: 100%;
+    padding: 0 12px;
   }
 
   .welcome-screen {
@@ -2521,10 +2631,27 @@ body {
   .smart-card {
     padding: 16px;
     max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .message-row {
+    width: 100%;
+    min-width: 0;
+    margin-bottom: 18px;
   }
 
   .message-row.bot {
     align-items: flex-start;
+  }
+
+  .message-row.bot .bubble {
+    width: calc(100% - 40px);
+    min-width: 0;
+  }
+
+  .message-row.user .bubble {
+    max-width: min(86%, 620px);
+    overflow-wrap: anywhere;
   }
 
   .avatar.bot {
@@ -2565,11 +2692,60 @@ body {
   }
 
   .input-area {
-    padding: 0 12px calc(14px + var(--safe-bottom));
+    padding: 10px 12px calc(12px + var(--safe-bottom));
+    background: linear-gradient(to top, rgba(246,247,244,1) 82%, rgba(246,247,244,0));
   }
 
   .input-container {
     max-width: 100%;
+  }
+
+  .input-wrapper {
+    min-height: 54px;
+    border-radius: 8px;
+  }
+
+  .chat-input {
+    min-width: 0;
+    min-height: 54px;
+    padding: 12px 14px;
+  }
+
+  .send-btn {
+    width: 42px;
+    height: 42px;
+    flex: 0 0 auto;
+    margin-right: 7px;
+    padding: 9px;
+  }
+
+  .predictive-list {
+    left: 0;
+    right: 0;
+    max-height: min(42dvh, 260px);
+  }
+
+  .predictive-item {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .p-def {
+    max-width: 100%;
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  .ai-loading-panel {
+    padding: 12px;
+  }
+
+  .ai-loading-steps {
+    grid-template-columns: 1fr;
+    gap: 6px;
   }
 
   .context-img {
@@ -2836,6 +3012,7 @@ body {
   .app-container::after,
   .dictionary-loader-logo,
   .dictionary-page,
+  .ai-loading-orb,
   .send-btn.active {
     animation: none !important;
   }
@@ -2896,10 +3073,79 @@ const THEME_KEY = 'scmpedia-theme-v1'
 const DICTIONARY_MODE_KEY = 'scmpedia-dictionary-mode-v1'
 const FREE_USAGE_KEY = 'scmpedia-free-usage-v1'
 const FREE_DAILY_LIMIT = 2
+const SECTOR_HISTORY_KEY = 'scmpedia-sector-history-v1'
+
+const SCMPEDIA_SECTORS = [
+  'chemical',
+  'oil',
+  'mining',
+  'financial services',
+  'food and beverages',
+  'electronics',
+  'healthcare',
+  'tourism',
+  'agriculture',
+  'construction',
+]
 
 const uuid = () => Math.random().toString(36).substring(2, 9)
 const escapeHtml = (input: string) =>
   input.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+const cleanReplacementChars = (input: string) =>
+  input
+    .replace(/\uFFFD/g, '.')
+    .replace(/\s+\./g, '.')
+    .replace(/\.(?=[A-Z]\.)/g, '.')
+    .replace(/\.(?=\s*[),])/g, '.')
+    .replace(/\.(?=\s*\()/g, '.')
+    .replace(/\.(?=\s+(?:AND|JR|SR|EDS?\b))/g, '.')
+    .replace(/\.{2,}/g, '.')
+    .replace(/\s{2,}/g, ' ')
+
+const readSectorHistory = () => {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(SECTOR_HISTORY_KEY) || '[]')
+    return Array.isArray(parsed) ? parsed.filter((sector) => SCMPEDIA_SECTORS.includes(sector)).slice(0, 4) : []
+  } catch {
+    return []
+  }
+}
+
+const rememberSector = (sector: string) => {
+  try {
+    const next = [sector, ...readSectorHistory().filter((item) => item !== sector)].slice(0, 4)
+    localStorage.setItem(SECTOR_HISTORY_KEY, JSON.stringify(next))
+  } catch {
+    // localStorage can be unavailable in restrictive browsers; sector rotation still works for the current request.
+  }
+}
+
+const selectExampleSector = () => {
+  const recent = readSectorHistory()
+  const pool = SCMPEDIA_SECTORS.filter((sector) => !recent.includes(sector))
+  const choices = pool.length ? pool : SCMPEDIA_SECTORS.filter((sector) => sector !== recent[0])
+  const sector = choices[Math.floor(Math.random() * choices.length)] || SCMPEDIA_SECTORS[0]
+  rememberSector(sector)
+  return sector
+}
+
+const sectorExampleFallback = (anchor: Entry, sector: string) => {
+  const term = anchor.term || 'this concept'
+  const definition = anchor.definition?.replace(/\.$/, '') || 'the way resources, decisions, and activities are coordinated'
+  const templates: Record<string, string> = {
+    chemical: `In a chemical plant, ${term} helps planners translate ${definition} into decisions about raw-material availability, batch scheduling, storage controls, and safe movement of hazardous inputs. Used well, it reduces production stoppages, compliance risk, and costly emergency purchases.`,
+    oil: `In the oil sector, ${term} can guide how drilling teams, depots, vessels, and maintenance contractors coordinate equipment, spares, fuel, and documentation. The practical value is better uptime, safer field operations, and fewer delays when assets are far from the main supply base.`,
+    mining: `In mining, ${term} affects how explosives, tyres, fuel, replacement parts, and haulage capacity are planned around production targets. A good application protects equipment uptime and prevents one missing component from stopping an entire site.`,
+    'financial services': `In financial services, ${term} can shape how banks manage vendor onboarding, branch cash logistics, payment platforms, outsourced services, and operational controls. The goal is reliable service, lower process risk, and faster response when demand or regulation changes.`,
+    'food and beverages': `In food and beverages, ${term} supports decisions about ingredient supply, shelf life, production runs, cold-chain handling, and delivery timing. It matters because small planning errors can quickly become waste, stockouts, quality failures, or lost sales.`,
+    electronics: `In electronics, ${term} can be used to coordinate component sourcing, supplier lead times, quality checks, assembly capacity, and after-sales spares. It is especially important because one delayed chip, board, or connector can hold back an entire finished product.`,
+    healthcare: `In healthcare, ${term} helps hospitals and suppliers keep medicines, consumables, diagnostic kits, and critical equipment available at the point of care. Strong execution improves patient service while reducing expiry, emergency buying, and avoidable treatment delays.`,
+    tourism: `In tourism, ${term} can guide how hotels, tour operators, restaurants, transport providers, and maintenance teams prepare for seasonal demand. It helps ensure guests receive consistent service without overbuying supplies or leaving key resources unavailable at peak periods.`,
+    agriculture: `In agriculture, ${term} influences how seeds, fertiliser, equipment, labour, storage, and transport are timed around weather, harvest windows, and market demand. Getting it right protects yield, reduces post-harvest losses, and improves farmer income.`,
+    construction: `In construction, ${term} helps align materials, equipment, subcontractors, permits, and site sequencing with the project schedule. The benefit is fewer idle crews, less rework, better cash control, and reduced risk of project delay.`,
+  }
+  return templates[sector] || templates.healthcare
+}
 
 const FadeImage = ({
   className,
@@ -2921,16 +3167,36 @@ const FadeImage = ({
   )
 }
 
-const fallbackExplanation = (anchor: Entry) => {
+const fallbackExplanation = (anchor: Entry, sector = selectExampleSector()) => {
   const concept = escapeHtml(anchor.definition || `${anchor.term} is a supply chain concept.`)
-  const exampleText =
-    anchor.examples ||
-    `In practice, ${anchor.term} could involve ${anchor.definition?.replace(/\.$/, '') || 'real-world operations'}.`
-  const example = escapeHtml(exampleText)
-  return `<b>Concept:</b> ${concept}<br/><br/><b>Real-World Example:</b> ${example}`
+  const example = escapeHtml(sectorExampleFallback(anchor, sector))
+  return `<b>Concept Overview:</b> ${concept}<br/><br/><b>Real-World Example (${escapeHtml(sector)}):</b> ${example}`
 }
 
 const getEntryId = (entry: Entry) => String(entry.id || entry.term).trim()
+const entryHasAbbreviationDefinition = (entry: Pick<Entry, 'definition'>) =>
+  /\babbreviation\s+for\b/i.test(entry.definition || '')
+const entryLooksLikeAbbreviation = (entry: Pick<Entry, 'term' | 'definition'>) => {
+  const term = String(entry.term || '').trim()
+  if (!term || /[a-z]/.test(term)) return false
+  const letters = term.replace(/[^A-Z]/g, '')
+  if (letters.length < 2 || letters.length > 10) return false
+  if (/\s/.test(term) && !/\d/.test(term)) return false
+  return /^[A-Z0-9/&(). -]+$/.test(term)
+}
+const getEntryTags = (entry: Pick<Entry, 'term' | 'definition' | 'tags'>) => {
+  const tags = String(entry.tags || '')
+    .split(',')
+    .map((tag) => tag.trim())
+    .filter(Boolean)
+  if (
+    (entryHasAbbreviationDefinition(entry) || entryLooksLikeAbbreviation(entry)) &&
+    !tags.some((tag) => tag.toLowerCase() === 'abbreviation')
+  ) {
+    tags.unshift('abbreviation')
+  }
+  return Array.from(new Map(tags.map((tag) => [tag.toLowerCase(), tag])).values())
+}
 
 const passwordStrength = (password: string) => {
   let score = 0
@@ -3021,16 +3287,19 @@ function useData() {
       }
   }, [])
 
-  const normalizeEntry = (r: any): Entry => ({
-    id: r.id ? String(r.id) : undefined,
-    term: String(r.term || r.Term || '').trim(),
-    definition: String(r.definition || r.Definition || '').trim(),
-    synonyms: String(r.synonyms || r.Synonyms || ''),
-    tags: String(r.tags || r.Tags || ''),
-    pos: String(r.pos || r.Pos || ''),
-    pronunciation: String(r.pronunciation || r.Pronunciation || ''),
-    examples: String(r.examples || r.Examples || ''),
-  })
+  const normalizeEntry = (r: any): Entry => {
+    const entry = {
+      id: r.id ? String(r.id) : undefined,
+      term: cleanReplacementChars(String(r.term || r.Term || '')).trim(),
+      definition: cleanReplacementChars(String(r.definition || r.Definition || '')).trim(),
+      synonyms: cleanReplacementChars(String(r.synonyms || r.Synonyms || '')),
+      tags: cleanReplacementChars(String(r.tags || r.Tags || '')),
+      pos: cleanReplacementChars(String(r.pos || r.Pos || '')),
+      pronunciation: cleanReplacementChars(String(r.pronunciation || r.Pronunciation || '')),
+      examples: cleanReplacementChars(String(r.examples || r.Examples || '')),
+    }
+    return { ...entry, tags: getEntryTags(entry).join(', ') }
+  }
 
   const readLocalEntries = useCallback(() => {
     try {
@@ -3070,9 +3339,30 @@ function useData() {
     return ((body?.words || []) as Entry[]).map(normalizeEntry).filter((e: Entry) => e.term && e.definition)
   }, [])
 
+  const fetchServerWordPage = useCallback(async (offset: number, limit = 1000) => {
+    const res = await fetch(`/api/words?browse=1&limit=${limit}&offset=${offset}`)
+    if (!res.ok) throw new Error('Word browse failed')
+    const body = await res.json()
+    return {
+      words: ((body?.words || []) as Entry[]).map(normalizeEntry).filter((e: Entry) => e.term && e.definition),
+      count: Number(body?.count || 0),
+      nextOffset: Number(body?.nextOffset || offset),
+    }
+  }, [])
+
   const loadServerWords = useCallback(async () => {
     try {
-      const entries = await searchServerWords('supply', 12)
+      const entries: Entry[] = []
+      let offset = 0
+      let count = 0
+      for (let page = 0; page < 30; page += 1) {
+        const next = await fetchServerWordPage(offset, 1000)
+        entries.push(...next.words)
+        count = next.count || count
+        offset = next.nextOffset
+        if (!next.words.length || next.words.length < 1000 || (count && entries.length >= count)) break
+      }
+      if (!entries.length) throw new Error('No server words loaded')
       setServerBacked(true)
       applyEntries(entries)
       return true
@@ -3081,7 +3371,7 @@ function useData() {
       setServerBacked(false)
       return false
     }
-  }, [applyEntries, searchServerWords])
+  }, [applyEntries, fetchServerWordPage])
 
   useEffect(() => {
     const load = (src: string, g: string) =>
@@ -3093,26 +3383,24 @@ function useData() {
         document.head.appendChild(s)
       })
 
-    const loadCsv = async () => {
-      const loadedFromServer = await loadServerWords()
-      if (loadedFromServer) return
-
-      const sources = ['/scmpedia_full_UPDATED.csv', '/scmpedia_full.csv']
-      for (const src of sources) {
-        try {
-          const cacheBuster = `${src}?v=${Date.now()}`
-          const r = await fetch(cacheBuster, { cache: 'no-store' })
+	    const loadCsv = async () => {
+	      const sources = ['/scmpedia_full_UPDATED.csv', '/scmpedia_full.csv']
+	      for (const src of sources) {
+	        try {
+	          const cacheBuster = `${src}?v=${Date.now()}`
+	          const r = await fetch(cacheBuster, { cache: 'no-store' })
           if (!r.ok) continue
           const text = await r.text()
           if (!text) continue
           processCSV(text)
-          return
-        } catch {
-          // try the next source
-        }
-      }
-      setStatus('empty')
-    }
+	          return
+	        } catch {
+	          // try the next source
+	        }
+	      }
+	      const loadedFromServer = await loadServerWords()
+	      if (!loadedFromServer) setStatus('empty')
+	    }
 
     Promise.all([
       load('https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.basic.min.js', 'Fuse'),
@@ -3314,9 +3602,9 @@ function useTTS() {
 function useAI() {
   const [status] = useState<'loading' | 'ready' | 'error'>('ready')
 
-  const formatToHtml = (raw: string, anchor: Entry) => {
+  const formatToHtml = (raw: string, anchor: Entry, sector: string) => {
     let text = raw.trim()
-    if (!text) return fallbackExplanation(anchor)
+    if (!text) return fallbackExplanation(anchor, sector)
     const hasHtml = /<\/?[a-z][\s\S]*>/i.test(text)
     if (!hasHtml) {
       text = escapeHtml(text).replace(/\r?\n+/g, '\n')
@@ -3325,27 +3613,29 @@ function useAI() {
       .replace(/Concept Overview:/i, '<b>Concept Overview:</b>')
       .replace(/Why It Matters:/i, '<b>Why It Matters:</b>')
       .replace(/Concept:/i, '<b>Concept:</b>')
-      .replace(/Real-World Example:/i, '<b>Real-World Example:</b>')
+      .replace(/Real-World Examples Across Industries:/i, `<b>Real-World Example (${escapeHtml(sector)}):</b>`)
+      .replace(/Real-World Example(?:\s*\([^)]*\))?:/i, `<b>Real-World Example (${escapeHtml(sector)}):</b>`)
     if (!text.includes('<b>Concept:</b>') && !text.includes('<b>Concept Overview:</b>')) {
       text = `<b>Concept Overview:</b> ${text}`
     }
-    if (!text.includes('<b>Real-World Example:</b>')) {
-      text += `<br/><br/><b>Real-World Example:</b> ${escapeHtml(anchor.examples || 'A practical example can be observed in day-to-day supply chain operations.')}`
+    if (!text.includes('<b>Real-World Example')) {
+      text += `<br/><br/><b>Real-World Example (${escapeHtml(sector)}):</b> ${escapeHtml(sectorExampleFallback(anchor, sector))}`
     } else {
       text = text.replace(/\n/g, '<br/>')
     }
     return text
   }
 
-  const scmpediaGenerate = async (anchor: Entry, isRegen?: boolean) => {
+  const scmpediaGenerate = async (anchor: Entry, sector: string, isRegen?: boolean) => {
     const instruction = isRegen
-      ? 'Re-explain the concept with a fresh practical angle while staying faithful to the supplied definition.'
-      : 'Explain the concept with precision, practical context, and a real-world supply chain example.'
+      ? `Re-explain the concept with a fresh practical angle and use only the ${sector} sector for the real-world example.`
+      : `Explain the concept with precision and use only the ${sector} sector for the real-world example.`
 
     const prompt = `Term: "${anchor.term}"
 Dictionary definition: "${anchor.definition}"
 Tags: "${anchor.tags || 'supply chain management'}"
-Existing example: "${anchor.examples || ''}"
+Selected sector for this answer: "${sector}"
+Allowed sector list: ${SCMPEDIA_SECTORS.join('; ')}
 
 Task: ${instruction}
 
@@ -3353,15 +3643,20 @@ Quality requirements:
 - Explain like a senior supply chain educator advising professionals and students.
 - Preserve the meaning of the supplied dictionary definition.
 - Use plain, actionable language without oversimplifying the term.
-- Make the example realistic for logistics, procurement, operations, manufacturing, sourcing, trade, or policy.
+- Give a detailed explanation of the term before the example. Use 3 to 5 clear sentences across Concept Overview and Why It Matters.
+- Do not mention every sector in the allowed list.
+- Do not use more than one sector in the real-world example.
+- Do not default to electronics, phones, laptops, or generic retail unless the selected sector is electronics.
+- Make the selected-sector example realistic for logistics, procurement, operations, manufacturing, sourcing, trade, service delivery, finance, infrastructure, or risk control.
 - If useful, mention why the term matters for performance, cost, reliability, service, risk, or growth.
+- Make the real-world example one focused paragraph of 2 to 3 sentences.
 
 Output format:
 Return strictly HTML. No markdown.
 Use exactly these sections:
 <b>Concept Overview:</b> ...
 <br/><br/><b>Why It Matters:</b> ...
-<br/><br/><b>Real-World Example:</b> ...`
+<br/><br/><b>Real-World Example (${sector}):</b> ...`
 
     const response = await fetch('/api/ai', {
       method: 'POST',
@@ -3377,18 +3672,19 @@ Use exactly these sections:
     const data = await response.json()
     const text = data?.text || ''
     if (!text) throw new Error('scmpedia AI returned empty response')
-    return text
+    return { text, sector }
   }
 
   const generate = async (anchor: Entry, isRegen?: boolean) => {
+    const sector = selectExampleSector()
     try {
-      const text = await scmpediaGenerate(anchor, isRegen)
-      return formatToHtml(text, anchor)
+      const { text } = await scmpediaGenerate(anchor, sector, isRegen)
+      return formatToHtml(text, anchor, sector)
     } catch (e) {
       console.error('scmpedia AI error', e)
     }
 
-    return `<i>Could not reach scmpedia AI. Here is a dictionary-based summary:</i><br/><br/><b>Concept Overview:</b> ${anchor.term} refers to ${anchor.definition}.<br/><br/><b>Why It Matters:</b> This term can affect planning, cost, reliability, service delivery, risk, or supply chain performance.<br/><br/><b>Real-World Example:</b> In practice, teams may use this concept when managing sourcing, inventory, logistics, operations, supplier performance, or customer fulfilment.`
+    return `<i>Could not reach scmpedia AI. Here is a dictionary-based summary:</i><br/><br/><b>Concept Overview:</b> ${escapeHtml(anchor.term)} refers to ${escapeHtml(anchor.definition)}.<br/><br/><b>Why It Matters:</b> This term can affect planning discipline, cost control, reliability, service quality, operational risk, and growth because it shapes how people turn supply chain decisions into repeatable work.<br/><br/><b>Real-World Example (${escapeHtml(sector)}):</b> ${escapeHtml(sectorExampleFallback(anchor, sector))}`
   }
 
   return { status, generate }
@@ -3455,25 +3751,29 @@ function useFavorites(user: User | null, allData: Entry[]) {
   const [loading, setLoading] = useState(false)
   const [savingTerm, setSavingTerm] = useState<string | null>(null)
 
-  const loadFavorites = useCallback(async () => {
-    if (!supabase || !user) {
-      setFavorites([])
-      return
-    }
-    setLoading(true)
-    const { data, error } = await supabase
-      .from('favorites')
-      .select('id,user_id,word_id,term,created_at')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-    if (error) {
-      console.error('Favorites load error', error)
-      setFavorites([])
-    } else {
-      setFavorites(data || [])
-    }
-    setLoading(false)
-  }, [user])
+	  const loadFavorites = useCallback(async () => {
+	    if (!supabase || !user) {
+	      setFavorites([])
+	      return
+	    }
+	    setLoading(true)
+	    try {
+	      const { data, error } = await supabase
+	        .from('favorites')
+	        .select('id,user_id,word_id,term,created_at')
+	        .eq('user_id', user.id)
+	        .order('created_at', { ascending: false })
+	      if (error) {
+	        setFavorites([])
+	      } else {
+	        setFavorites(data || [])
+	      }
+	    } catch {
+	      setFavorites([])
+	    } finally {
+	      setLoading(false)
+	    }
+	  }, [user])
 
   useEffect(() => {
     void loadFavorites()
@@ -3851,7 +4151,7 @@ const PricingDialog = ({
     { id: 'monthly', title: 'Monthly', price: 'GH₵22.58', period: '/ month', copy: 'Flexible access.', detail: 'Cancel anytime.', summaryPill: 'Cancel anytime' },
     { id: 'annual', title: 'Annual', price: 'GH₵225.78', period: '/ year', copy: 'Save more with', detail: 'full-year access.', badge: 'Best value', summaryPill: 'Best value' },
   ]
-  const selected = plans.find((plan) => plan.id === selectedPlan) || plans[1]
+  const selected = plans.find((plan) => plan.id === selectedPlan) || plans[1]!
   const checkingOut = Boolean(subscription.checkingOut)
   const hasActivePlan = subscription.isPremium
   const paidUntil = formatSubscriptionDate(subscription.expiresAt)
@@ -4049,12 +4349,12 @@ const DictionaryPageView = React.forwardRef<HTMLDivElement, { entries: Entry[]; 
         <span>{pageNumber}</span>
       </div>
       <div className="dictionary-page-content">
-        {entries.map((entry) => {
+        {entries.map((entry, index) => {
           const section = getSection(entry.term)
           const showHeader = section !== currentSection
           currentSection = section
           return (
-            <article className="dictionary-entry" key={getEntryId(entry)}>
+            <article className="dictionary-entry" key={`${getEntryId(entry)}-${index}`}>
               {showHeader && <h2>{section}</h2>}
               <h3>{entry.term}</h3>
               {entry.pos && <em>{entry.pos}</em>}
@@ -4549,8 +4849,8 @@ const DashboardPage = ({
         <div className="dashboard-empty">Loading favorites...</div>
       ) : entries.length ? (
         <section className="favorite-grid">
-          {entries.map((entry) => (
-            <button className="favorite-card" key={getEntryId(entry)} onClick={() => onOpenTerm(entry)}>
+          {entries.map((entry, index) => (
+            <button className="favorite-card" key={`${getEntryId(entry)}-${index}`} onClick={() => onOpenTerm(entry)}>
               <strong>{entry.term}</strong>
               <span>{entry.definition}</span>
             </button>
@@ -4602,12 +4902,74 @@ const ChatThinking = () => (
   </div>
 )
 
+const PredictiveSkeleton = () => (
+  <>
+    {Array.from({ length: 4 }, (_, index) => (
+      <div className="predictive-skeleton" key={index} aria-hidden="true">
+        <span className="skel term" style={{ width: `${78 - index * 7}%` }} />
+        <span className="skel def" style={{ width: `${92 - index * 8}%` }} />
+      </div>
+    ))}
+  </>
+)
+
+const AiInsightSkeleton = () => (
+  <div className="ai-skeleton" aria-label="Loading AI insight">
+    <div className="ai-skeleton-block" />
+    <span className="ai-skeleton-line" />
+    <span className="ai-skeleton-line mid" />
+    <span className="ai-skeleton-line" />
+    <span className="ai-skeleton-line short" />
+  </div>
+)
+
+const AiLoadingExperience = () => {
+  const messages = useMemo(
+    () => [
+      'Thinking through the term...',
+      'Reasoning from the dictionary definition...',
+      'Putting the pieces together...',
+      'Selecting a fresh sector example...',
+      'Turning it into a practical explanation...',
+    ],
+    []
+  )
+  const [index, setIndex] = useState(0)
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setIndex((current) => (current + 1) % messages.length)
+    }, 1300)
+    return () => window.clearInterval(interval)
+  }, [messages.length])
+
+  return (
+    <div className="ai-loading-panel" aria-live="polite" aria-busy="true">
+      <div className="ai-loading-status">
+        <div className="ai-loading-orb" aria-hidden="true" />
+        <div className="ai-loading-copy">
+          <div className="ai-loading-title">{messages[index]}</div>
+          <div className="ai-loading-subtitle">Building a focused explanation and one sector-specific real-world example.</div>
+        </div>
+      </div>
+      <div className="ai-loading-steps" aria-hidden="true">
+        {['Thinking', 'Reasoning', 'Composing'].map((label, stepIndex) => (
+          <div key={label} className={`ai-loading-step ${stepIndex === index % 3 ? 'active' : ''}`}>
+            {label}
+          </div>
+        ))}
+      </div>
+      <AiInsightSkeleton />
+    </div>
+  )
+}
+
 const WordSuggestions = ({ entries, onPick }: { entries: Entry[]; onPick: (entry: Entry) => void }) => (
   <div className="word-suggestions">
     <div className="word-suggestions-title">Did you mean one of these?</div>
     <div className="word-suggestion-list">
-      {entries.map((entry) => (
-        <button key={getEntryId(entry)} onClick={() => onPick(entry)}>
+      {entries.map((entry, index) => (
+        <button key={`${getEntryId(entry)}-${index}`} onClick={() => onPick(entry)}>
           <strong>{entry.term}</strong>
           <span>{entry.definition}</span>
         </button>
@@ -4644,13 +5006,37 @@ const SmartCard = ({
   const [loadingAi, setLoadingAi] = useState(false)
   const [imageUrl, setImageUrl] = useState('')
   const [imageAltUrl, setImageAltUrl] = useState('')
+  const [imageTitle, setImageTitle] = useState('')
+  const [imageSourceUrl, setImageSourceUrl] = useState('')
   const [imageLoading, setImageLoading] = useState(false)
   const [imageError, setImageError] = useState(false)
   const [imageErrorMessage, setImageErrorMessage] = useState('')
   const [copied, setCopied] = useState(false)
+  const aiPanelRef = useRef<HTMLDivElement>(null)
+  const imageKey = getEntryId(entry)
+
+  const scrollAiPanelIntoView = useCallback(() => {
+    window.requestAnimationFrame(() => {
+      aiPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
+  }, [])
+
+  useEffect(() => {
+    setAiText('')
+    setLoadingAi(false)
+    setImageUrl('')
+    setImageAltUrl('')
+    setImageTitle('')
+    setImageSourceUrl('')
+    setImageLoading(false)
+    setImageError(false)
+    setImageErrorMessage('')
+    setCopied(false)
+  }, [imageKey])
 
   const fetchAi = async (regen = false) => {
     setLoadingAi(true)
+    scrollAiPanelIntoView()
     try {
       const txt = await ai.generate(entry, regen)
       const next = txt || ''
@@ -4663,16 +5049,30 @@ const SmartCard = ({
     }
   }
 
-  const fetchImage = async () => {
-    if (imageLoading || imageUrl) return
+  const fetchImage = async (force = false) => {
+    if (imageLoading || (!force && imageUrl)) return
     const query = entry.term?.trim()
     if (!query) return
 
+    const previousImageUrl = imageUrl
     setImageLoading(true)
     setImageError(false)
     setImageErrorMessage('')
+    scrollAiPanelIntoView()
+    if (force) {
+      setImageUrl('')
+      setImageAltUrl('')
+      setImageTitle('')
+      setImageSourceUrl('')
+    }
     try {
-      const res = await fetch(`/api/image?q=${encodeURIComponent(query)}`)
+      const params = new URLSearchParams({
+        q: query,
+        definition: entry.definition.slice(0, 240),
+        v: `image-v3-${imageKey}-${Date.now()}`,
+      })
+      if (force && previousImageUrl) params.set('exclude', previousImageUrl)
+      const res = await fetch(`/api/image?${params.toString()}`, { cache: 'no-store' })
       const bodyText = await res.text()
       let data: any = {}
       if (bodyText) {
@@ -4691,6 +5091,8 @@ const SmartCard = ({
       if (!next && !thumb) throw new Error('No image found')
       setImageUrl(next || thumb)
       setImageAltUrl(thumb || next)
+      setImageTitle(typeof data?.title === 'string' ? data.title : '')
+      setImageSourceUrl(typeof data?.contextLink === 'string' ? data.contextLink : typeof data?.link === 'string' ? data.link : '')
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e)
       console.error('AI image error', e)
@@ -4717,7 +5119,14 @@ const SmartCard = ({
     setExpanded('ai')
     if (!aiText) fetchAi()
     fetchImage()
+    scrollAiPanelIntoView()
   }
+
+  useEffect(() => {
+    if (expanded === 'ai' && (loadingAi || imageLoading || aiText || imageUrl)) {
+      scrollAiPanelIntoView()
+    }
+  }, [expanded, loadingAi, imageLoading, aiText, imageUrl, scrollAiPanelIntoView])
 
   const handleCopy = async () => {
     try {
@@ -4733,6 +5142,7 @@ const SmartCard = ({
   const isSpeakingAi = tts.speakingId === `ai-${entry.term}`
   const isPreparingDef = tts.preparingId === `def-${entry.term}`
   const isPreparingAi = tts.preparingId === `ai-${entry.term}`
+  const visibleTags = getEntryTags(entry)
   const handleFavorite = () => {
     if (!user) {
       onAuthRequired()
@@ -4748,6 +5158,13 @@ const SmartCard = ({
         {entry.pos && <span className="term-pos">{entry.pos}</span>}
         {entry.pronunciation && <span className="term-pron">/{entry.pronunciation}/</span>}
       </div>
+      {visibleTags.length > 0 && (
+        <div className="term-tags" aria-label="Term tags">
+          {visibleTags.map((tag) => (
+            <span className="term-tag" key={tag.toLowerCase()}>{tag}</span>
+          ))}
+        </div>
+      )}
       <div className="term-def">{entry.definition}</div>
 
       <div className="action-bar">
@@ -4782,7 +5199,7 @@ const SmartCard = ({
           <svg className="action-icon" viewBox="0 0 24 24" fill="currentColor">
             <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2zm0-4H7V7h10v2z" />
           </svg>
-          {ai.status === 'loading' ? 'Loading AI...' : 'Explain with AI'}
+          {loadingAi ? 'Thinking...' : ai.status === 'loading' ? 'Loading AI...' : 'Explain with AI'}
         </button>
 
         <button
@@ -4844,7 +5261,7 @@ const SmartCard = ({
       )}
 
       {expanded === 'ai' && (
-        <div className="details-panel ai-box">
+        <div ref={aiPanelRef} className="details-panel ai-box">
           <div className="ai-header">
             <div className="ai-badge">scmpedia</div>
             {aiText && !loadingAi && (
@@ -4868,26 +5285,40 @@ const SmartCard = ({
           </div>
 
           {imageUrl && !imageError ? (
-            <FadeImage
-              src={imageUrl}
-              className="context-img"
-              alt={entry.term}
-              loading="lazy"
-              referrerPolicy="no-referrer"
-              onError={handleImageError}
-            />
+            <>
+              <FadeImage
+                key={imageUrl}
+                src={imageUrl}
+                className="context-img"
+                alt={entry.term}
+                loading="lazy"
+                referrerPolicy="no-referrer"
+                onError={handleImageError}
+              />
+              <div className="image-source-row">
+                <span>{imageTitle || 'Context image'}</span>
+                <button type="button" onClick={() => fetchImage(true)} disabled={imageLoading}>
+                  Refresh image
+                </button>
+                {imageSourceUrl && (
+                  <a href={imageSourceUrl} target="_blank" rel="noreferrer">
+                    Source
+                  </a>
+                )}
+              </div>
+            </>
+          ) : imageLoading ? (
+            <div className="context-img ai-image-skeleton" aria-label="Loading image" />
           ) : (
             <div className="context-img placeholder">
-              {imageLoading
-                ? 'Loading image...'
-                : imageErrorMessage.toLowerCase().includes('google cse')
+              {imageErrorMessage.toLowerCase().includes('google cse')
                 ? 'Image unavailable (set Google CSE keys)'
                 : 'Image unavailable'}
             </div>
           )}
 
           {loadingAi ? (
-            <ThinkingIndicator />
+            <AiLoadingExperience />
           ) : (
             <>
               <div
@@ -4991,14 +5422,16 @@ const Icon = ({ type }: { type: 'world' | 'book' | 'industry' | 'growth' | 'lead
   )
 }
 
+type AboutIconType = React.ComponentProps<typeof Icon>['type']
+
 const AboutPage = ({ onBack }: { onBack: () => void }) => {
-  const matters = [
+  const matters: Array<[string, string, AboutIconType]> = [
     ['Built From A Definitive Compendium', 'Grounded in Prof. Douglas Boateng’s Executive Insight Series: Compendium of Supply Chain Management Terms.', 'book' as const],
     ['4,000+ Terms And Benchmarks', 'Definitions, acronyms, abbreviations, performance metrics, and global supply chain benchmarks in one reference.', 'growth' as const],
     ['Global And Africa-Relevant', 'International perspectives shaped by cross-border trade, industrialization, and practical realities across markets.', 'world' as const],
     ['Professional Decision Support', 'Clear language for logistics, procurement, operations, manufacturing, and supply chain strategy.', 'industry' as const],
   ]
-  const audiences = [
+  const audiences: Array<[string, string, AboutIconType]> = [
     ['Business Leaders & Consultants', 'Use precise terminology to improve strategic discussions, operating models, and supply chain decisions.', 'leader' as const],
     ['Students & Academicians', 'Build mastery of supply chain language for study, research, teaching, and professional development.', 'academic' as const],
     ['Supply Chain Practitioners', 'Stay fluent in essential terms across logistics, procurement, sourcing, operations, and manufacturing.', 'supply' as const],
@@ -5105,6 +5538,7 @@ export default function App() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [suggestions, setSuggestions] = useState<Entry[]>([])
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false)
   const [selectedSug, setSelectedSug] = useState(-1)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [pricingOpen, setPricingOpen] = useState(false)
@@ -5121,16 +5555,23 @@ export default function App() {
     return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false
   })
 
-  const chatEndRef = useRef<HTMLDivElement>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const suggestionsRequestRef = useRef(0)
+	  const chatEndRef = useRef<HTMLDivElement>(null)
+	  const messageRefs = useRef<Record<string, HTMLDivElement | null>>({})
+	  const fileInputRef = useRef<HTMLInputElement>(null)
+	  const suggestionsRequestRef = useRef(0)
 
   const stopWords = useMemo(
     () => /^(what is|what's|define|explain|describe|meaning of|tell me about|search for|look up|do you know)\s+/i,
     []
   )
 
-  useEffect(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), [messages])
+	  useEffect(() => {
+	    const latestBot = [...messages].reverse().find((message) => message.role === 'bot' && !message.loading)
+	    const target = latestBot ? messageRefs.current[latestBot.id] : chatEndRef.current
+	    window.requestAnimationFrame(() => {
+	      target?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+	    })
+	  }, [messages])
 
   useEffect(() => {
     document.documentElement.dataset.theme = darkMode ? 'dark' : 'light'
@@ -5167,30 +5608,39 @@ export default function App() {
 
   useEffect(() => {
     const requestId = ++suggestionsRequestRef.current
+    const query = input.trim()
+    if (!query) {
+      setSuggestions([])
+      setSuggestionsLoading(false)
+      return
+    }
+    if (fuseRef.current) {
+      setSuggestionsLoading(false)
+      const hits = fuseRef.current.search(query).slice(0, 5).map((h: any) => h.item)
+      setSuggestions(hits)
+      return
+    }
     if (serverBacked) {
-      const query = input.trim()
-      if (!query) {
-        setSuggestions([])
-        return
-      }
+      setSuggestionsLoading(true)
       const timeout = window.setTimeout(() => {
         void searchServerWords(query, 5)
           .then((next) => {
-            if (suggestionsRequestRef.current === requestId) setSuggestions(next)
+            if (suggestionsRequestRef.current === requestId) {
+              setSuggestions(next)
+              setSuggestionsLoading(false)
+            }
           })
           .catch(() => {
-            if (suggestionsRequestRef.current === requestId) setSuggestions([])
+            if (suggestionsRequestRef.current === requestId) {
+              setSuggestions([])
+              setSuggestionsLoading(false)
+            }
           })
       }, 180)
       return () => window.clearTimeout(timeout)
     }
-
-    if (!input.trim() || !fuseRef.current) {
-      setSuggestions([])
-      return
-    }
-    const hits = fuseRef.current.search(input).slice(0, 5).map((h: any) => h.item)
-    setSuggestions(hits)
+    setSuggestions([])
+    setSuggestionsLoading(false)
   }, [input, fuseRef, searchServerWords, serverBacked])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -5219,6 +5669,7 @@ export default function App() {
         suggestionsRequestRef.current += 1
         setInput('')
         setSuggestions([])
+        setSuggestionsLoading(false)
         setSelectedSug(-1)
         setAboutOpen(false)
         setProfileView('home')
@@ -5241,6 +5692,7 @@ export default function App() {
     suggestionsRequestRef.current += 1
     setInput('')
     setSuggestions([])
+    setSuggestionsLoading(false)
     setSelectedSug(-1)
     setAboutOpen(false)
     setProfileView('home')
@@ -5264,41 +5716,58 @@ export default function App() {
       return
     }
 
-    const cleanQuery = originalQuery.replace(stopWords, '').replace(/[?]/g, '').trim()
+	    const cleanQuery = originalQuery.replace(stopWords, '').replace(/[?]/g, '').trim()
+	    const normalizedCleanQuery = cleanQuery.toLowerCase()
+	    const normalizedOriginalQuery = originalQuery.toLowerCase()
+	    const localExactMatch =
+	      data.find((d) => d.term.toLowerCase() === normalizedCleanQuery) ||
+	      data.find((d) => d.term.toLowerCase() === normalizedOriginalQuery)
 
     let searchPool = data
-    if (serverBacked) {
+	    if (localExactMatch) {
+	      searchPool = [localExactMatch, ...data.filter((entry) => getEntryId(entry) !== getEntryId(localExactMatch))]
+	    } else if (fuseRef.current) {
+	      const res = fuseRef.current.search(cleanQuery || originalQuery)
+	      if (res.length) {
+	        searchPool = res.map((hit: any) => hit.item)
+      } else if (serverBacked) {
+        try {
+          searchPool = await searchServerWords(cleanQuery || originalQuery, 8)
+        } catch {
+          searchPool = []
+        }
+      } else {
+        searchPool = []
+      }
+    } else if (serverBacked) {
       try {
         searchPool = await searchServerWords(cleanQuery || originalQuery, 8)
       } catch {
         searchPool = data
-      }
-    }
-
-    let match = searchPool.find((d) => d.term.toLowerCase() === cleanQuery.toLowerCase())
-    const exactOriginal = searchPool.find((d) => d.term.toLowerCase() === originalQuery.toLowerCase())
-    if (!match && exactOriginal) match = exactOriginal
-
-    if (!match && !serverBacked && fuseRef.current) {
-      const res = fuseRef.current.search(cleanQuery)
-      if (res.length > 0) match = res[0].item
-    }
-
-    if (!match && cleanQuery !== originalQuery && !serverBacked && fuseRef.current) {
-      const exactOrig = searchPool.find((d) => d.term.toLowerCase() === originalQuery.toLowerCase())
-      if (exactOrig) {
-        match = exactOrig
-      } else {
-        const res = fuseRef.current.search(originalQuery)
-        if (res.length > 0) match = res[0].item
-      }
-    }
+	      }
+	    }
+	
+	    let match = searchPool.find((d) => d.term.toLowerCase() === normalizedCleanQuery)
+	    const exactOriginal = searchPool.find((d) => d.term.toLowerCase() === normalizedOriginalQuery)
+	    if (!match && exactOriginal) match = exactOriginal
+	
+	    if (!match && cleanQuery !== originalQuery && fuseRef.current) {
+	      const exactOrig = searchPool.find((d) => d.term.toLowerCase() === normalizedOriginalQuery)
+	      if (exactOrig) {
+	        match = exactOrig
+	      }
+	    }
 
     if (match) {
       setMessages((p) =>
         p.map((message) =>
           message.id === thinkingId
-            ? { id: thinkingId, role: 'bot', entry: match, timestamp: Date.now() }
+            ? {
+                id: thinkingId,
+                role: 'bot',
+                entry: match,
+                timestamp: Date.now(),
+              }
             : message
         )
       )
@@ -5351,6 +5820,7 @@ export default function App() {
     setMessages([])
     setInput('')
     setSuggestions([])
+    setSuggestionsLoading(false)
     setSelectedSug(-1)
   }
 
@@ -5405,6 +5875,7 @@ export default function App() {
     suggestionsRequestRef.current += 1
     setInput('')
     setSuggestions([])
+    setSuggestionsLoading(false)
     setSelectedSug(-1)
     setSettingsOpen(false)
     setAuthOpen(false)
@@ -5419,6 +5890,7 @@ export default function App() {
     suggestionsRequestRef.current += 1
     setInput('')
     setSuggestions([])
+    setSuggestionsLoading(false)
     setSelectedSug(-1)
     setMessages((current) =>
       current.map((message) =>
@@ -5640,18 +6112,22 @@ export default function App() {
                   </p>
 
                   <div className="home-search">
-                    {suggestions.length > 0 && (
+                    {(suggestionsLoading || suggestions.length > 0) && (
                       <div className="predictive-list">
-                        {suggestions.map((s, i) => (
-                          <div
-                            key={s.term}
-                            className={`predictive-item ${i === selectedSug ? 'selected' : ''}`}
-                            onClick={() => handleSubmit(s.term)}
-                          >
-                            <span className="p-term">{s.term}</span>
-                            <span className="p-def">{s.definition}</span>
-                          </div>
-                        ))}
+                        {suggestionsLoading && !suggestions.length ? (
+                          <PredictiveSkeleton />
+                        ) : (
+                          suggestions.map((s, i) => (
+                            <div
+                              key={`${getEntryId(s)}-${i}`}
+                              className={`predictive-item ${i === selectedSug ? 'selected' : ''}`}
+                              onClick={() => handleSubmit(s.term)}
+                            >
+                              <span className="p-term">{s.term}</span>
+                              <span className="p-def">{s.definition}</span>
+                            </div>
+                          ))
+                        )}
                       </div>
                     )}
 
@@ -5748,7 +6224,13 @@ export default function App() {
           ) : (
             <div className="width-constraint">
               {messages.map((m) => (
-                <div key={m.id} className={`message-row ${m.role}`}>
+                <div
+                  key={m.id}
+                  ref={(node) => {
+                    messageRefs.current[m.id] = node
+                  }}
+                  className={`message-row ${m.role}`}
+                >
                   {m.role === 'bot' && (
                     <div className="avatar bot">
                       <FadeImage className="avatar-logo" src="/logo2.png" alt="scmpedia" eager />
@@ -5760,6 +6242,7 @@ export default function App() {
                     {m.related?.length ? <WordSuggestions entries={m.related} onPick={(entry) => handleRelatedPick(m.id, entry)} /> : null}
                     {m.entry && (
                       <SmartCard
+                        key={`${m.id}-${getEntryId(m.entry)}`}
                         entry={m.entry}
                         allData={data}
                         tts={tts}
@@ -5782,18 +6265,22 @@ export default function App() {
 
         {messages.length > 0 && !aboutOpen && profileView !== 'dashboard' && !dictionaryMode && <div className="input-area">
           <div className="input-container">
-            {suggestions.length > 0 && (
+            {(suggestionsLoading || suggestions.length > 0) && (
               <div className="predictive-list">
-                {suggestions.map((s, i) => (
-                  <div
-                    key={s.term}
-                    className={`predictive-item ${i === selectedSug ? 'selected' : ''}`}
-                    onClick={() => handleSubmit(s.term)}
-                  >
-                    <span className="p-term">{s.term}</span>
-                    <span className="p-def">{s.definition}</span>
-                  </div>
-                ))}
+                {suggestionsLoading && !suggestions.length ? (
+                  <PredictiveSkeleton />
+                ) : (
+                  suggestions.map((s, i) => (
+                    <div
+                      key={`${getEntryId(s)}-${i}`}
+                      className={`predictive-item ${i === selectedSug ? 'selected' : ''}`}
+                      onClick={() => handleSubmit(s.term)}
+                    >
+                      <span className="p-term">{s.term}</span>
+                      <span className="p-def">{s.definition}</span>
+                    </div>
+                  ))
+                )}
               </div>
             )}
 
