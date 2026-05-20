@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { BookOpen, Crown, ExternalLink, Search, Shield, Sparkles, Target, Users, Zap, TrendingUp, Star, type LucideIcon } from 'lucide-react'
 
@@ -9,20 +9,20 @@ const infoCards = [
   { icon: Shield, title: 'Built on Trust', text: 'We are committed to accuracy, relevance, and continuous improvement. Our content is curated by supply chain experts and enhanced by advanced AI.' },
 ]
 
-const stats: Array<{ value: string; label: string; icon: LucideIcon }> = [
-  { value: '25,000+', label: 'Professionals Worldwide', icon: Users },
-  { value: '10,000+', label: 'Terms & Concepts Explained', icon: BookOpen },
-  { value: '50,000+', label: 'Searches Every Month', icon: Zap },
-  { value: '99.9%', label: 'Uptime & Always Up-to-Date', icon: TrendingUp },
-  { value: '4.9/5', label: 'Average User Rating', icon: Star },
+const stats: Array<{ end: number; suffix: string; decimals?: number; label: string; icon: LucideIcon }> = [
+  { end: 25000, suffix: '+', label: 'Professionals Worldwide', icon: Users },
+  { end: 10000, suffix: '+', label: 'Terms & Concepts Explained', icon: BookOpen },
+  { end: 50000, suffix: '+', label: 'Searches Every Month', icon: Zap },
+  { end: 99.9, suffix: '%', decimals: 1, label: 'Uptime & Always Up-to-Date', icon: TrendingUp },
+  { end: 4.9, suffix: '/5', decimals: 1, label: 'Average User Rating', icon: Star },
 ]
 
 const story = [
-  ['2023', 'The Idea', 'SCMpedia was born from a simple idea: supply chain knowledge should be easy to find, understand, and apply.'],
-  ['2023', 'Built with Experts', 'We partnered with industry professionals to curate content and ensure real-world relevance and accuracy.'],
-  ['2024', 'AI-Powered Launch', 'Launched our AI-powered platform to deliver instant, smart, and contextual explanations.'],
-  ['2024+', 'Growing Together', 'Continuously adding terms, features, and learning resources based on user feedback and industry trends.'],
-  ['The Future', 'Our Vision', "To be the world's most trusted supply chain knowledge platform."],
+  { year: '2023', yearEnd: 2023, title: 'The Idea', text: 'SCMpedia was born from a simple idea: supply chain knowledge should be easy to find, understand, and apply.' },
+  { year: '2023', yearEnd: 2023, title: 'Built with Experts', text: 'We partnered with industry professionals to curate content and ensure real-world relevance and accuracy.' },
+  { year: '2024', yearEnd: 2024, title: 'AI-Powered Launch', text: 'Launched our AI-powered platform to deliver instant, smart, and contextual explanations.' },
+  { year: '2024+', yearEnd: 2024, yearSuffix: '+', title: 'Growing Together', text: 'Continuously adding terms, features, and learning resources based on user feedback and industry trends.' },
+  { year: 'The Future', title: 'Our Vision', text: "To be the world's most trusted supply chain knowledge platform." },
 ]
 
 interface AboutPageProps {
@@ -99,13 +99,18 @@ export const AboutPage: React.FC<AboutPageProps> = ({ isPremium = false }) => {
       <section style={{ padding: '0 24px 24px' }}>
         <div className="container">
           <div className="card about-stats-strip" style={{ padding: '22px 26px' }}>
-            {stats.map(({ value, label, icon: Icon }) => (
+            {stats.map(({ end, suffix, decimals, label, icon: Icon }) => (
               <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                 <div style={{ width: 50, height: 50, borderRadius: '50%', display: 'grid', placeItems: 'center', background: 'var(--primary-bg)', color: 'var(--primary)' }}>
                   <Icon size={23} />
                 </div>
                 <div>
-                  <div style={{ color: 'var(--primary)', fontSize: 22, fontWeight: 900 }}>{value}</div>
+                  <AboutCountUp
+                    end={end}
+                    suffix={suffix}
+                    decimals={decimals}
+                    style={{ color: 'var(--primary)', fontSize: 22, fontWeight: 900, lineHeight: 1.1 }}
+                  />
                   <div style={{ color: 'var(--text-main)', fontSize: 12, lineHeight: 1.25 }}>{label}</div>
                 </div>
               </div>
@@ -118,12 +123,22 @@ export const AboutPage: React.FC<AboutPageProps> = ({ isPremium = false }) => {
         <div className="container">
           <h2 style={{ textAlign: 'center', fontSize: 22, fontWeight: 900, color: 'var(--text-main)', marginBottom: 22 }}>Our Story</h2>
           <div className="about-timeline">
-            {story.map(([year, title, text], i) => (
+            {story.map(({ year, yearEnd, yearSuffix, title, text }, i) => (
               <div key={title} style={{ textAlign: 'center', position: 'relative' }}>
                 <div style={{ width: 62, height: 62, borderRadius: '50%', display: 'grid', placeItems: 'center', margin: '0 auto 12px', background: i % 2 ? 'rgba(20,174,92,0.12)' : 'var(--primary-bg)', color: i % 2 ? 'var(--success-green)' : 'var(--primary)', border: '1px solid var(--border)' }}>
                   <Zap size={22} />
                 </div>
-                <div style={{ color: i === story.length - 1 ? 'var(--success-green)' : 'var(--primary)', fontSize: 15, fontWeight: 900 }}>{year}</div>
+                {yearEnd ? (
+                  <AboutCountUp
+                    end={yearEnd}
+                    suffix={yearSuffix ?? ''}
+                    duration={1050}
+                    useGrouping={false}
+                    style={{ color: i === story.length - 1 ? 'var(--success-green)' : 'var(--primary)', fontSize: 15, fontWeight: 900 }}
+                  />
+                ) : (
+                  <div style={{ color: i === story.length - 1 ? 'var(--success-green)' : 'var(--primary)', fontSize: 15, fontWeight: 900 }}>{year}</div>
+                )}
                 <div style={{ color: 'var(--text-main)', fontSize: 13, fontWeight: 800, marginBottom: 6 }}>{title}</div>
                 <p style={{ color: 'var(--text-sub)', fontSize: 11, lineHeight: 1.45 }}>{text}</p>
               </div>
@@ -140,6 +155,80 @@ export const AboutPage: React.FC<AboutPageProps> = ({ isPremium = false }) => {
           )}
         </div>
       </section>
+    </div>
+  )
+}
+
+const AboutCountUp = ({
+  end,
+  suffix = '',
+  decimals = 0,
+  duration = 1450,
+  useGrouping = true,
+  style,
+}: {
+  end: number
+  suffix?: string
+  decimals?: number
+  duration?: number
+  useGrouping?: boolean
+  style?: React.CSSProperties
+}) => {
+  const [value, setValue] = useState(0)
+  const [started, setStarted] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const node = ref.current
+    if (!node || started) return
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) {
+      setStarted(true)
+      return
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return
+        setStarted(true)
+        observer.disconnect()
+      },
+      { threshold: 0.35 }
+    )
+
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [started])
+
+  useEffect(() => {
+    if (!started) return
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      setValue(end)
+      return
+    }
+    const start = performance.now()
+    let frame = 0
+
+    const tick = (now: number) => {
+      const progress = Math.min(1, (now - start) / duration)
+      const eased = 1 - Math.pow(1 - progress, 3)
+      setValue(end * eased)
+      if (progress < 1) frame = window.requestAnimationFrame(tick)
+      else setValue(end)
+    }
+
+    frame = window.requestAnimationFrame(tick)
+    return () => window.cancelAnimationFrame(frame)
+  }, [duration, end, started])
+
+  const display = value.toLocaleString(undefined, {
+    maximumFractionDigits: decimals,
+    minimumFractionDigits: decimals,
+    useGrouping,
+  })
+
+  return (
+    <div ref={ref} style={{ ...style, fontVariantNumeric: 'tabular-nums', letterSpacing: 0 }}>
+      {display}{suffix}
     </div>
   )
 }

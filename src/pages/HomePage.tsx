@@ -7,6 +7,13 @@ import type { Entry, Message } from '../types'
 import { uuid, readFreeUsage, writeFreeUsage, FREE_DAILY_LIMIT, getEntryId, recordDashboardSearch, readDashboardHistory, writeDashboardHistory } from '../utils'
 
 const POPULAR_TERMS = ['Supply', 'Demand', 'Inventory', 'Logistics', 'Procurement', 'Sustainability']
+const HOME_STATS = [
+  { end: 25000, suffix: '+', label: 'Professionals Worldwide' },
+  { end: 10000, suffix: '+', label: 'Terms & Concepts' },
+  { end: 50000, suffix: '+', label: 'Searches Every Month' },
+  { end: 99.9, suffix: '%', label: 'Uptime', decimals: 1 },
+  { end: 4.9, suffix: '/5', label: 'Average Rating', decimals: 1 },
+]
 
 const FEATURE_CARDS = [
   {
@@ -619,15 +626,14 @@ export const HomePage: React.FC<HomePageProps> = ({
         <section style={{ background: 'var(--surface)', padding: '48px 24px' }}>
           <div className="container">
             <div className="home-stats-grid">
-              {[
-                { value: '25,000+', label: 'Professionals Worldwide' },
-                { value: '10,000+', label: 'Terms & Concepts' },
-                { value: '50,000+', label: 'Searches Every Month' },
-                { value: '99.9%', label: 'Uptime' },
-                { value: '4.9/5', label: 'Average Rating' },
-              ].map((s) => (
+              {HOME_STATS.map((s) => (
                 <div key={s.label} style={{ padding: '14px 10px' }}>
-                  <div style={{ fontSize: 'clamp(27px, 4vw, 36px)', fontWeight: 900, color: 'var(--primary)', marginBottom: 6, letterSpacing: '-0.02em' }}>{s.value}</div>
+                  <CountUpStat
+                    end={s.end}
+                    suffix={s.suffix}
+                    decimals={s.decimals}
+                    className="home-stat-value"
+                  />
                   <div style={{ fontSize: 14, color: 'var(--text-sub)', fontWeight: 650 }}>{s.label}</div>
                 </div>
               ))}
@@ -658,6 +664,76 @@ export const HomePage: React.FC<HomePageProps> = ({
           </div>
         </section>
       )}
+    </div>
+  )
+}
+
+const CountUpStat = ({
+  end,
+  suffix = '',
+  decimals = 0,
+  className,
+}: {
+  end: number
+  suffix?: string
+  decimals?: number
+  className?: string
+}) => {
+  const [value, setValue] = useState(0)
+  const [started, setStarted] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const node = ref.current
+    if (!node || started) return
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) {
+      setStarted(true)
+      return
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return
+        setStarted(true)
+        observer.disconnect()
+      },
+      { threshold: 0.35 }
+    )
+
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [started])
+
+  useEffect(() => {
+    if (!started) return
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      setValue(end)
+      return
+    }
+    const duration = 1450
+    const start = performance.now()
+    let frame = 0
+
+    const tick = (now: number) => {
+      const progress = Math.min(1, (now - start) / duration)
+      const eased = 1 - Math.pow(1 - progress, 3)
+      setValue(end * eased)
+      if (progress < 1) frame = window.requestAnimationFrame(tick)
+      else setValue(end)
+    }
+
+    frame = window.requestAnimationFrame(tick)
+    return () => window.cancelAnimationFrame(frame)
+  }, [end, started])
+
+  const display = value.toLocaleString(undefined, {
+    maximumFractionDigits: decimals,
+    minimumFractionDigits: decimals,
+  })
+
+  return (
+    <div ref={ref} className={className}>
+      {display}{suffix}
     </div>
   )
 }

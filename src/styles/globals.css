@@ -111,6 +111,84 @@ a {
   text-decoration: none;
 }
 
+/* ===== Motion System ===== */
+.route-transition-shell {
+  animation: route-enter 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.route-transition-shell section,
+.route-transition-shell .card,
+.route-transition-shell .home-showcase,
+.route-transition-shell .home-stats-grid,
+.route-transition-shell .dictionary-book-zone,
+.route-transition-shell .tp-layout,
+.route-transition-shell .tp-below-fold {
+  animation: content-rise 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.route-transition-shell section:nth-of-type(2),
+.route-transition-shell .home-showcase,
+.route-transition-shell .tp-below-fold {
+  animation-delay: 70ms;
+}
+
+.route-transition-shell section:nth-of-type(3),
+.route-transition-shell .home-stats-grid {
+  animation-delay: 130ms;
+}
+
+.card,
+.btn,
+.nav-link,
+button,
+a,
+.home-feature-card,
+.home-preview-card,
+.home-cta-card {
+  transition:
+    transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    opacity 180ms ease;
+}
+
+.card:hover,
+.home-feature-card:hover,
+.home-preview-card:hover,
+.home-cta-card:hover {
+  transform: translateY(-2px);
+}
+
+.btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+@keyframes route-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes content-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* ===== Layout ===== */
 .page-layout {
   min-height: 100dvh;
@@ -793,6 +871,16 @@ mark {
   grid-template-columns: repeat(5, minmax(140px, 1fr));
   gap: 24px;
   text-align: center;
+}
+
+.home-stat-value {
+  font-size: clamp(27px, 4vw, 36px);
+  font-weight: 900;
+  color: var(--primary);
+  margin-bottom: 6px;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
 
 .home-cta-card {

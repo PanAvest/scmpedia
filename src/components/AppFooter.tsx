@@ -103,6 +103,8 @@ interface AppFooterProps {
 }
 
 export const AppFooter: React.FC<AppFooterProps> = ({ onOpenPricing, isPremium = false }) => {
+  const currentYear = new Date().getFullYear()
+
   return (
     <footer
       style={{
@@ -238,7 +240,7 @@ export const AppFooter: React.FC<AppFooterProps> = ({ onOpenPricing, isPremium =
             color: 'var(--text-sub)',
           }}
         >
-          <span>© 2025 SCMpedia. All rights reserved.</span>
+          <span>© {currentYear} SCMpedia. All rights reserved.</span>
         </div>
       </div>
 

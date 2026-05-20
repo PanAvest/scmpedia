@@ -167,52 +167,53 @@ function AppShell() {
         />
       )}
 
-      <Routes>
-        <Route
-          path="/"
-          element={
-            <HomePage
-              dataHook={dataHook}
-              tts={tts}
-              ai={ai}
-              user={auth.user}
-              favorites={favorites}
-              subscription={subscription}
-              onOpenAuth={handleSignIn}
-              onOpenPricing={handleOpenPricing}
-              pendingSearch={pendingSearch}
-              onPendingSearchConsumed={() => setPendingSearch('')}
-              autoReadAi={autoReadAi}
-              resetNonce={homeResetNonce}
-              onChatModeChange={setHomeChatMode}
-              onOpenTermPage={handleOpenTermFromChat}
-            />
-          }
-        />
+      <main key={location.pathname} className="route-transition-shell">
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <HomePage
+                dataHook={dataHook}
+                tts={tts}
+                ai={ai}
+                user={auth.user}
+                favorites={favorites}
+                subscription={subscription}
+                onOpenAuth={handleSignIn}
+                onOpenPricing={handleOpenPricing}
+                pendingSearch={pendingSearch}
+                onPendingSearchConsumed={() => setPendingSearch('')}
+                autoReadAi={autoReadAi}
+                resetNonce={homeResetNonce}
+                onChatModeChange={setHomeChatMode}
+                onOpenTermPage={handleOpenTermFromChat}
+              />
+            }
+          />
 
-        <Route
-          path="/auth"
-          element={
-            auth.user
-              ? <Navigate to="/" replace />
-              : <AuthPage onSuccess={() => navigate('/')} />
-          }
-        />
-        <Route path="/auth/reset" element={<AuthPage />} />
+          <Route
+            path="/auth"
+            element={
+              auth.user
+                ? <Navigate to="/" replace />
+                : <AuthPage onSuccess={() => navigate('/')} />
+            }
+          />
+          <Route path="/auth/reset" element={<AuthPage />} />
 
-        <Route
-          path="/pricing"
-          element={
-            <PricingPage
-              isPremium={isPremium}
-              onSubscribe={handleSubscribe}
-              onSignIn={handleSignIn}
-              user={auth.user}
-            />
-          }
-        />
+          <Route
+            path="/pricing"
+            element={
+              <PricingPage
+                isPremium={isPremium}
+                onSubscribe={handleSubscribe}
+                onSignIn={handleSignIn}
+                user={auth.user}
+              />
+            }
+          />
 
-        <Route
+          <Route
           path="/dashboard"
           element={
             <DashboardPage
@@ -225,8 +226,8 @@ function AppShell() {
               onSearch={handleSearch}
             />
           }
-        />
-        <Route
+          />
+          <Route
           path="/dashboard/favorites"
           element={
             <DashboardPage
@@ -239,8 +240,8 @@ function AppShell() {
               onSearch={handleSearch}
             />
           }
-        />
-        <Route
+          />
+          <Route
           path="/dashboard/history"
           element={
             <DashboardPage
@@ -253,11 +254,11 @@ function AppShell() {
               onSearch={handleSearch}
             />
           }
-        />
+          />
 
-        <Route path="/about" element={<AboutPage isPremium={isPremium} />} />
+          <Route path="/about" element={<AboutPage isPremium={isPremium} />} />
 
-        <Route
+          <Route
           path="/settings"
           element={
             <SettingsPage
@@ -281,8 +282,8 @@ function AppShell() {
               onOpenPricing={handleOpenPricing}
             />
           }
-        />
-        <Route
+          />
+          <Route
           path="/settings/:section"
           element={
             <SettingsPage
@@ -306,9 +307,9 @@ function AppShell() {
               onOpenPricing={handleOpenPricing}
             />
           }
-        />
+          />
 
-        <Route
+          <Route
           path="/dictionary"
           element={
             <DictionaryModePage
@@ -320,8 +321,8 @@ function AppShell() {
               preparingId={tts.preparingId}
             />
           }
-        />
-        <Route
+          />
+          <Route
           path="/dictionary-mode"
           element={
             <DictionaryModePage
@@ -333,9 +334,9 @@ function AppShell() {
               preparingId={tts.preparingId}
             />
           }
-        />
+          />
 
-        <Route
+          <Route
           path="/term/:slug"
           element={
             <TermPage
@@ -349,11 +350,12 @@ function AppShell() {
               onOpenPricing={handleOpenPricing}
             />
           }
-        />
+          />
 
-        {/* Catch-all */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          {/* Catch-all */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </main>
 
       {!(location.pathname === '/' && homeChatMode) && (
         <AppFooter onOpenPricing={handleOpenPricing} isPremium={isPremium} />
