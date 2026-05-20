@@ -11,10 +11,12 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",
+    "lucide-react": "^1.16.0",
     "papaparse": "^5.5.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-pageflip": "^2.0.3"
+    "react-pageflip": "^2.0.3",
+    "react-router-dom": "^7.15.1"
   },
   "devDependencies": {
     "@types/node": "^25.8.0",

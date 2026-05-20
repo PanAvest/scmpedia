@@ -20,6 +20,8 @@ const SCM_CONTEXT = [
 
 const STOP_WORDS = new Set(['the', 'and', 'that', 'with', 'from', 'this', 'their', 'are', 'for', 'used', 'into', 'more'])
 
+const BAD_RESULT_PATTERN = /\b(song|songs|music|album|lyrics|soundcloud|spotify|stream|listen online|radio|mixtape|playlist|artist|drama|k-drama|kdrama|movie|movies|tv series|series|episode|episodes|cast|plot|boyfriend|girlfriend|celebrity|actor|actress|netflix|viki|soompi|asianwiki|school|schools|student|students|spring play|stage|theatre|theater|concert|embassy|training certificate|media training|ceremony)\b/
+
 const VISUAL_CONTEXT_WORDS = [
   'ghana',
   'tricycle',
@@ -65,6 +67,34 @@ const wordsFrom = (value: string) =>
     .split(' ')
     .filter((word) => word.length > 2)
 
+const domainHintsFor = (term: string, definition: string) => {
+  const haystack = `${term} ${definition}`.toLowerCase()
+  const cleanTerm = cleanText(term).toLowerCase()
+  const hints: string[] = []
+
+  if (
+    cleanTerm === 'demand' ||
+    /\bdemand\b/.test(haystack) ||
+    /\brequirement\b.*\b(product|component)\b/.test(haystack)
+  ) {
+    hints.push(
+      'demand planning',
+      'demand forecasting',
+      'customer demand',
+      'product demand',
+      'inventory planning'
+    )
+  }
+
+  if (/\bforecast/.test(haystack)) hints.push('forecasting chart', 'demand forecast')
+  if (/\binventory|stock|warehouse/.test(haystack)) hints.push('inventory management', 'warehouse operations')
+  if (/\bprocurement|supplier|sourcing/.test(haystack)) hints.push('procurement supplier management')
+  if (/\blogistics|transport|shipment|distribution/.test(haystack)) hints.push('logistics distribution')
+  if (/\bproduction|manufacturing|factory/.test(haystack)) hints.push('production planning manufacturing')
+
+  return Array.from(new Set(hints))
+}
+
 const expandedTermFromDefinition = (definition: string) => {
   const seeMatch = definition.match(/^\s*see\s*:\s*([^.;]+)/i)
   if (seeMatch?.[1]) return cleanText(seeMatch[1])
@@ -77,6 +107,7 @@ const buildImageQueries = (term: string, definition: string) => {
   const cleanTerm = cleanText(term)
   const expandedTerm = expandedTermFromDefinition(definition)
   const definitionWords = wordsFrom([expandedTerm, definition].filter(Boolean).join(' ')).filter((word) => !STOP_WORDS.has(word))
+  const domainHints = domainHintsFor(cleanTerm, definition)
   const visualTerms = definitionWords
     .filter((word) => VISUAL_CONTEXT_WORDS.includes(word))
     .slice(0, 6)
@@ -87,23 +118,39 @@ const buildImageQueries = (term: string, definition: string) => {
   const hasContext = SCM_CONTEXT.some((context) => cleanTerm.toLowerCase().includes(context))
   const isPhysicalTerm = visualTerms.some((word) => ['ghana', 'tricycle', 'tricycles', 'cargo', 'carrier', 'vehicle', 'motor', 'truck'].includes(word))
   const isShortAcronym = /^[A-Z0-9]{2,5}$/.test(cleanTerm) && definitionWords.length > 0
+  const isGenericTerm = wordsFrom(cleanTerm).length <= 2 && !hasContext && !isPhysicalTerm
   const contextual = [
     cleanTerm,
+    domainHints.slice(0, 3).join(' '),
     visualTerms.slice(0, 4).join(' '),
     visualTerms.length ? '' : fallbackTerms,
-    hasContext || isPhysicalTerm ? '' : 'supply chain logistics',
+    hasContext || isPhysicalTerm ? '' : 'supply chain logistics inventory operations',
   ]
     .filter(Boolean)
     .join(' ')
   const definitionContext = [
     isShortAcronym ? '' : cleanTerm,
     expandedTerm,
+    domainHints.slice(0, 4).join(' '),
     fallbackTerms,
     'supply chain procurement logistics operations',
   ]
     .filter(Boolean)
     .join(' ')
-  return Array.from(new Set([isShortAcronym ? definitionContext : cleanTerm, contextual].filter(Boolean)))
+  const conceptDiagram = [
+    cleanTerm,
+    domainHints.slice(0, 2).join(' '),
+    'supply chain diagram process',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+  return Array.from(new Set([
+    isShortAcronym ? definitionContext : contextual,
+    definitionContext,
+    conceptDiagram,
+    isGenericTerm ? '' : cleanTerm,
+  ].filter(Boolean)))
 }
 
 const scoreResult = (item: any, term: string, definition: string) => {
@@ -114,6 +161,8 @@ const scoreResult = (item: any, term: string, definition: string) => {
   const expandedWords = wordsFrom(expandedTerm).filter((word) => !STOP_WORDS.has(word))
   const definitionWords = wordsFrom([expandedTerm, definition].filter(Boolean).join(' ')).filter((word) => !STOP_WORDS.has(word))
   const visualTerms = definitionWords.filter((word) => VISUAL_CONTEXT_WORDS.includes(word))
+  const domainHints = domainHintsFor(cleanTerm, definition)
+  const isGenericTerm = termWords.length <= 2 && !SCM_CONTEXT.some((context) => cleanTerm.toLowerCase().includes(context))
   const haystack = [
     item?.title,
     item?.snippet,
@@ -129,9 +178,20 @@ const scoreResult = (item: any, term: string, definition: string) => {
   const link = String(item?.link || '').toLowerCase()
   let score = 0
   for (const word of termWords) {
-    if (haystack.includes(word)) score += 18
+    if (haystack.includes(word)) score += isGenericTerm ? 7 : 18
   }
-  if (haystack.includes(term.toLowerCase())) score += 20
+  if (haystack.includes(term.toLowerCase())) score += isGenericTerm ? 6 : 20
+  for (const hint of domainHints) {
+    if (haystack.includes(hint)) score += 34
+    else {
+      const hintHits = wordsFrom(hint).filter((word) => haystack.includes(word)).length
+      if (hintHits >= 2) score += 20
+    }
+  }
+  const definitionHits = definitionWords
+    .filter((word) => !['requirement', 'particular', 'number', 'sources', 'internal', 'external'].includes(word))
+    .filter((word) => haystack.includes(word)).length
+  score += Math.min(18, definitionHits * 4)
   for (const word of visualTerms) {
     if (haystack.includes(word)) score += 12
   }
@@ -140,8 +200,7 @@ const scoreResult = (item: any, term: string, definition: string) => {
   }
   if (/\b(diagram|infographic|concept|process|management|logistics|warehouse|procurement)\b/.test(haystack)) score += 5
   if (/\b(logo|icon|clipart|meme|wallpaper|template|ppt|pdf|book cover|headshot|portrait|scandal|political|politics)\b/.test(haystack)) score -= 25
-  if (/\b(song|songs|music|album|lyrics|soundcloud|spotify|stream|listen online|radio|mixtape|playlist|artist)\b/.test(haystack)) score -= 70
-  if (/\b(school|schools|student|students|spring play|stage|theatre|theater|concert|embassy|training certificate|media training|ceremony)\b/.test(haystack)) score -= 80
+  if (BAD_RESULT_PATTERN.test(haystack)) score -= 140
   if (visualTerms.length && !visualTerms.some((word) => haystack.includes(word))) score -= 35
   if (isShortAcronym) {
     const expandedHits = expandedWords.filter((word) => haystack.includes(word)).length
@@ -161,6 +220,9 @@ const isReliableResult = (item: any, term: string, definition: string, score: nu
   const cleanTerm = cleanText(term)
   const expandedTerm = expandedTermFromDefinition(definition)
   const isShortAcronym = /^[A-Z0-9]{2,5}$/.test(cleanTerm) && Boolean(definition)
+  const termWords = wordsFrom(cleanTerm)
+  const domainHints = domainHintsFor(cleanTerm, definition)
+  const isGenericTerm = termWords.length <= 2 && !SCM_CONTEXT.some((context) => cleanTerm.toLowerCase().includes(context))
   const haystack = [
     item?.title,
     item?.snippet,
@@ -171,13 +233,25 @@ const isReliableResult = (item: any, term: string, definition: string, score: nu
     .filter(Boolean)
     .join(' ')
     .toLowerCase()
-  if (/\b(song|songs|music|album|lyrics|soundcloud|spotify|stream|listen online|school|schools|student|students|spring play|stage|theatre|theater|concert|embassy|media training|ceremony)\b/.test(haystack)) {
+  if (BAD_RESULT_PATTERN.test(haystack)) {
     return false
   }
   if (isShortAcronym) {
     const expandedWords = wordsFrom(expandedTerm).filter((word) => !STOP_WORDS.has(word))
     const expandedHits = expandedWords.filter((word) => haystack.includes(word)).length
     return score >= 18 && (!expandedWords.length || expandedHits >= Math.min(2, expandedWords.length))
+  }
+  if (isGenericTerm) {
+    const hasScmContext = SCM_CONTEXT.some((context) => haystack.includes(context))
+    const hasDomainContext = domainHints.some((hint) => {
+      if (haystack.includes(hint)) return true
+      return wordsFrom(hint).filter((word) => haystack.includes(word)).length >= 2
+    })
+    const definitionWords = wordsFrom([expandedTerm, definition].filter(Boolean).join(' '))
+      .filter((word) => !STOP_WORDS.has(word))
+      .filter((word) => !['requirement', 'particular', 'number', 'sources', 'internal', 'external'].includes(word))
+    const definitionHits = definitionWords.filter((word) => haystack.includes(word)).length
+    return score >= 22 && (hasScmContext || hasDomainContext || definitionHits >= 2)
   }
   return score >= 10
 }
@@ -214,6 +288,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           imgSize: 'large',
           safe: 'active',
         })
+        params.set('excludeTerms', 'song lyrics album drama k-drama movie tv series cast plot boyfriend girlfriend celebrity actor actress netflix viki soompi asianwiki')
         if (wordsFrom(query).length <= 5 && !definition) params.set('exactTerms', exactTerm)
         const response = await fetch(`https://www.googleapis.com/customsearch/v1?${params.toString()}`)
         const body = await response.text()

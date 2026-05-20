@@ -273,6 +273,8 @@ export default defineConfig(({ mode }) => {
                 .filter((word) => word.length > 2)
             const stopWords = new Set(['the', 'and', 'that', 'with', 'from', 'this', 'their', 'are', 'for', 'used', 'into', 'more'])
             const context = ['supply chain', 'logistics', 'procurement', 'inventory', 'warehouse', 'operations management']
+            const badResultPattern =
+              /\b(song|songs|music|album|lyrics|soundcloud|spotify|stream|listen online|radio|mixtape|playlist|artist|drama|k-drama|kdrama|movie|movies|tv series|series|episode|episodes|cast|plot|boyfriend|girlfriend|celebrity|actor|actress|netflix|viki|soompi|asianwiki|school|schools|student|students|spring play|stage|theatre|theater|concert|embassy|training certificate|media training|ceremony)\b/
             const visualWords = [
               'ghana',
               'tricycle',
@@ -312,35 +314,71 @@ export default defineConfig(({ mode }) => {
               if (colonMatch?.[1]) return cleanText(colonMatch[1])
               return ''
             }
+            const domainHintsFor = (term: string, definitionText: string) => {
+              const haystack = `${term} ${definitionText}`.toLowerCase()
+              const cleanTerm = cleanText(term).toLowerCase()
+              const hints: string[] = []
+              if (
+                cleanTerm === 'demand' ||
+                /\bdemand\b/.test(haystack) ||
+                /\brequirement\b.*\b(product|component)\b/.test(haystack)
+              ) {
+                hints.push('demand planning', 'demand forecasting', 'customer demand', 'product demand', 'inventory planning')
+              }
+              if (/\bforecast/.test(haystack)) hints.push('forecasting chart', 'demand forecast')
+              if (/\binventory|stock|warehouse/.test(haystack)) hints.push('inventory management', 'warehouse operations')
+              if (/\bprocurement|supplier|sourcing/.test(haystack)) hints.push('procurement supplier management')
+              if (/\blogistics|transport|shipment|distribution/.test(haystack)) hints.push('logistics distribution')
+              if (/\bproduction|manufacturing|factory/.test(haystack)) hints.push('production planning manufacturing')
+              return Array.from(new Set(hints))
+            }
             const expandedTerm = expandedTermFromDefinition(definition)
             const definitionWords = wordsFrom([expandedTerm, definition].filter(Boolean).join(' ')).filter((word) => !stopWords.has(word))
+            const domainHints = domainHintsFor(q, definition)
             const visualTerms = definitionWords.filter((word) => visualWords.includes(word)).slice(0, 6)
             const fallbackTerms = definitionWords
               .filter((word) => !visualTerms.includes(word))
-              .slice(0, 8)
+              .slice(0, 5)
               .join(' ')
             const hasContext = context.some((term) => q.toLowerCase().includes(term))
             const isPhysicalTerm = visualTerms.some((word) =>
               ['ghana', 'tricycle', 'tricycles', 'cargo', 'carrier', 'vehicle', 'motor', 'truck'].includes(word),
             )
             const isShortAcronym = /^[A-Z0-9]{2,5}$/.test(cleanText(q)) && definitionWords.length > 0
+            const isGenericTerm = wordsFrom(q).length <= 2 && !hasContext && !isPhysicalTerm
             const contextualQuery = [
               cleanText(q),
+              domainHints.slice(0, 3).join(' '),
               visualTerms.slice(0, 4).join(' '),
               visualTerms.length ? '' : fallbackTerms,
-              hasContext || isPhysicalTerm ? '' : 'supply chain logistics',
+              hasContext || isPhysicalTerm ? '' : 'supply chain logistics inventory operations',
             ]
               .filter(Boolean)
               .join(' ')
             const definitionContext = [
               isShortAcronym ? '' : cleanText(q),
               expandedTerm,
+              domainHints.slice(0, 4).join(' '),
               fallbackTerms,
               'supply chain procurement logistics operations',
             ]
               .filter(Boolean)
               .join(' ')
-            const imageQueries = Array.from(new Set([isShortAcronym ? definitionContext : cleanText(q), contextualQuery].filter(Boolean)))
+            const conceptDiagram = [
+              cleanText(q),
+              domainHints.slice(0, 2).join(' '),
+              'supply chain diagram process',
+            ]
+              .filter(Boolean)
+              .join(' ')
+            const imageQueries = Array.from(
+              new Set([
+                isShortAcronym ? definitionContext : contextualQuery,
+                definitionContext,
+                conceptDiagram,
+                isGenericTerm ? '' : cleanText(q),
+              ].filter(Boolean)),
+            )
             const scoreResult = (item: any) => {
               const haystack = [item?.title, item?.snippet, item?.displayLink, item?.link, item?.image?.contextLink]
                 .filter(Boolean)
@@ -348,10 +386,19 @@ export default defineConfig(({ mode }) => {
                 .toLowerCase()
               const queryWords = isShortAcronym ? [] : wordsFrom(q)
               const expandedWords = wordsFrom(expandedTerm).filter((word) => !stopWords.has(word))
+              const generic = queryWords.length <= 2 && !context.some((term) => cleanText(q).toLowerCase().includes(term))
               let score = 0
-              for (const word of queryWords) if (haystack.includes(word)) score += 18
+              for (const word of queryWords) if (haystack.includes(word)) score += generic ? 7 : 18
               for (const word of visualTerms) if (haystack.includes(word)) score += 12
-              if (!isShortAcronym && haystack.includes(q.toLowerCase())) score += 20
+              if (!isShortAcronym && haystack.includes(q.toLowerCase())) score += generic ? 6 : 20
+              for (const hint of domainHints) {
+                if (haystack.includes(hint)) score += 34
+                else if (wordsFrom(hint).filter((word) => haystack.includes(word)).length >= 2) score += 20
+              }
+              const definitionHits = definitionWords
+                .filter((word) => !['requirement', 'particular', 'number', 'sources', 'internal', 'external'].includes(word))
+                .filter((word) => haystack.includes(word)).length
+              score += Math.min(18, definitionHits * 4)
               for (const term of context) if (haystack.includes(term)) score += 6
               if (/\b(diagram|infographic|concept|process|management|logistics|warehouse|procurement)\b/.test(haystack)) score += 5
               if (
@@ -360,16 +407,7 @@ export default defineConfig(({ mode }) => {
                 )
               )
                 score -= 25
-              if (
-                /\b(song|songs|music|album|lyrics|soundcloud|spotify|stream|listen online|radio|mixtape|playlist|artist)\b/.test(haystack)
-              )
-                score -= 70
-              if (
-                /\b(school|schools|student|students|spring play|stage|theatre|theater|concert|embassy|training certificate|media training|ceremony)\b/.test(
-                  haystack,
-                )
-              )
-                score -= 80
+              if (badResultPattern.test(haystack)) score -= 140
               if (visualTerms.length && !visualTerms.some((word) => haystack.includes(word))) score -= 35
               if (isShortAcronym) {
                 const expandedHits = expandedWords.filter((word) => haystack.includes(word)).length
@@ -387,17 +425,24 @@ export default defineConfig(({ mode }) => {
                 .filter(Boolean)
                 .join(' ')
                 .toLowerCase()
-              if (
-                /\b(song|songs|music|album|lyrics|soundcloud|spotify|stream|listen online|school|schools|student|students|spring play|stage|theatre|theater|concert|embassy|media training|ceremony)\b/.test(
-                  haystack,
-                )
-              ) {
+              if (badResultPattern.test(haystack)) {
                 return false
               }
               if (isShortAcronym) {
                 const expandedWords = wordsFrom(expandedTerm).filter((word) => !stopWords.has(word))
                 const expandedHits = expandedWords.filter((word) => haystack.includes(word)).length
                 return score >= 18 && (!expandedWords.length || expandedHits >= Math.min(2, expandedWords.length))
+              }
+              if (isGenericTerm) {
+                const hasScmContext = context.some((term) => haystack.includes(term))
+                const hasDomainContext = domainHints.some((hint) => {
+                  if (haystack.includes(hint)) return true
+                  return wordsFrom(hint).filter((word) => haystack.includes(word)).length >= 2
+                })
+                const definitionHits = definitionWords
+                  .filter((word) => !['requirement', 'particular', 'number', 'sources', 'internal', 'external'].includes(word))
+                  .filter((word) => haystack.includes(word)).length
+                return score >= 22 && (hasScmContext || hasDomainContext || definitionHits >= 2)
               }
               return score >= 10
             }
@@ -413,6 +458,10 @@ export default defineConfig(({ mode }) => {
                   imgSize: 'large',
                   safe: 'active',
                 })
+                params.set(
+                  'excludeTerms',
+                  'song lyrics album drama k-drama movie tv series cast plot boyfriend girlfriend celebrity actor actress netflix viki soompi asianwiki',
+                )
                 if (wordsFrom(q).length <= 5 && !definition) params.set('exactTerms', cleanText(q))
                 const response = await fetch(`https://www.googleapis.com/customsearch/v1?${params.toString()}`)
                 const body = await response.text()
