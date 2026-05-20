@@ -558,8 +558,79 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
 
       <style>{`
         .dictionary-mode-page {
+          --dict-stage-bg:
+            linear-gradient(135deg, rgba(255,255,255,0.96), rgba(248,251,255,0.94) 56%, rgba(255,248,243,0.88)),
+            #fff;
+          --dict-hero-title: #1d2430;
+          --dict-hero-text: #596276;
+          --dict-frosted-bg: rgba(255,255,255,0.88);
+          --dict-frosted-soft-bg: rgba(255,255,255,0.82);
+          --dict-frosted-border: #e4e8ef;
+          --dict-control-border: #dfe5ee;
+          --dict-control-text: #536075;
+          --dict-strong-text: #30394b;
+          --dict-search-text: #1d2430;
+          --dict-book-bg: #f7f8fb;
+          --dict-paper-bg:
+            linear-gradient(90deg, rgba(0,0,0,0.035), transparent 9%, transparent 91%, rgba(0,0,0,0.03)),
+            #fff;
+          --dict-paper-border: #e2e6ee;
+          --dict-entry-border: #c8d0dc;
+          --dict-entry-text: #30394b;
+          --dict-muted: #596276;
+          --dict-icon-bg: #fff;
+          --dict-icon-border: #dbe2ec;
+          --dict-sound-bg: #f1f3f7;
+          --dict-sound-text: #20242c;
+          --dict-divider: rgba(0,0,0,0.10);
+          --dict-dot: rgba(182, 84, 55, 0.28);
+          --dict-shadow-soft: rgba(24, 35, 52, 0.08);
+          --dict-shadow-control: rgba(24, 35, 52, 0.06);
+          --dict-shadow-book: rgba(26, 35, 52, 0.16);
+          --dict-shadow-list: rgba(26, 35, 52, 0.13);
+          --dict-page-stack-1: rgba(255,255,255,0.86);
+          --dict-page-stack-2: rgba(217,222,230,0.7);
+          --dict-premium-border: #dceee6;
+          --dict-premium-bg: linear-gradient(90deg, rgba(20,174,92,0.10), rgba(20,174,92,0.03));
           background: var(--bg);
           min-height: calc(100vh - 64px);
+        }
+
+        :root[data-theme="dark"] .dictionary-mode-page {
+          --dict-stage-bg:
+            linear-gradient(135deg, rgba(17,20,18,0.97), rgba(20,27,24,0.96) 56%, rgba(31,25,21,0.92)),
+            #111412;
+          --dict-hero-title: #f4f7f2;
+          --dict-hero-text: #b8c0b8;
+          --dict-frosted-bg: rgba(23,28,25,0.88);
+          --dict-frosted-soft-bg: rgba(23,28,25,0.82);
+          --dict-frosted-border: #2b332d;
+          --dict-control-border: #2b332d;
+          --dict-control-text: #b8c0b8;
+          --dict-strong-text: #f4f7f2;
+          --dict-search-text: #f4f7f2;
+          --dict-book-bg: #161b18;
+          --dict-paper-bg:
+            linear-gradient(90deg, rgba(0,0,0,0.22), transparent 10%, transparent 90%, rgba(0,0,0,0.18)),
+            #171c19;
+          --dict-paper-border: #303a33;
+          --dict-entry-border: #344039;
+          --dict-entry-text: #dce3dc;
+          --dict-muted: #aab5ad;
+          --dict-icon-bg: #171c19;
+          --dict-icon-border: #303a33;
+          --dict-sound-bg: #222923;
+          --dict-sound-text: #f4f7f2;
+          --dict-divider: rgba(255,255,255,0.12);
+          --dict-dot: rgba(242, 139, 88, 0.25);
+          --dict-shadow-soft: rgba(0,0,0,0.28);
+          --dict-shadow-control: rgba(0,0,0,0.22);
+          --dict-shadow-book: rgba(0,0,0,0.42);
+          --dict-shadow-list: rgba(0,0,0,0.36);
+          --dict-page-stack-1: rgba(33,40,35,0.86);
+          --dict-page-stack-2: rgba(55,65,58,0.72);
+          --dict-premium-border: #2d4b3a;
+          --dict-premium-bg: linear-gradient(90deg, rgba(20,174,92,0.14), rgba(20,174,92,0.05));
         }
 
         .dictionary-loader {
@@ -586,9 +657,7 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
           overflow: hidden;
           padding: 18px 24px 24px;
           border-bottom: 1px solid var(--border);
-          background:
-            linear-gradient(135deg, rgba(255,255,255,0.96), rgba(248,251,255,0.94) 56%, rgba(255,248,243,0.88)),
-            #fff;
+          background: var(--dict-stage-bg);
         }
 
         .dictionary-hero {
@@ -615,8 +684,8 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
           font-size: clamp(42px, 5vw, 60px);
           font-weight: 900;
           line-height: 1.02;
-          color: #1d2430;
-          letter-spacing: -0.01em;
+          color: var(--dict-hero-title);
+          letter-spacing: 0;
         }
 
         .dictionary-hero h1 span {
@@ -624,7 +693,7 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
         }
 
         .dictionary-hero p {
-          color: #596276;
+          color: var(--dict-hero-text);
           font-size: 17px;
           line-height: 1.48;
           margin-top: 13px;
@@ -643,8 +712,8 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
           padding: 10px 12px;
           border: 1px solid var(--border);
           border-radius: 12px;
-          background: rgba(255,255,255,0.88);
-          box-shadow: 0 8px 30px rgba(24, 35, 52, 0.08);
+          background: var(--dict-frosted-bg);
+          box-shadow: 0 8px 30px var(--dict-shadow-soft);
           text-align: left;
           backdrop-filter: blur(10px);
         }
@@ -701,7 +770,7 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
           height: 118px;
           pointer-events: none;
           opacity: 0.6;
-          background-image: radial-gradient(circle, rgba(182, 84, 55, 0.28) 1.1px, transparent 1.7px);
+          background-image: radial-gradient(circle, var(--dict-dot) 1.1px, transparent 1.7px);
           background-size: 11px 11px;
         }
 
@@ -726,10 +795,10 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
           gap: 6px;
           padding: 10px 18px;
           overflow-x: auto;
-          background: rgba(255,255,255,0.82);
-          border: 1px solid #e4e8ef;
+          background: var(--dict-frosted-soft-bg);
+          border: 1px solid var(--dict-frosted-border);
           border-radius: 12px;
-          box-shadow: 0 8px 30px rgba(24, 35, 52, 0.08);
+          box-shadow: 0 8px 30px var(--dict-shadow-soft);
           backdrop-filter: blur(10px);
         }
 
@@ -749,7 +818,7 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
           min-width: 150px;
           border: none;
           outline: none;
-          color: #1d2430;
+          color: var(--dict-search-text);
           background: transparent;
           font-size: 14px;
         }
@@ -758,16 +827,16 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
           width: 38px;
           height: 38px;
           border-radius: 9px;
-          border: 1px solid #dbe2ec;
-          background: #fff;
-          color: #536075;
+          border: 1px solid var(--dict-icon-border);
+          background: var(--dict-icon-bg);
+          color: var(--dict-control-text);
           display: grid;
           place-items: center;
           flex: 0 0 auto;
         }
 
         .dictionary-jump-label {
-          color: #576074;
+          color: var(--dict-muted);
           font-size: 13px;
           font-weight: 700;
           white-space: nowrap;
@@ -777,7 +846,7 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
         .dictionary-letter {
           border: none;
           background: transparent;
-          color: #596276;
+          color: var(--dict-muted);
           font-size: 13px;
           font-weight: 800;
           width: 25px;
@@ -814,14 +883,14 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
           grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
           width: min(888px, calc(100vw - 310px));
           height: 456px;
-          background: #f7f8fb;
+          background: var(--dict-book-bg);
           border-radius: 10px;
           box-shadow:
-            -16px 0 0 -8px rgba(255,255,255,0.86),
-            -24px 0 0 -14px rgba(217,222,230,0.7),
-            16px 0 0 -8px rgba(255,255,255,0.86),
-            24px 0 0 -14px rgba(217,222,230,0.7),
-            0 18px 42px rgba(26, 35, 52, 0.16);
+            -16px 0 0 -8px var(--dict-page-stack-1),
+            -24px 0 0 -14px var(--dict-page-stack-2),
+            16px 0 0 -8px var(--dict-page-stack-1),
+            24px 0 0 -14px var(--dict-page-stack-2),
+            0 18px 42px var(--dict-shadow-book);
         }
 
         .dictionary-spread::before {
@@ -831,7 +900,7 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
           bottom: 0;
           left: 50%;
           width: 1px;
-          background: linear-gradient(180deg, transparent, rgba(0,0,0,0.10), transparent);
+          background: linear-gradient(180deg, transparent, var(--dict-divider), transparent);
           z-index: 3;
         }
 
@@ -841,10 +910,8 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
           min-height: 0;
           display: flex;
           flex-direction: column;
-          background:
-            linear-gradient(90deg, rgba(0,0,0,0.035), transparent 9%, transparent 91%, rgba(0,0,0,0.03)),
-            #fff;
-          border: 1px solid #e2e6ee;
+          background: var(--dict-paper-bg);
+          border: 1px solid var(--dict-paper-border);
         }
 
         .dictionary-paper:first-child {
@@ -867,7 +934,7 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
         .dictionary-entry {
           padding: 0 0 14px;
           margin-bottom: 14px;
-          border-bottom: 1px dashed #c8d0dc;
+          border-bottom: 1px dashed var(--dict-entry-border);
           min-height: 0;
           overflow: hidden;
         }
@@ -918,8 +985,8 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
           height: 26px;
           border-radius: 9px;
           border: none;
-          background: #f1f3f7;
-          color: #20242c;
+          background: var(--dict-sound-bg);
+          color: var(--dict-sound-text);
           display: inline-grid;
           place-items: center;
           flex: 0 0 auto;
@@ -931,7 +998,7 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
         }
 
         .dictionary-sound-button.is-preparing {
-          background: #f1f3f7;
+          background: var(--dict-sound-bg);
           color: var(--primary);
         }
 
@@ -951,7 +1018,7 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
         }
 
         .dictionary-entry p {
-          color: #30394b;
+          color: var(--dict-entry-text);
           font-size: 14.5px;
           line-height: 1.55;
           letter-spacing: 0;
@@ -963,7 +1030,7 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
         }
 
         .dictionary-page-number {
-          color: #596276;
+          color: var(--dict-muted);
           font-size: 12px;
           text-align: center;
           padding: 0 0 10px;
@@ -975,7 +1042,7 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
           display: grid;
           place-items: center;
           min-height: 220px;
-          color: #596276;
+          color: var(--dict-muted);
           font-size: 14px;
           font-weight: 700;
           text-align: center;
@@ -986,10 +1053,10 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
           width: min(888px, calc(100vw - 310px));
           height: 456px;
           overflow: hidden;
-          background: #fff;
-          border: 1px solid #e2e6ee;
+          background: var(--dict-frosted-bg);
+          border: 1px solid var(--dict-paper-border);
           border-radius: 10px;
-          box-shadow: 0 18px 42px rgba(26, 35, 52, 0.13);
+          box-shadow: 0 18px 42px var(--dict-shadow-list);
           padding: 30px 42px;
         }
 
@@ -1023,13 +1090,13 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
           height: 62px;
           padding: 16px;
           border-radius: 50%;
-          background: rgba(255,255,255,0.95);
-          border: 1px solid #e3e7ef;
-          box-shadow: 0 8px 26px rgba(24, 35, 52, 0.10);
+          background: var(--dict-frosted-bg);
+          border: 1px solid var(--dict-frosted-border);
+          box-shadow: 0 8px 26px var(--dict-shadow-soft);
         }
 
         .dictionary-side-nav span {
-          color: #30394b;
+          color: var(--dict-strong-text);
         }
 
         .dictionary-side-nav:disabled {
@@ -1064,10 +1131,10 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
           width: fit-content;
           min-height: 42px;
           border-radius: 9px;
-          border: 1px solid #dfe5ee;
-          background: rgba(255,255,255,0.9);
-          color: #536075;
-          box-shadow: 0 4px 18px rgba(24, 35, 52, 0.06);
+          border: 1px solid var(--dict-control-border);
+          background: var(--dict-frosted-bg);
+          color: var(--dict-control-text);
+          box-shadow: 0 4px 18px var(--dict-shadow-control);
         }
 
         .dictionary-page-select {
@@ -1081,7 +1148,7 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
           border: none;
           outline: none;
           background: transparent;
-          color: #30394b;
+          color: var(--dict-strong-text);
           font: inherit;
           font-size: 14px;
           font-weight: 700;
@@ -1100,19 +1167,19 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
           display: grid;
           place-items: center;
           border: none;
-          border-right: 1px solid #dfe5ee;
+          border-right: 1px solid var(--dict-control-border);
           background: transparent;
-          color: #536075;
+          color: var(--dict-control-text);
         }
 
         .dictionary-view-toggle button:last-child {
           border-right: none;
-          border-left: 1px solid #dfe5ee;
+          border-left: 1px solid var(--dict-control-border);
         }
 
         .dictionary-zoom-controls button:nth-last-child(-n+2) {
           border-right: none;
-          border-left: 1px solid #dfe5ee;
+          border-left: 1px solid var(--dict-control-border);
         }
 
         .dictionary-view-toggle button.is-active {
@@ -1136,9 +1203,9 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
         }
 
         .dictionary-premium-banner {
-          border-top: 1px solid #dceee6;
-          border-bottom: 1px solid #dceee6;
-          background: linear-gradient(90deg, rgba(20,174,92,0.10), rgba(20,174,92,0.03));
+          border-top: 1px solid var(--dict-premium-border);
+          border-bottom: 1px solid var(--dict-premium-border);
+          background: var(--dict-premium-bg);
           padding: 16px 24px;
         }
 
@@ -1289,7 +1356,7 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
           .dictionary-mobile-page-label {
             display: block;
             text-align: center;
-            color: #596276;
+            color: var(--dict-muted);
             font-size: 13px;
             font-weight: 700;
             margin-top: 10px;

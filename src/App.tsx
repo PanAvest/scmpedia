@@ -28,7 +28,7 @@ function AppShell() {
   const [darkMode, setDarkMode] = useState(() => {
     const stored = localStorage.getItem(THEME_KEY)
     if (stored) return stored === 'dark'
-    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false
+    return false
   })
   const [autoReadAi, setAutoReadAi] = useState(() => {
     const migratedKey = 'scmpedia-auto-read-default-off-v1'

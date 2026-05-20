@@ -125,20 +125,20 @@ export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe
   }
 
   return (
-    <div style={{ background: 'var(--bg)', minHeight: '100vh' }}>
+    <div className="pricing-page-v2" style={{ background: 'var(--pricing-page-bg)', minHeight: '100vh' }}>
       {/* Hero */}
-      <div style={{ textAlign: 'center', padding: '58px 24px 46px', background: 'linear-gradient(160deg, rgba(251,248,241,0.9), rgba(231,243,239,0.78))', borderBottom: '1px solid var(--border)', position: 'relative', overflow: 'hidden' }}>
-        <img src="/logo2.png" alt="" aria-hidden style={{ position: 'absolute', left: '7%', top: 18, width: 150, opacity: 0.11, transform: 'rotate(-30deg)' }} />
-        <h1 style={{ fontSize: 'clamp(32px, 4.6vw, 46px)', fontWeight: 900, color: 'var(--text-main)', margin: '0 0 12px', lineHeight: 1.05 }}>
+      <div style={{ textAlign: 'center', padding: '58px 24px 46px', background: 'var(--pricing-hero-bg)', borderBottom: '1px solid var(--border)', position: 'relative', overflow: 'hidden' }}>
+        <img src="/logo2.png" alt="" aria-hidden style={{ position: 'absolute', left: '7%', top: 18, width: 150, opacity: 'var(--pricing-mark-opacity)', transform: 'rotate(-30deg)' }} />
+        <h1 style={{ fontSize: 'clamp(32px, 4.6vw, 46px)', fontWeight: 900, color: 'var(--pricing-hero-title)', margin: '0 0 12px', lineHeight: 1.05, letterSpacing: 0 }}>
           Choose the plan that powers<br />
           your <span style={{ color: 'var(--pricing-green)' }}>supply chain success</span>
         </h1>
-        <p style={{ fontSize: 16, color: 'var(--text-sub)', margin: '0 0 28px', maxWidth: 540, marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.6 }}>
+        <p style={{ fontSize: 16, color: 'var(--pricing-hero-sub)', margin: '0 0 28px', maxWidth: 540, marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.6 }}>
           Unlock unlimited knowledge, AI-powered insights, and expert tools designed for supply chain professionals.
         </p>
 
         {/* Billing toggle */}
-        <div style={{ display: 'inline-flex', alignItems: 'center', padding: 4, background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 999, boxShadow: 'var(--shadow-sm)' }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', padding: 4, background: 'var(--pricing-toggle-bg)', border: '1px solid var(--pricing-toggle-border)', borderRadius: 999, boxShadow: 'var(--shadow-sm)' }}>
           <button onClick={() => setAnnual(false)} style={{ minWidth: 150, padding: '10px 22px', border: 'none', borderRadius: 999, background: !annual ? 'var(--pricing-green)' : 'transparent', color: !annual ? '#fff' : 'var(--text-main)', fontWeight: 700 }}>Monthly</button>
           <button
             onClick={() => setAnnual((v) => !v)}
@@ -178,13 +178,13 @@ export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe
                 style={{
                   borderRadius: 16,
                   border: isPro ? '2px solid var(--pricing-green)' : '1px solid var(--border)',
-                  background: plan.accentBg,
+                  background: isPro ? 'var(--pricing-pro-card-bg)' : plan.accentBg,
                   padding: isPro ? '46px 28px 28px' : 28,
                   display: 'flex',
                   flexDirection: 'column',
                   position: 'relative',
                   overflow: 'visible',
-                  boxShadow: isPro ? '0 18px 44px rgba(0,79,70,0.14)' : 'var(--shadow-sm)',
+                  boxShadow: isPro ? 'var(--pricing-pro-shadow)' : 'var(--shadow-sm)',
                 }}
               >
                 {plan.badge && (
@@ -368,6 +368,35 @@ export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe
       </div>
 
       <style>{`
+        .pricing-page-v2 {
+          --pricing-page-bg: var(--bg);
+          --pricing-hero-bg: linear-gradient(160deg, rgba(251,248,241,0.92), rgba(231,243,239,0.82));
+          --pricing-hero-title: #1f1f1f;
+          --pricing-hero-sub: #53615b;
+          --pricing-mark-opacity: 0.11;
+          --pricing-toggle-bg: var(--card-bg);
+          --pricing-toggle-border: var(--border);
+          --pricing-pro-card-bg: var(--card-bg);
+          --pricing-pro-shadow: 0 18px 44px rgba(0,79,70,0.14);
+        }
+
+        :root[data-theme="dark"] .pricing-page-v2 {
+          --pricing-green: #20c7b2;
+          --pricing-green-2: #33d6bf;
+          --pricing-green-soft: rgba(32,199,178,0.16);
+          --pricing-page-bg: #0f1411;
+          --pricing-hero-bg:
+            linear-gradient(160deg, rgba(18,24,21,0.98), rgba(20,38,34,0.94)),
+            radial-gradient(circle at 12% 12%, rgba(242,139,88,0.10), transparent 28%);
+          --pricing-hero-title: #f4f7f2;
+          --pricing-hero-sub: #b8c0b8;
+          --pricing-mark-opacity: 0.08;
+          --pricing-toggle-bg: #151a17;
+          --pricing-toggle-border: #2b332d;
+          --pricing-pro-card-bg: #12211e;
+          --pricing-pro-shadow: 0 18px 44px rgba(0,0,0,0.28);
+        }
+
         @media (max-width: 768px) {
           .pricing-grid {
             grid-template-columns: 1fr !important;

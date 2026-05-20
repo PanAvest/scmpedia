@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, ArrowLeft, Mail, Lock, User, Check, BriefcaseBusiness, ShieldCheck, Sparkles, TrendingUp } from 'lucide-react'
 import { supabase, hasSupabaseConfig } from '../supabase'
@@ -63,11 +63,18 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [oauthLoading, setOauthLoading] = useState<'google' | null>(null)
 
   const reset = () => {
     setError('')
     setSuccess('')
   }
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search || window.location.hash.replace(/^#/, '?'))
+    const authError = params.get('error_description') || params.get('error')
+    if (authError) setError(authError)
+  }, [])
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -122,15 +129,40 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
     }
   }
 
+  const handleGoogleAuth = async () => {
+    if (!hasSupabaseConfig || !supabase) {
+      setError('Auth not configured.')
+      return
+    }
+    reset()
+    setOauthLoading('google')
+    try {
+      const { error: err } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        },
+      })
+      if (err) throw err
+    } catch (err: unknown) {
+      setOauthLoading(null)
+      setError(err instanceof Error ? err.message : 'Google sign in failed')
+    }
+  }
+
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
+    <div className="auth-page" style={{ display: 'flex', minHeight: '100vh' }}>
       {/* Left panel */}
       <div
         className="hide-mobile"
         style={{
           width: 480,
           flexShrink: 0,
-          background: 'var(--premium-green)',
+          background: 'var(--auth-left-bg)',
           display: 'flex',
           flexDirection: 'column',
           padding: '48px 40px',
@@ -226,7 +258,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
           alignItems: 'center',
           justifyContent: 'center',
           padding: '32px 24px',
-          background: 'var(--bg)',
+          background: 'var(--auth-right-bg)',
           overflowY: 'auto',
         }}
       >
@@ -253,7 +285,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
               <div
                 style={{
                   display: 'flex',
-                  background: 'var(--surface)',
+                  background: 'var(--auth-tab-bg)',
                   borderRadius: 10,
                   padding: 4,
                   marginBottom: 28,
@@ -272,9 +304,9 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
                       fontWeight: 600,
                       cursor: 'pointer',
                       transition: 'all 0.18s ease',
-                      background: mode === m ? 'var(--card-bg)' : 'transparent',
+                      background: mode === m ? 'var(--auth-tab-active-bg)' : 'transparent',
                       color: mode === m ? 'var(--text-main)' : 'var(--text-sub)',
-                      boxShadow: mode === m ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
+                      boxShadow: mode === m ? 'var(--auth-tab-shadow)' : 'none',
                     }}
                   >
                     {m === 'signin' ? 'Sign In' : 'Create Account'}
@@ -300,6 +332,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
                     <div style={{ position: 'relative' }}>
                       <User size={15} color="var(--text-sub)" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
                       <input
+                        className="auth-input"
                         type="text"
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
@@ -309,8 +342,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
                           width: '100%',
                           padding: '11px 12px 11px 36px',
                           borderRadius: 8,
-                          border: '1px solid var(--border)',
-                          background: 'var(--bg)',
+                          border: '1px solid var(--auth-input-border)',
+                          background: 'var(--auth-input-bg)',
                           color: 'var(--text-main)',
                           fontSize: 14,
                           outline: 'none',
@@ -328,6 +361,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
                   <div style={{ position: 'relative' }}>
                     <Mail size={15} color="var(--text-sub)" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
                     <input
+                      className="auth-input"
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
@@ -337,8 +371,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
                         width: '100%',
                         padding: '11px 12px 11px 36px',
                         borderRadius: 8,
-                        border: '1px solid var(--border)',
-                        background: 'var(--bg)',
+                        border: '1px solid var(--auth-input-border)',
+                        background: 'var(--auth-input-bg)',
                         color: 'var(--text-main)',
                         fontSize: 14,
                         outline: 'none',
@@ -355,6 +389,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
                   <div style={{ position: 'relative' }}>
                     <Lock size={15} color="var(--text-sub)" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
                     <input
+                      className="auth-input"
                       type={showPassword ? 'text' : 'password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
@@ -364,8 +399,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
                         width: '100%',
                         padding: '11px 40px 11px 36px',
                         borderRadius: 8,
-                        border: '1px solid var(--border)',
-                        background: 'var(--bg)',
+                        border: '1px solid var(--auth-input-border)',
+                        background: 'var(--auth-input-bg)',
                         color: 'var(--text-main)',
                         fontSize: 14,
                         outline: 'none',
@@ -457,12 +492,14 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
               {/* Social buttons */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
                 {[
-                  { label: 'Google', icon: 'G' },
-                  { label: 'Microsoft', icon: 'M' },
+                  { label: 'Google', icon: 'G', enabled: true, onClick: handleGoogleAuth },
+                  { label: 'Microsoft', icon: 'M', enabled: false, onClick: undefined },
                 ].map((s) => (
                   <button
                     key={s.label}
-                    disabled
+                    type="button"
+                    disabled={!s.enabled || oauthLoading === 'google'}
+                    onClick={s.onClick}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -471,16 +508,16 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
                       padding: '10px 16px',
                       borderRadius: 8,
                       border: '1px solid var(--border)',
-                      background: 'var(--surface)',
+                      background: 'var(--auth-social-bg)',
                       color: 'var(--text-sub)',
                       fontSize: 13,
                       fontWeight: 600,
-                      cursor: 'not-allowed',
-                      opacity: 0.6,
+                      cursor: s.enabled ? 'pointer' : 'not-allowed',
+                      opacity: s.enabled ? 1 : 0.6,
                     }}
                   >
                     <span style={{ fontWeight: 900, fontSize: 15 }}>{s.icon}</span>
-                    {s.label}
+                    {s.label === 'Google' && oauthLoading === 'google' ? 'Redirecting...' : s.label}
                   </button>
                 ))}
               </div>
@@ -513,6 +550,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
                   <div style={{ position: 'relative' }}>
                     <Mail size={15} color="var(--text-sub)" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
                     <input
+                      className="auth-input"
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
@@ -522,8 +560,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
                         width: '100%',
                         padding: '11px 12px 11px 36px',
                         borderRadius: 8,
-                        border: '1px solid var(--border)',
-                        background: 'var(--bg)',
+                        border: '1px solid var(--auth-input-border)',
+                        background: 'var(--auth-input-bg)',
                         color: 'var(--text-main)',
                         fontSize: 14,
                         outline: 'none',
@@ -557,6 +595,56 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
           )}
         </div>
       </div>
+      <style>{`
+        .auth-page {
+          --auth-left-bg: var(--premium-green);
+          --auth-right-bg: var(--bg);
+          --auth-tab-bg: var(--surface);
+          --auth-tab-active-bg: var(--card-bg);
+          --auth-tab-shadow: 0 1px 4px rgba(0,0,0,0.1);
+          --auth-input-bg: var(--card-bg);
+          --auth-input-border: var(--border);
+          --auth-placeholder: #8a918c;
+          --auth-social-bg: var(--surface);
+        }
+
+        :root[data-theme="dark"] .auth-page {
+          --auth-left-bg: #06483f;
+          --auth-right-bg: #0f1411;
+          --auth-tab-bg: #151a17;
+          --auth-tab-active-bg: #202821;
+          --auth-tab-shadow: 0 1px 0 rgba(255,255,255,0.04), 0 8px 22px rgba(0,0,0,0.22);
+          --auth-input-bg: #171c19;
+          --auth-input-border: #354039;
+          --auth-placeholder: #8e998f;
+          --auth-social-bg: #151a17;
+        }
+
+        .auth-page .auth-input {
+          caret-color: var(--primary);
+          transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+        }
+
+        .auth-page .auth-input::placeholder {
+          color: var(--auth-placeholder);
+        }
+
+        .auth-page .auth-input:focus {
+          border-color: var(--primary) !important;
+          box-shadow: 0 0 0 3px var(--primary-bg);
+        }
+
+        .auth-page .auth-input:-webkit-autofill,
+        .auth-page .auth-input:-webkit-autofill:hover,
+        .auth-page .auth-input:-webkit-autofill:focus,
+        .auth-page .auth-input:-webkit-autofill:active {
+          -webkit-box-shadow: 0 0 0 1000px var(--auth-input-bg) inset !important;
+          -webkit-text-fill-color: var(--text-main) !important;
+          caret-color: var(--text-main);
+          border-color: var(--auth-input-border) !important;
+          transition: background-color 9999s ease-out;
+        }
+      `}</style>
     </div>
   )
 }
