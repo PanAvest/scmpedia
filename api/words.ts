@@ -1,10 +1,9 @@
 import type { VercelRequest, VercelResponse } from './vercel-types'
 import { createClient } from '@supabase/supabase-js'
+import { enforceDailyLimit, hasAdminAccess, isPremiumUser, getRequestUser } from './server-auth'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
-const ADMIN_USER = process.env.SCMPEDIA_ADMIN_USER || 'scmpedia-admin'
-const ADMIN_PASS = process.env.SCMPEDIA_ADMIN_PASS || 'scmpedia-2026'
 const WORD_COLUMNS = 'id,term,definition,synonyms,tags,pronunciation,pos,examples'
 const WORD_COLUMNS_WITH_SOURCE = `id,source_key,term,definition,synonyms,tags,pronunciation,pos,examples`
 const getSingle = (value: string | string[] | undefined) => {
@@ -225,12 +224,6 @@ const collectSearchCandidates = async (q: string, maxRows = 5000) => {
   }
 
   return uniqueWords(rows).slice(0, maxRows)
-}
-
-const hasAdminAccess = (req: VercelRequest) => {
-  const user = String(req.headers['x-admin-user'] || '').trim()
-  const pass = String(req.headers['x-admin-pass'] || '').trim()
-  return user === ADMIN_USER && pass === ADMIN_PASS
 }
 
 const rankWords = (rows: any[], q: string, limit: number) => {
@@ -498,6 +491,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     if (browse) {
+      const user = await getRequestUser(req)
+      if (!adminRequest && !isPremiumUser(user)) {
+        res.status(403).json({ error: 'Dictionary browsing is a premium feature.' })
+        return
+      }
+
       const response = await client
         .from('words')
         .select(WORD_COLUMNS_WITH_SOURCE, { count: 'exact' })
@@ -543,6 +542,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         error = fallback.error
       }
     } else if (q) {
+      const usage = await enforceDailyLimit(req, client, 'word-search', 2)
+      if (!usage.ok) {
+        res.status(usage.status || 429).json({
+          error: usage.error || 'Daily search limit reached',
+          remaining: usage.remaining,
+        })
+        return
+      }
       data = await collectSearchCandidates(q)
     } else {
       res.status(400).json({ error: 'Missing search query' })

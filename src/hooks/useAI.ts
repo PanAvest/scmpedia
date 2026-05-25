@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import type { Entry } from '../types'
-import { escapeHtml, selectExampleSector, sectorExampleFallback, fallbackExplanation, SCMPEDIA_SECTORS } from '../utils'
+import { escapeHtml, selectExampleSector, sectorExampleFallback, fallbackExplanation, SCMPEDIA_SECTORS, sanitizeHtml } from '../utils'
 
-export function useAI() {
+export function useAI(accessToken?: string) {
   const [status] = useState<'loading' | 'ready' | 'error'>('ready')
 
   const formatToHtml = (raw: string, anchor: Entry, sector: string) => {
@@ -26,7 +26,7 @@ export function useAI() {
     } else {
       text = text.replace(/\n/g, '<br/>')
     }
-    return text
+    return sanitizeHtml(text)
   }
 
   const scmpediaGenerate = async (anchor: Entry, sector: string, isRegen?: boolean) => {
@@ -61,7 +61,10 @@ Use exactly these sections:
 
     const response = await fetch('/api/ai', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
       body: JSON.stringify({ prompt }),
     })
 
@@ -85,7 +88,7 @@ Use exactly these sections:
       console.error('scmpedia AI error', e)
     }
 
-    return `<i>Could not reach scmpedia AI. Here is a dictionary-based summary:</i><br/><br/><b>Concept Overview:</b> ${escapeHtml(anchor.term)} refers to ${escapeHtml(anchor.definition)}.<br/><br/><b>Why It Matters:</b> This term can affect planning discipline, cost control, reliability, service quality, operational risk, and growth.<br/><br/><b>Real-World Example (${escapeHtml(sector)}):</b> ${escapeHtml(sectorExampleFallback(anchor, sector))}`
+    return sanitizeHtml(`<i>Could not reach scmpedia AI. Here is a dictionary-based summary:</i><br/><br/><b>Concept Overview:</b> ${escapeHtml(anchor.term)} refers to ${escapeHtml(anchor.definition)}.<br/><br/><b>Why It Matters:</b> This term can affect planning discipline, cost control, reliability, service quality, operational risk, and growth.<br/><br/><b>Real-World Example (${escapeHtml(sector)}):</b> ${escapeHtml(sectorExampleFallback(anchor, sector))}`)
   }
 
   return { status, generate }

@@ -9,10 +9,15 @@ import {
 import type { Entry } from '../types'
 import {
   getEntryId, getEntryTags, sectorExampleFallback, SCMPEDIA_SECTORS, termToSlug,
+  sanitizeHtml,
 } from '../utils'
 
 interface TermPageProps {
-  dataHook: { data: Entry[]; status: 'loading' | 'ready' | 'error' | 'empty' }
+  dataHook: {
+    data: Entry[]
+    status: 'loading' | 'ready' | 'error' | 'empty'
+    findServerWordBySlug?: (slug: string) => Promise<Entry | null>
+  }
   tts: { speak: (id: string, text: string) => void; speakingId: string | null; preparingId: string | null }
   ai: { generate: (entry: Entry, regen?: boolean) => Promise<string> }
   user: any
@@ -24,6 +29,7 @@ interface TermPageProps {
   isPremium: boolean
   onOpenAuth: () => void
   onOpenPricing: () => void
+  authToken?: string
 }
 
 // Cycle of colored icons for Related Terms
@@ -66,17 +72,30 @@ const AccordionRow: React.FC<AccordionRowProps> = ({
 )
 
 export const TermPage: React.FC<TermPageProps> = ({
-  dataHook, tts, ai, user, favorites, onOpenAuth,
+  dataHook, tts, ai, user, favorites, onOpenAuth, authToken,
 }) => {
   const { slug } = useParams<{ slug: string }>()
   const navigate = useNavigate()
   const location = useLocation()
   const fromSource = (location.state as { from?: string } | null)?.from as 'dictionary' | 'chat' | undefined
 
+  const [remoteEntry, setRemoteEntry] = useState<Entry | null>(null)
+
   const entry = useMemo(() => {
-    if (!slug || !dataHook.data.length) return null
-    return dataHook.data.find((e) => termToSlug(e.term) === slug) ?? null
-  }, [slug, dataHook.data])
+    if (!slug) return null
+    return dataHook.data.find((e) => termToSlug(e.term) === slug) ?? remoteEntry
+  }, [slug, dataHook.data, remoteEntry])
+
+  useEffect(() => {
+    if (!slug || entry || dataHook.status !== 'ready' || !dataHook.findServerWordBySlug) return
+    let cancelled = false
+    void dataHook.findServerWordBySlug(slug).then((next) => {
+      if (!cancelled) setRemoteEntry(next)
+    }).catch(() => {
+      if (!cancelled) setRemoteEntry(null)
+    })
+    return () => { cancelled = true }
+  }, [dataHook, entry, slug])
 
   const entryId = entry ? getEntryId(entry) : ''
 
@@ -102,7 +121,10 @@ export const TermPage: React.FC<TermPageProps> = ({
         definition: entry.definition.slice(0, 240),
         v: `tp-${entryId}-${Date.now()}`,
       })
-      const res = await fetch(`/api/image?${params.toString()}`, { cache: 'no-store' })
+      const res = await fetch(`/api/image?${params.toString()}`, {
+        cache: 'no-store',
+        headers: authToken ? { Authorization: `Bearer ${authToken}` } : undefined,
+      })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data?.error || 'Image failed')
       const next = (data?.url as string) || (data?.thumbnail as string) || ''
@@ -158,7 +180,10 @@ export const TermPage: React.FC<TermPageProps> = ({
     setLoadingExample(true)
     fetch('/api/ai', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+      },
       body: JSON.stringify({
         prompt: `Supply chain term: "${entry.term}"\nDefinition: "${entry.definition}"\n\nWrite ONE focused paragraph (2-3 sentences) of a concrete, realistic example of how "${entry.term}" applies in the ${selectedSector} industry. Be specific to that industry. No headings — just the example paragraph.`,
       }),
@@ -601,10 +626,10 @@ export const TermPage: React.FC<TermPageProps> = ({
             <div
               className="tp-ai-content"
               dangerouslySetInnerHTML={{
-                __html: aiText
+                __html: sanitizeHtml(aiText
                   .replace(/\n*\*{0,2}Real[\s-]?World\s+Example\*{0,2}:?[\s\S]*$/im, '')
                   .trim()
-                  .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'),
+                ),
               }}
             />
           ) : (

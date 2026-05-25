@@ -2,11 +2,10 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import type { Entry } from '../types'
 import { cleanReplacementChars, getEntryTags, LOCAL_ENTRIES_KEY } from '../utils'
 
-export function useData() {
+export function useData(accessToken?: string) {
   const [data, setData] = useState<Entry[]>([])
   const [status, setStatus] = useState<'loading' | 'ready' | 'error' | 'empty'>('loading')
   const [serverBacked, setServerBacked] = useState(false)
-  const papaRef = useRef<any>(null)
   const fuseLibRef = useRef<any>(null)
   const fuseRef = useRef<any>(null)
 
@@ -56,33 +55,47 @@ export function useData() {
     }
   }, [])
 
-  const processCSV = useCallback((csv: string) => {
-    if (!papaRef.current) return
-    try {
-      const localEntries = readLocalEntries()
-      if (localEntries.length) {
-        applyEntries(localEntries)
-        return
-      }
-      const res = papaRef.current.parse(csv, { header: true, skipEmptyLines: true })
-      const entries = res.data.map(normalizeEntry).filter((e: Entry) => e.term && e.definition)
-      applyEntries(entries)
-    } catch {
-      setStatus('error')
-    }
-  }, [applyEntries, readLocalEntries])
-
   const searchServerWords = useCallback(async (query: string, limit = 8) => {
     const q = query.trim()
     if (!q) return []
-    const res = await fetch(`/api/words?q=${encodeURIComponent(q)}&limit=${limit}`)
-    if (!res.ok) throw new Error('Word search failed')
-    const body = await res.json()
-    return ((body?.words || []) as Entry[]).map(normalizeEntry).filter((e: Entry) => e.term && e.definition)
-  }, [])
+    const res = await fetch(`/api/words?q=${encodeURIComponent(q)}&limit=${limit}`, {
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+    })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(body?.error || 'Word search failed')
+    const entries = ((body?.words || []) as Entry[]).map(normalizeEntry).filter((e: Entry) => e.term && e.definition)
+    if (entries.length) {
+      setData((current) => {
+        const byKey = new Map(current.map((entry) => [(entry.id || entry.term).toLowerCase(), entry]))
+        for (const entry of entries) byKey.set((entry.id || entry.term).toLowerCase(), entry)
+        const next = Array.from(byKey.values())
+        if (fuseLibRef.current) {
+          fuseRef.current = new fuseLibRef.current(next, {
+            keys: [
+              { name: 'term', weight: 0.7 },
+              { name: 'definition', weight: 0.3 },
+              { name: 'tags', weight: 0.1 },
+            ],
+            threshold: 0.3,
+            includeScore: true,
+          })
+        }
+        return next
+      })
+    }
+    return entries
+  }, [accessToken])
+
+  const findServerWordBySlug = useCallback(async (slug: string) => {
+    const query = slug.replace(/-/g, ' ')
+    const words = await searchServerWords(query, 8)
+    return words.find((entry) => entry.term.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') === slug) || null
+  }, [searchServerWords])
 
   const fetchServerWordPage = useCallback(async (offset: number, limit = 1000) => {
-    const res = await fetch(`/api/words?browse=1&limit=${limit}&offset=${offset}`)
+    const res = await fetch(`/api/words?browse=1&limit=${limit}&offset=${offset}`, {
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+    })
     if (!res.ok) throw new Error('Word browse failed')
     const body = await res.json()
     return {
@@ -90,7 +103,7 @@ export function useData() {
       count: Number(body?.count || 0),
       nextOffset: Number(body?.nextOffset || offset),
     }
-  }, [])
+  }, [accessToken])
 
   const loadServerWords = useCallback(async () => {
     try {
@@ -125,33 +138,19 @@ export function useData() {
         document.head.appendChild(s)
       })
 
-    const loadCsv = async () => {
-      const sources = ['/scmpedia_full_UPDATED.csv', '/scmpedia_full.csv']
-      for (const src of sources) {
-        try {
-          const r = await fetch(`${src}?v=${Date.now()}`, { cache: 'no-store' })
-          if (!r.ok) continue
-          const text = await r.text()
-          if (!text) continue
-          processCSV(text)
-          return
-        } catch {
-          // try next
-        }
-      }
-      const loadedFromServer = await loadServerWords()
-      if (!loadedFromServer) setStatus('empty')
-    }
-
     Promise.all([
       load('https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.basic.min.js', 'Fuse'),
-      load('https://cdn.jsdelivr.net/npm/papaparse@5.3.0/papaparse.min.js', 'Papa'),
-    ]).then(([F, P]) => {
+    ]).then(([F]) => {
       fuseLibRef.current = F
-      papaRef.current = P
-      loadCsv()
+      const localEntries = readLocalEntries()
+      if (localEntries.length) {
+        applyEntries(localEntries)
+        return
+      }
+      setServerBacked(true)
+      setStatus('ready')
     })
-  }, [loadServerWords, processCSV])
+  }, [applyEntries, readLocalEntries])
 
   useEffect(() => {
     const syncLocalEntries = (event?: StorageEvent) => {
@@ -163,5 +162,5 @@ export function useData() {
     return () => window.removeEventListener('storage', syncLocalEntries)
   }, [applyEntries, readLocalEntries])
 
-  return { data, status, processCSV, fuseRef, serverBacked, searchServerWords }
+  return { data, status, fuseRef, serverBacked, searchServerWords, findServerWordBySlug, loadServerWords }
 }

@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
-import Papa from 'papaparse'
 import {
   BookOpen,
   ChevronDown,
@@ -25,10 +24,10 @@ interface DictionaryModePageProps {
   onSpeak: (id: string, text: string) => void
   speakingId: string | null
   preparingId: string | null
+  authToken?: string
 }
 
 const FRIENDLY_LOAD_ERROR = 'Dictionary Mode could not load right now. Please try again.'
-const STATIC_DICTIONARY_SOURCES = ['/scmpedia_full_UPDATED.csv', '/scmpedia_full.csv']
 const ENTRIES_PER_PAGE = 4
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 const AMAZON_BOOK_URL = 'https://www.amazon.com/Executive-Insight-Compendium-Supply-Management-ebook/dp/B0FQVFQVFM?ref_=ast_author_dp'
@@ -92,23 +91,6 @@ const normalizeEntry = (row: any): Entry => {
     examples: cleanReplacementChars(String(row.examples || row.Examples || '')),
   }
   return { ...entry, tags: getEntryTags(entry).join(', ') }
-}
-
-const loadStaticDictionaryEntries = async () => {
-  for (const src of STATIC_DICTIONARY_SOURCES) {
-    try {
-      const response = await fetch(`${src}?v=${Date.now()}`, { cache: 'no-store' })
-      if (!response.ok) continue
-      const csv = await response.text()
-      if (!csv.trim()) continue
-      const parsed = Papa.parse<any>(csv, { header: true, skipEmptyLines: true })
-      const entries = parsed.data.map(normalizeEntry).filter((entry) => entry.term && entry.definition)
-      if (entries.length) return entries
-    } catch {
-      // Try the next bundled source.
-    }
-  }
-  return []
 }
 
 const DictionaryLoader = ({ count }: { count: number }) => (
@@ -211,7 +193,7 @@ const DictionaryPagePanel = ({
   </section>
 )
 
-export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremium, onOpenPricing, onOpenTerm, onSpeak, speakingId, preparingId }) => {
+export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremium, onOpenPricing, onOpenTerm, onSpeak, speakingId, preparingId, authToken }) => {
   const [entries, setEntries] = useState<Entry[]>([])
   const [loading, setLoading] = useState(true)
   const [loadedCount, setLoadedCount] = useState(0)
@@ -230,20 +212,20 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
     const load = async () => {
       setLoading(true)
       setLoadError('')
+      if (!isPremium) {
+        setEntries(FEATURED_ENTRIES)
+        setLoadedCount(FEATURED_ENTRIES.length)
+        setLoading(false)
+        return
+      }
       let offset = 0
       let all: Entry[] = []
       let displayedFirstBatch = false
       try {
-        const bundledEntries = await loadStaticDictionaryEntries()
-        if (!cancelled && bundledEntries.length) {
-          setLoadedCount(bundledEntries.length)
-          setEntries(bundledEntries)
-          setLoading(false)
-          return
-        }
-
         while (!cancelled) {
-          const res = await fetch(`/api/words?browse=1&limit=400&offset=${offset}`)
+          const res = await fetch(`/api/words?browse=1&limit=400&offset=${offset}`, {
+            headers: authToken ? { Authorization: `Bearer ${authToken}` } : undefined,
+          })
           if (!res.ok) throw new Error('Dictionary database is not connected.')
           const body = await res.json()
           const next = Array.isArray(body?.words) ? body.words.map(normalizeEntry).filter((entry: Entry) => entry.term && entry.definition) : []
@@ -258,23 +240,21 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
           offset = Number(body?.nextOffset || offset + next.length)
         }
         if (!cancelled) {
-          if (!all.length) all = await loadStaticDictionaryEntries()
           setEntries(all)
           setLoadError(all.length ? '' : FRIENDLY_LOAD_ERROR)
           setLoading(false)
         }
       } catch {
-        const fallbackEntries = all.length ? all : await loadStaticDictionaryEntries()
         if (!cancelled) {
-          setEntries(fallbackEntries)
-          setLoadError(fallbackEntries.length ? '' : FRIENDLY_LOAD_ERROR)
+          setEntries(all)
+          setLoadError(all.length ? '' : FRIENDLY_LOAD_ERROR)
           setLoading(false)
         }
       }
     }
     void load()
     return () => { cancelled = true }
-  }, [])
+  }, [authToken, isPremium])
 
   useEffect(() => {
     const updateFullscreen = () => setIsFullscreen(document.fullscreenElement === dictionaryRef.current)
@@ -422,7 +402,11 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
           ))}
         </div>
 
-        {loadError ? (
+        {!isPremium ? (
+          <div className="dictionary-load-error">
+            Dictionary Mode is a premium feature. Free users can search 2 words per day from the home page.
+          </div>
+        ) : loadError ? (
           <div className="dictionary-load-error">{loadError}</div>
         ) : (
           <>

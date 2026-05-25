@@ -10,6 +10,7 @@ import { AboutPage } from './pages/AboutPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { DictionaryModePage } from './pages/DictionaryModePage'
 import { TermPage } from './pages/TermPage'
+import { LegalPage, StaticInfoPage } from './pages/LegalPage'
 import { useAuth } from './hooks/useAuth'
 import { useData } from './hooks/useData'
 import { useTTS } from './hooks/useTTS'
@@ -59,9 +60,9 @@ function AppShell() {
   }, [dictionaryMode])
 
   const auth = useAuth()
-  const dataHook = useData()
-  const tts = useTTS()
-  const ai = useAI()
+  const dataHook = useData(auth.session?.access_token)
+  const tts = useTTS(auth.session?.access_token)
+  const ai = useAI(auth.session?.access_token)
   const subscription = useSubscription(auth)
   const favorites = useFavorites(auth.user, dataHook.data)
 
@@ -187,6 +188,7 @@ function AppShell() {
                 resetNonce={homeResetNonce}
                 onChatModeChange={setHomeChatMode}
                 onOpenTermPage={handleOpenTermFromChat}
+                authToken={auth.session?.access_token}
               />
             }
           />
@@ -257,6 +259,18 @@ function AppShell() {
           />
 
           <Route path="/about" element={<AboutPage isPremium={isPremium} />} />
+          <Route path="/privacy" element={<LegalPage type="privacy" />} />
+          <Route path="/terms" element={<LegalPage type="terms" />} />
+          <Route path="/categories" element={<StaticInfoPage title="Categories" description="Category browsing is being prepared for the production dictionary. Use search or Dictionary Mode to explore terms now." />} />
+          <Route path="/ai-features" element={<StaticInfoPage title="AI Features" description="SCMpedia uses AI to explain supply chain terms in practical professional language, with server-side limits for free accounts." />} />
+          <Route path="/release-notes" element={<StaticInfoPage title="Release Notes" description="Release notes will list shipped product updates, dictionary improvements, and subscription changes." />} />
+          <Route path="/blog" element={<StaticInfoPage title="Blog" description="SCMpedia articles and supply chain explainers will appear here." />} />
+          <Route path="/guides" element={<StaticInfoPage title="Guides" description="Guides will help students and professionals apply supply chain terms in real operational contexts." />} />
+          <Route path="/glossary" element={<StaticInfoPage title="Glossary" description="Use the main search or Dictionary Mode to browse the SCMpedia glossary." />} />
+          <Route path="/help" element={<StaticInfoPage title="Help Center" description="For support, account, and subscription questions, contact hello@scmpedia.com." />} />
+          <Route path="/careers" element={<StaticInfoPage title="Careers" description="There are no open roles listed right now." />} />
+          <Route path="/contact" element={<StaticInfoPage title="Contact" description="For support, partnerships, and enterprise access, email hello@scmpedia.com." />} />
+          <Route path="/resources" element={<StaticInfoPage title="Resources" description="Explore SCMpedia guides, glossary content, release notes, and learning resources." />} />
 
           <Route
           path="/settings"
@@ -319,6 +333,7 @@ function AppShell() {
               onSpeak={tts.speak}
               speakingId={tts.speakingId}
               preparingId={tts.preparingId}
+              authToken={auth.session?.access_token}
             />
           }
           />
@@ -332,6 +347,7 @@ function AppShell() {
               onSpeak={tts.speak}
               speakingId={tts.speakingId}
               preparingId={tts.preparingId}
+              authToken={auth.session?.access_token}
             />
           }
           />
@@ -348,6 +364,7 @@ function AppShell() {
               isPremium={isPremium}
               onOpenAuth={handleSignIn}
               onOpenPricing={handleOpenPricing}
+              authToken={auth.session?.access_token}
             />
           }
           />

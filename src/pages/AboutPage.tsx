@@ -188,7 +188,7 @@ const AboutCountUp = ({
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (!entry.isIntersecting) return
+        if (!entry?.isIntersecting) return
         setStarted(true)
         observer.disconnect()
       },

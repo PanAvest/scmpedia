@@ -8,7 +8,7 @@ import {
   TTS_PROVIDER_KEY,
 } from '../utils'
 
-export function useTTS() {
+export function useTTS(accessToken?: string) {
   const defaultVoiceUpgradeKey = 'scmpedia-prof-douglas-default-v1'
   const [speakingId, setSpeakingId] = useState<string | null>(null)
   const [preparingId, setPreparingId] = useState<string | null>(null)
@@ -135,7 +135,10 @@ export function useTTS() {
     try {
       const response = await fetch('/api/tts', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
         body: JSON.stringify({
           text,
           voiceId: DEFAULT_ELEVENLABS_VOICE_ID,

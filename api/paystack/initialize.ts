@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '../vercel-types'
 import { createClient } from '@supabase/supabase-js'
+import { getBearerToken } from '../server-auth'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_ANON_KEY
@@ -11,11 +12,6 @@ const plans = {
 } as const
 
 type PlanId = keyof typeof plans
-
-const getBearerToken = (header?: string | string[]) => {
-  const match = String(header || '').match(/^Bearer\s+(.+)$/i)
-  return match?.[1] || ''
-}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {

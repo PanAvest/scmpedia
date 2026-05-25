@@ -1,8 +1,18 @@
 import type { VercelRequest, VercelResponse } from './vercel-types'
+import { createClient } from '@supabase/supabase-js'
+import { enforceDailyLimit } from './server-auth'
 
 const BASE_URL = process.env.POLLINATIONS_BASE_URL || 'https://gen.pollinations.ai'
 const API_KEY = process.env.POLLINATIONS_API_KEY
 const MODEL = process.env.POLLINATIONS_MODEL || 'openai'
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
+const serviceClient =
+  SUPABASE_URL && SERVICE_ROLE_KEY
+    ? createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+        auth: { persistSession: false, autoRefreshToken: false },
+      })
+    : null
 
 const isBadPollinations = (text: string) => {
   const s = (text || '').toLowerCase()
@@ -103,6 +113,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    if (serviceClient) {
+      const usage = await enforceDailyLimit(req, serviceClient, 'ai', 20)
+      if (!usage.ok) {
+        res.status(usage.status || 429).json({ error: usage.error || 'Daily AI limit reached' })
+        return
+      }
+    }
     let text = ''
     try {
       text = await generateText(String(prompt), Boolean(API_KEY))

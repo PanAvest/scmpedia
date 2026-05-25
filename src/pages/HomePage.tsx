@@ -95,6 +95,7 @@ interface HomePageProps {
   resetNonce: number
   onChatModeChange: (active: boolean) => void
   onOpenTermPage?: (entry: Entry) => void
+  authToken?: string
 }
 
 export const HomePage: React.FC<HomePageProps> = ({
@@ -112,6 +113,7 @@ export const HomePage: React.FC<HomePageProps> = ({
   resetNonce,
   onChatModeChange,
   onOpenTermPage,
+  authToken,
 }) => {
   const { data, status, fuseRef, serverBacked, searchServerWords } = dataHook
   const [messages, setMessages] = useState<Message[]>([])
@@ -145,7 +147,7 @@ export const HomePage: React.FC<HomePageProps> = ({
       setSuggestions(fuseRef.current.search(query).slice(0, 5).map((h: any) => h.item))
       return
     }
-    if (serverBacked) {
+    if (serverBacked && subscription.isPremium) {
       setSuggestionsLoading(true)
       const timeout = window.setTimeout(() => {
         void searchServerWords(query, 5)
@@ -160,7 +162,7 @@ export const HomePage: React.FC<HomePageProps> = ({
     }
     setSuggestions([])
     setSuggestionsLoading(false)
-  }, [input, fuseRef, searchServerWords, serverBacked])
+  }, [input, fuseRef, searchServerWords, serverBacked, subscription.isPremium])
 
   useEffect(() => {
     onChatModeChange(messages.length > 0)
@@ -266,6 +268,7 @@ export const HomePage: React.FC<HomePageProps> = ({
     const localExact = data.find((d) => d.term.toLowerCase() === normalizedClean) || data.find((d) => d.term.toLowerCase() === normalizedOrig)
 
     let searchPool = data
+    let searchError = ''
     if (localExact) {
       searchPool = [localExact, ...data.filter((e) => getEntryId(e) !== getEntryId(localExact))]
     } else if (fuseRef.current) {
@@ -273,11 +276,11 @@ export const HomePage: React.FC<HomePageProps> = ({
       if (res.length) searchPool = res.map((h: any) => h.item)
       else if (serverBacked) {
         try { searchPool = await searchServerWords(cleanQuery || originalQuery, 8) }
-        catch { searchPool = [] }
+        catch (err) { searchError = err instanceof Error ? err.message : 'Word search failed'; searchPool = [] }
       } else searchPool = []
     } else if (serverBacked) {
       try { searchPool = await searchServerWords(cleanQuery || originalQuery, 8) }
-      catch { searchPool = data }
+      catch (err) { searchError = err instanceof Error ? err.message : 'Word search failed'; searchPool = [] }
     }
 
     let match = searchPool.find((d) => d.term.toLowerCase() === normalizedClean)
@@ -291,6 +294,11 @@ export const HomePage: React.FC<HomePageProps> = ({
     } else if (searchPool.length) {
       setMessages((p) => p.map((m) => m.id === thinkingId
         ? { id: thinkingId, role: 'bot', related: searchPool.slice(0, 5), timestamp: Date.now() }
+        : m
+      ))
+    } else if (searchError) {
+      setMessages((p) => p.map((m) => m.id === thinkingId
+        ? { id: thinkingId, role: 'bot', content: searchError, timestamp: Date.now() }
         : m
       ))
     } else {
@@ -468,6 +476,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                       onAuthRequired={() => onOpenAuth('signin')}
                       onToggleFavorite={toggleFavorite}
                       onOpenTermPage={onOpenTermPage}
+                      authToken={authToken}
                     />
                   ) : null}
                 </div>
@@ -693,7 +702,7 @@ const CountUpStat = ({
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (!entry.isIntersecting) return
+        if (!entry?.isIntersecting) return
         setStarted(true)
         observer.disconnect()
       },

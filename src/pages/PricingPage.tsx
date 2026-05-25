@@ -21,7 +21,7 @@ const PLANS = [
     cta: 'Get Started Free',
     ctaStyle: 'outline',
     features: [
-      'Limited dictionary searches (20/day)',
+      '2 dictionary word searches per day',
       'Basic definitions & examples',
       'Standard contextual images',
       'Voice search (limited)',
@@ -86,7 +86,7 @@ const PLANS = [
 ]
 
 const COMPARE_ROWS = [
-  { feature: 'Dictionary searches', free: '20/day', pro: 'Unlimited', enterprise: 'Unlimited' },
+  { feature: 'Dictionary searches', free: '2/day', pro: 'Unlimited', enterprise: 'Unlimited' },
   { feature: 'AI-powered explanations', free: 'Limited', pro: true, enterprise: true },
   { feature: 'Voice search', free: 'Limited', pro: 'Unlimited', enterprise: 'Unlimited' },
   { feature: 'Dictionary mode', free: 'Basic', pro: true, enterprise: true },
@@ -282,13 +282,14 @@ export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe
         </div>
 
         {/* Compare table */}
-        <div style={{ maxWidth: 860, margin: '0 auto' }} id="compare">
+        <div className="pricing-compare" style={{ maxWidth: 860, margin: '0 auto' }} id="compare">
           <h2 style={{ fontSize: 26, fontWeight: 800, color: 'var(--text-main)', textAlign: 'center', marginBottom: 32 }}>
             Full feature comparison
           </h2>
           <div style={{ border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden' }}>
             {/* Header */}
             <div
+              className="pricing-compare-grid"
               style={{
                 display: 'grid',
                 gridTemplateColumns: '1fr repeat(3, 140px)',
@@ -316,6 +317,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe
             {COMPARE_ROWS.map((row, i) => (
               <div
                 key={row.feature}
+                className="pricing-compare-grid"
                 style={{
                   display: 'grid',
                   gridTemplateColumns: '1fr repeat(3, 140px)',
@@ -346,7 +348,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe
           {[
             { q: 'Can I cancel anytime?', a: "Yes. You can cancel your subscription at any time from your account settings. You'll retain access until the end of your billing period." },
             { q: 'What payment methods do you accept?', a: 'We accept all major cards via Paystack — Visa, Mastercard, and local bank transfers in supported regions.' },
-            { q: 'Is there a free trial for Pro?', a: 'The Free plan lets you try the core features with 2 AI searches per day. Upgrade whenever you\'re ready for unlimited access.' },
+            { q: 'Is there a free trial for Pro?', a: 'The Free plan lets you try the core features with 2 dictionary word searches per day. Upgrade whenever you\'re ready for unlimited access.' },
             { q: 'What is Dictionary Mode?', a: 'Dictionary Mode gives you a beautiful page-flip interface to browse and read supply chain terms like a physical book — a premium-only feature.' },
           ].map((faq) => (
             <div
@@ -397,14 +399,25 @@ export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe
           --pricing-pro-shadow: 0 18px 44px rgba(0,0,0,0.28);
         }
 
+        @media (max-width: 1024px) {
+          .pricing-grid {
+            grid-template-columns: 1fr 1fr !important;
+          }
+        }
         @media (max-width: 768px) {
           .pricing-grid {
             grid-template-columns: 1fr !important;
           }
-        }
-        @media (max-width: 1024px) {
-          .pricing-grid {
-            grid-template-columns: 1fr 1fr !important;
+          .pricing-compare {
+            max-width: 100% !important;
+          }
+          .pricing-compare-grid {
+            grid-template-columns: minmax(104px, 1fr) repeat(3, minmax(72px, 0.8fr)) !important;
+          }
+          .pricing-compare-grid > div {
+            padding-left: 10px !important;
+            padding-right: 10px !important;
+            font-size: 12px !important;
           }
         }
       `}</style>

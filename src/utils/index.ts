@@ -46,6 +46,12 @@ export const escapeHtml = (input: string) =>
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;')
 
+export const sanitizeHtml = (input: string) =>
+  escapeHtml(input)
+    .replace(/&lt;(br\s*\/?)&gt;/gi, '<br/>')
+    .replace(/&lt;(\/?(?:b|strong|i|em))&gt;/gi, '<$1>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+
 export const cleanReplacementChars = (input: string) =>
   input
     .replace(/�/g, '.')

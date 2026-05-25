@@ -1,7 +1,17 @@
 import type { VercelRequest, VercelResponse } from './vercel-types'
+import { createClient } from '@supabase/supabase-js'
+import { enforceDailyLimit } from './server-auth'
 
 const API_KEY = process.env.GOOGLE_CSE_API_KEY
 const CX = process.env.GOOGLE_CSE_CX
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
+const serviceClient =
+  SUPABASE_URL && SERVICE_ROLE_KEY
+    ? createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+        auth: { persistSession: false, autoRefreshToken: false },
+      })
+    : null
 
 const getQuery = (q: string | string[] | undefined) => {
   if (typeof q === 'string') return q.trim()
@@ -276,6 +286,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    if (serviceClient) {
+      const usage = await enforceDailyLimit(req, serviceClient, 'image', 20)
+      if (!usage.ok) {
+        res.status(usage.status || 429).json({ error: usage.error || 'Daily image limit reached' })
+        return
+      }
+    }
     const exactTerm = cleanText(query)
     const responses = await Promise.all(
       buildImageQueries(query, definition).map(async (imageQuery) => {

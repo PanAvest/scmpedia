@@ -18,9 +18,8 @@ type PapaParse = {
   unparse: (data: any) => string
 }
 
-const ADMIN_USER = import.meta.env.VITE_SCMPEDIA_ADMIN_USER || 'scmpedia-admin'
-const ADMIN_PASS = import.meta.env.VITE_SCMPEDIA_ADMIN_PASS || 'scmpedia-2026'
 const LOCAL_ENTRIES_KEY = 'scmpedia-admin-entries-v1'
+const ADMIN_TOKEN_KEY = 'scmpedia-admin-token-v1'
 
 const STYLES = `
 :root {
@@ -121,7 +120,8 @@ const defaultEntry: Entry = {
 }
 
 function AdminApp() {
-  const [authed, setAuthed] = useState(false)
+  const [adminToken, setAdminToken] = useState(() => localStorage.getItem(ADMIN_TOKEN_KEY) || '')
+  const [authed, setAuthed] = useState(() => Boolean(localStorage.getItem(ADMIN_TOKEN_KEY)))
   const [user, setUser] = useState('')
   const [pass, setPass] = useState('')
   const [error, setError] = useState('')
@@ -195,8 +195,7 @@ function AdminApp() {
 
   const adminHeaders = () => ({
     'Content-Type': 'application/json',
-    'x-admin-user': user,
-    'x-admin-pass': pass,
+    Authorization: `Bearer ${adminToken}`,
   })
 
   const delay = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms))
@@ -207,6 +206,11 @@ function AdminApp() {
       headers: adminHeaders(),
     })
     const body = await res.json().catch(() => ({}))
+    if (res.status === 401 || res.status === 403) {
+      localStorage.removeItem(ADMIN_TOKEN_KEY)
+      setAdminToken('')
+      setAuthed(false)
+    }
     if (!res.ok) throw new Error(body?.error || 'Failed to load server dictionary')
     const words = Array.isArray(body?.words) ? body.words.map(normalizeRow).filter((e: Entry) => e.term && e.definition) : []
     return {
@@ -307,26 +311,7 @@ function AdminApp() {
         }
       }
 
-      const Papa = await loadPapa()
-      const sources = ['/scmpedia_full_UPDATED.csv', '/scmpedia_full.csv']
-      let csv = ''
-      for (const src of sources) {
-        const res = await fetch(`${src}?v=${Date.now()}`, {
-          cache: 'no-store',
-        })
-        if (!res.ok) continue
-        csv = await res.text()
-        if (csv) break
-      }
-      if (!csv) throw new Error('Failed to load dictionary')
-      const parsed = Papa.parse(csv, { header: true, skipEmptyLines: true })
-      const data = parsed.data.map(normalizeRow).filter((e: Entry) => e.term && e.definition)
-      setEntries(data)
-      setSelectedIndex(null)
-      setDraft(defaultEntry)
-      setDirty(false)
-      persistEntries(data)
-      showStatus(`Loaded ${data.length} terms`, 'success')
+      throw new Error('No server dictionary found. Upload a CSV to seed the dictionary.')
     } catch (err: any) {
       showStatus(err?.message || 'Failed to load dictionary', 'error')
     } finally {
@@ -339,14 +324,37 @@ function AdminApp() {
     if (authed) loadCsv()
   }, [authed])
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (user === ADMIN_USER && pass === ADMIN_PASS) {
+    setError('')
+    setLoading(true)
+    try {
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: user, password: pass }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok || !body?.token) throw new Error(body?.error || 'Invalid credentials')
+      localStorage.setItem(ADMIN_TOKEN_KEY, body.token)
+      setAdminToken(body.token)
       setAuthed(true)
-      setError('')
-    } else {
-      setError('Invalid credentials')
+      setPass('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Invalid credentials')
+    } finally {
+      setLoading(false)
     }
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem(ADMIN_TOKEN_KEY)
+    setAdminToken('')
+    setAuthed(false)
+    setPass('')
+    setEntries([])
+    setSelectedIndex(null)
+    setDraft(defaultEntry)
   }
 
   const handleSelect = (entry: Entry, index: number) => {
@@ -527,6 +535,9 @@ function AdminApp() {
         <div className="header-actions">
           <button className="btn btn-secondary" onClick={loadCsv} disabled={loading}>
             Reload CSV
+          </button>
+          <button className="btn btn-secondary" onClick={handleLogout} disabled={loading}>
+            Sign Out
           </button>
           <label
             className="btn btn-secondary"

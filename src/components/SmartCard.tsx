@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react'
 import type { User } from '@supabase/supabase-js'
 import type { Entry } from '../types'
-import { getEntryTags, fallbackExplanation } from '../utils'
+import { getEntryTags, fallbackExplanation, sanitizeHtml } from '../utils'
 import { Volume2, Star, Copy, MoreHorizontal, RefreshCw, Sparkles, ExternalLink, BookOpen } from 'lucide-react'
 
 const FadeImage: React.FC<React.ImgHTMLAttributes<HTMLImageElement> & { eager?: boolean }> = ({
@@ -32,6 +32,7 @@ interface SmartCardProps {
   onToggleFavorite: (entry: Entry) => Promise<void>
   onOpenRelated?: (entry: Entry) => void
   onOpenTermPage?: (entry: Entry) => void
+  authToken?: string
 }
 
 export const SmartCard: React.FC<SmartCardProps> = ({
@@ -46,6 +47,7 @@ export const SmartCard: React.FC<SmartCardProps> = ({
   onToggleFavorite,
   onOpenRelated,
   onOpenTermPage,
+  authToken,
 }) => {
   const [expanded, setExpanded] = useState<'details' | 'ai' | null>(null)
   const [aiText, setAiText] = useState('')
@@ -113,7 +115,10 @@ export const SmartCard: React.FC<SmartCardProps> = ({
         v: `image-v3-${entryId}-${Date.now()}`,
       })
       if (force && prevUrl) params.set('exclude', prevUrl)
-      const res = await fetch(`/api/image?${params.toString()}`, { cache: 'no-store' })
+      const res = await fetch(`/api/image?${params.toString()}`, {
+        cache: 'no-store',
+        headers: authToken ? { Authorization: `Bearer ${authToken}` } : undefined,
+      })
       const bodyText = await res.text()
       let data: any = {}
       try { data = JSON.parse(bodyText) } catch { data = {} }
@@ -379,7 +384,7 @@ export const SmartCard: React.FC<SmartCardProps> = ({
             <>
               <div
                 style={{ fontSize: 14, lineHeight: 1.7, color: 'var(--text-main)', marginTop: 12, whiteSpace: 'pre-wrap' }}
-                dangerouslySetInnerHTML={{ __html: aiText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(aiText) }}
               />
               <a
                 href={`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(`${entry.term} supply chain`)}`}

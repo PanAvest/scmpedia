@@ -2,6 +2,7 @@ import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
 import { createClient } from '@supabase/supabase-js'
+import { createHmac } from 'crypto'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
@@ -17,9 +18,34 @@ export default defineConfig(({ mode }) => {
   const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL || env.VITE_SUPABASE_URL
   const supabaseServiceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY
   const supabaseAnonKey = env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || env.VITE_SUPABASE_ANON_KEY
-  const adminUser = env.SCMPEDIA_ADMIN_USER || env.VITE_SCMPEDIA_ADMIN_USER || 'scmpedia-admin'
-  const adminPass = env.SCMPEDIA_ADMIN_PASS || env.VITE_SCMPEDIA_ADMIN_PASS || 'scmpedia-2026'
+  const adminUser = env.SCMPEDIA_ADMIN_USER
+  const adminPass = env.SCMPEDIA_ADMIN_PASS
+  const adminSecret = env.ADMIN_SESSION_SECRET || env.SUPABASE_SERVICE_ROLE_KEY || adminPass
   const paystackSecretKey = env.PAYSTACK_SECRET_KEY
+  const base64Url = (value: string | Buffer) =>
+    Buffer.from(value)
+      .toString('base64')
+      .replace(/=/g, '')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+  const signAdminPayload = (payload: string) =>
+    adminSecret ? base64Url(createHmac('sha256', adminSecret).update(payload).digest()) : ''
+  const createAdminToken = () => {
+    const payload = base64Url(JSON.stringify({ sub: 'scmpedia-admin', exp: Date.now() + 12 * 60 * 60 * 1000 }))
+    return `${payload}.${signAdminPayload(payload)}`
+  }
+  const verifyAdminToken = (token: string) => {
+    const [payload, signature] = token.split('.')
+    if (!payload || !signature || !adminSecret || signature !== signAdminPayload(payload)) return false
+    try {
+      const normalized = payload.replace(/-/g, '+').replace(/_/g, '/')
+      const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), '=')
+      const parsed = JSON.parse(Buffer.from(padded, 'base64').toString('utf8'))
+      return parsed?.sub === 'scmpedia-admin' && Number(parsed?.exp || 0) > Date.now()
+    } catch {
+      return false
+    }
+  }
   return {
     envPrefix: ['VITE_', 'NEXT_PUBLIC_'],
     plugins: [
@@ -27,6 +53,45 @@ export default defineConfig(({ mode }) => {
       {
         name: 'scm-pedia-proxy',
         configureServer(server) {
+          server.middlewares.use('/api/admin/login', (req, res) => {
+            if (req.method !== 'POST') {
+              res.statusCode = 405
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify({ error: 'Method not allowed' }))
+              return
+            }
+
+            let body = ''
+            req.on('data', (chunk) => {
+              body += chunk
+            })
+
+            req.on('end', () => {
+              try {
+                if (!adminUser || !adminPass || !adminSecret) {
+                  res.statusCode = 500
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ error: 'Admin credentials are not configured on the server' }))
+                  return
+                }
+                const parsed = JSON.parse(body || '{}')
+                if (String(parsed.username || '').trim() !== adminUser || String(parsed.password || '') !== adminPass) {
+                  res.statusCode = 401
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ error: 'Invalid credentials' }))
+                  return
+                }
+                res.statusCode = 200
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ token: createAdminToken() }))
+              } catch (err: any) {
+                res.statusCode = 500
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ error: err?.message || 'Admin login failed' }))
+              }
+            })
+          })
+
           server.middlewares.use('/api/ai', (req, res) => {
             if (req.method !== 'POST') {
               res.statusCode = 405
@@ -819,8 +884,7 @@ export default defineConfig(({ mode }) => {
             })
             const isMissingSourceKeyError = (error: any) => String(error?.message || '').includes('source_key')
             const hasAdminAccess = () =>
-              String(req.headers['x-admin-user'] || '').trim() === adminUser &&
-              String(req.headers['x-admin-pass'] || '').trim() === adminPass
+              verifyAdminToken(String(req.headers.authorization || '').replace(/^Bearer\s+/i, ''))
             const readJsonBody = async () =>
               new Promise<any>((resolve, reject) => {
                 let body = ''

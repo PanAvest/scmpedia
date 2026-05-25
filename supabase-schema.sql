@@ -32,9 +32,34 @@ create table if not exists public.favorites (
   unique (user_id, term)
 );
 
+create table if not exists public.scmpedia_usage (
+  id uuid primary key default gen_random_uuid(),
+  subject text not null,
+  scope text not null,
+  day date not null,
+  count integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (subject, scope, day)
+);
+
+create table if not exists public.scmpedia_payments (
+  reference text primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  plan text not null,
+  amount integer not null,
+  currency text not null default 'GHS',
+  status text not null,
+  raw jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 alter table public.words enable row level security;
 alter table public.profiles enable row level security;
 alter table public.favorites enable row level security;
+alter table public.scmpedia_usage enable row level security;
+alter table public.scmpedia_payments enable row level security;
 
 drop policy if exists "Words are readable by everyone" on public.words;
 drop policy if exists "Authenticated users can read words" on public.words;
@@ -94,3 +119,5 @@ for each row execute procedure public.handle_new_user();
 
 create index if not exists words_term_idx on public.words using btree (lower(term));
 create index if not exists favorites_user_id_idx on public.favorites (user_id);
+create index if not exists scmpedia_usage_subject_day_idx on public.scmpedia_usage (subject, day);
+create index if not exists scmpedia_payments_user_id_idx on public.scmpedia_payments (user_id);

@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '../vercel-types'
 import { createClient } from '@supabase/supabase-js'
+import { getBearerToken } from '../server-auth'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_ANON_KEY
@@ -12,11 +13,6 @@ const plans = {
 } as const
 
 type PlanId = keyof typeof plans
-
-const getBearerToken = (header?: string | string[]) => {
-  const match = String(header || '').match(/^Bearer\s+(.+)$/i)
-  return match?.[1] || ''
-}
 
 const addDays = (days: number) => {
   const date = new Date()
@@ -77,6 +73,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     auth: { persistSession: false, autoRefreshToken: false },
   })
   const expiresAt = addDays(plan.durationDays)
+  await admin.from('scmpedia_payments').upsert(
+    {
+      reference,
+      user_id: userData.user.id,
+      plan: planId,
+      amount: Number(payment.data.amount),
+      currency: String(payment.data.currency || 'GHS'),
+      status: String(payment.data.status || 'success'),
+      raw: payment.data,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'reference' },
+  )
   const { error: updateError } = await admin.auth.admin.updateUserById(userData.user.id, {
     app_metadata: {
       ...(userData.user.app_metadata || {}),
