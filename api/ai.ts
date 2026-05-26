@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from './vercel-types'
 import { createClient } from '@supabase/supabase-js'
-import { enforceDailyLimit } from './server-auth'
+import { enforceDailyLimit } from './server-auth.js'
 
 const BASE_URL = process.env.POLLINATIONS_BASE_URL || 'https://gen.pollinations.ai'
 const API_KEY = process.env.POLLINATIONS_API_KEY

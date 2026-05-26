@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from './vercel-types'
 import { createClient } from '@supabase/supabase-js'
-import { enforceDailyLimit } from './server-auth'
+import { enforceDailyLimit } from './server-auth.js'
 
 const API_KEY = process.env.GOOGLE_CSE_API_KEY
 const CX = process.env.GOOGLE_CSE_CX
