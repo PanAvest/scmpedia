@@ -90,6 +90,16 @@ const requestSubject = (req: VercelRequest, user: User | null) => {
   return `ip:${forwarded || realIp || 'unknown'}`
 }
 
+const isUsageStorageMissing = (error: any) => {
+  const code = String(error?.code || '')
+  const message = String(error?.message || '').toLowerCase()
+  return code === '42P01'
+    || code === 'PGRST205'
+    || message.includes('scmpedia_usage')
+    || message.includes('does not exist')
+    || message.includes('schema cache')
+}
+
 export const enforceDailyLimit = async (
   req: VercelRequest,
   serviceClient: any,
@@ -110,11 +120,12 @@ export const enforceDailyLimit = async (
     .maybeSingle()
 
   if (error) {
+    if (isUsageStorageMissing(error)) return { ok: true, user, remaining: null as number | null }
     return {
       ok: false,
       user,
       status: 500,
-      error: 'Usage limit storage is not configured. Run the latest Supabase schema.',
+      error: 'Could not check usage limit.',
       remaining: 0,
     }
   }
@@ -143,6 +154,7 @@ export const enforceDailyLimit = async (
     : await serviceClient.from('scmpedia_usage').insert(payload)
 
   if (write.error) {
+    if (isUsageStorageMissing(write.error)) return { ok: true, user, remaining: null as number | null }
     return { ok: false, user, status: 500, error: 'Could not update usage limit.', remaining: 0 }
   }
 
