@@ -312,15 +312,32 @@ const fuzzyRankWords = (rows: any[], q: string, limit: number) => {
   return [...rows]
     .map((row) => {
       const term = String(row?.term || '').toLowerCase()
+      const normalizedTerm = normalizeSearchText(term)
+      const termWords = normalizedTerm.split(/\s+/).filter((word) => word.length >= 2)
       const compactTerm = term.replace(/[^a-z0-9]/g, '')
-      const distance = Math.min(editDistance(term, needle), editDistance(compactTerm, compactNeedle))
-      const prefixBonus = term[0] === needle[0] ? -1 : 0
-      return { row, score: distance + prefixBonus }
+      const comparableParts = [
+        compactTerm,
+        ...termWords,
+        ...termWords
+          .filter((word) => word.length >= compactNeedle.length)
+          .map((word) => word.slice(0, compactNeedle.length)),
+      ].filter((part) => part && part[0] === compactNeedle[0])
+      const distance = comparableParts.reduce(
+        (best, part) => Math.min(best, editDistance(part, compactNeedle)),
+        Math.min(editDistance(term, needle), editDistance(compactTerm, compactNeedle)),
+      )
+      const prefixDistance = comparableParts
+        .filter((part) => part.length >= compactNeedle.length)
+        .reduce((best, part) => Math.min(best, editDistance(part.slice(0, compactNeedle.length), compactNeedle)), distance)
+      const abbreviationPenalty = /^[a-z](?:[^a-z0-9]*[a-z]){0,3}$/i.test(term.trim()) ? 8 : 0
+      const lengthPenalty = Math.min(6, Math.max(0, normalizedTerm.length - compactNeedle.length) / 8)
+      const prefixBonus = normalizedTerm.startsWith(compactNeedle.slice(0, 2)) ? -1 : 0
+      return { row, distance: Math.min(distance, prefixDistance), score: Math.min(distance, prefixDistance) * 10 + abbreviationPenalty + lengthPenalty + prefixBonus }
     })
-    .filter(({ row, score }) => {
+    .filter(({ row, distance }) => {
       const termLength = String(row?.term || '').length
-      const maxDistance = Math.max(2, Math.floor(Math.min(compactNeedle.length, termLength) * 0.35))
-      return score <= maxDistance
+      const maxDistance = compactNeedle.length <= 4 ? 1 : Math.max(2, Math.floor(Math.min(compactNeedle.length, termLength) * 0.35))
+      return distance <= maxDistance
     })
     .sort((a, b) => {
       if (a.score !== b.score) return a.score - b.score
