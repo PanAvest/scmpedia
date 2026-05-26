@@ -332,7 +332,9 @@ const fuzzyRankWords = (rows: any[], q: string, limit: number) => {
       const abbreviationPenalty = /^[a-z](?:[^a-z0-9]*[a-z]){0,3}$/i.test(term.trim()) ? 8 : 0
       const lengthPenalty = Math.min(6, Math.max(0, normalizedTerm.length - compactNeedle.length) / 8)
       const prefixBonus = normalizedTerm.startsWith(compactNeedle.slice(0, 2)) ? -1 : 0
-      return { row, distance: Math.min(distance, prefixDistance), score: Math.min(distance, prefixDistance) * 10 + abbreviationPenalty + lengthPenalty + prefixBonus }
+      const lastNeedleChar = compactNeedle[compactNeedle.length - 1] || ''
+      const firstAndLastBonus = compactNeedle.length <= 4 && comparableParts.some((part) => part.startsWith(compactNeedle.slice(0, 2)) && part.includes(lastNeedleChar)) ? -2 : 0
+      return { row, distance: Math.min(distance, prefixDistance), score: Math.min(distance, prefixDistance) * 10 + abbreviationPenalty + lengthPenalty + prefixBonus + firstAndLastBonus }
     })
     .filter(({ row, distance }) => {
       const termLength = String(row?.term || '').length
