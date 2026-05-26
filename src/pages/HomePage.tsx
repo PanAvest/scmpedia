@@ -80,7 +80,7 @@ interface HomePageProps {
     status: 'loading' | 'ready' | 'error' | 'empty'
     fuseRef: React.MutableRefObject<any>
     serverBacked: boolean
-    searchServerWords: (q: string, limit?: number) => Promise<Entry[]>
+    searchServerWords: (q: string, limit?: number, options?: { suggest?: boolean }) => Promise<Entry[]>
   }
   tts: any
   ai: any
@@ -147,10 +147,10 @@ export const HomePage: React.FC<HomePageProps> = ({
       setSuggestions(fuseRef.current.search(query).slice(0, 5).map((h: any) => h.item))
       return
     }
-    if (serverBacked && subscription.isPremium) {
+    if (serverBacked) {
       setSuggestionsLoading(true)
       const timeout = window.setTimeout(() => {
-        void searchServerWords(query, 5)
+        void searchServerWords(query, 5, { suggest: true })
           .then((next) => {
             if (suggestionsRequestRef.current === requestId) { setSuggestions(next); setSuggestionsLoading(false) }
           })
@@ -162,7 +162,7 @@ export const HomePage: React.FC<HomePageProps> = ({
     }
     setSuggestions([])
     setSuggestionsLoading(false)
-  }, [input, fuseRef, searchServerWords, serverBacked, subscription.isPremium])
+  }, [input, fuseRef, searchServerWords, serverBacked])
 
   useEffect(() => {
     onChatModeChange(messages.length > 0)

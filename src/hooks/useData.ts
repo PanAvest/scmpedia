@@ -55,10 +55,12 @@ export function useData(accessToken?: string) {
     }
   }, [])
 
-  const searchServerWords = useCallback(async (query: string, limit = 8) => {
+  const searchServerWords = useCallback(async (query: string, limit = 8, options?: { suggest?: boolean }) => {
     const q = query.trim()
     if (!q) return []
-    const res = await fetch(`/api/words?q=${encodeURIComponent(q)}&limit=${limit}`, {
+    const params = new URLSearchParams({ q, limit: String(limit) })
+    if (options?.suggest) params.set('suggest', '1')
+    const res = await fetch(`/api/words?${params.toString()}`, {
       headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
     })
     const body = await res.json().catch(() => ({}))

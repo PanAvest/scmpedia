@@ -502,6 +502,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const q = getSingle(req.query.q)
   const terms = getSingle(req.query.terms)
   const browse = getSingle(req.query.browse) === '1'
+  const suggest = getSingle(req.query.suggest) === '1'
   const limit = Math.min(Math.max(Number(getSingle(req.query.limit)) || 8, 1), 25)
   const browseLimit = Math.min(Math.max(Number(getSingle(req.query.limit)) || 300, 50), 1000)
   const offset = Math.max(Number(getSingle(req.query.offset)) || 0, 0)
@@ -561,13 +562,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         error = fallback.error
       }
     } else if (q) {
-      const usage = await enforceDailyLimit(req, client, 'word-search', 2)
-      if (!usage.ok) {
-        res.status(usage.status || 429).json({
-          error: usage.error || 'Daily search limit reached',
-          remaining: usage.remaining,
-        })
-        return
+      if (!suggest) {
+        const usage = await enforceDailyLimit(req, client, 'word-search', 2)
+        if (!usage.ok) {
+          res.status(usage.status || 429).json({
+            error: usage.error || 'Daily search limit reached',
+            remaining: usage.remaining,
+          })
+          return
+        }
       }
       data = await collectSearchCandidates(q)
     } else {
