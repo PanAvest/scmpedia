@@ -29,6 +29,7 @@ interface DictionaryModePageProps {
 
 const FRIENDLY_LOAD_ERROR = 'Dictionary Mode could not load right now. Please try again.'
 const ENTRIES_PER_PAGE = 4
+const DICTIONARY_FETCH_LIMIT = 1000
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 const AMAZON_BOOK_URL = 'https://www.amazon.com/Executive-Insight-Compendium-Supply-Management-ebook/dp/B0FQVFQVFM?ref_=ast_author_dp'
 const FEATURED_ENTRIES: Entry[] = [
@@ -311,7 +312,7 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
       let displayedFirstBatch = false
       try {
         while (!cancelled) {
-          const res = await fetch(`/api/words?browse=1&limit=400&offset=${offset}`, {
+          const res = await fetch(`/api/words?browse=1&limit=${DICTIONARY_FETCH_LIMIT}&offset=${offset}`, {
             headers: authToken ? { Authorization: `Bearer ${authToken}` } : undefined,
           })
           if (!res.ok) throw new Error('Dictionary database is not connected.')
@@ -324,7 +325,7 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
             setEntries(all)
             setLoading(false)
           }
-          if (!next.length || next.length < 400) break
+          if (!next.length || next.length < DICTIONARY_FETCH_LIMIT) break
           offset = Number(body?.nextOffset || offset + next.length)
         }
         if (!cancelled) {
@@ -354,7 +355,6 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
     () => {
       const featuredTerms = new Set(FEATURED_ENTRIES.map((entry) => entry.term.toLowerCase()))
       const cleaned = [...entries]
-        .filter((entry) => /^[A-Za-z]/.test(entry.term) && entry.term.length <= 90)
         .filter((entry) => !featuredTerms.has(entry.term.toLowerCase()))
         .sort((a, b) => a.term.localeCompare(b.term))
       return [...FEATURED_ENTRIES, ...cleaned]
