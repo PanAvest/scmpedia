@@ -193,6 +193,94 @@ const DictionaryPagePanel = ({
   </section>
 )
 
+const DictionaryLockedPreview = () => (
+  <div className="dictionary-locked-preview" aria-label="Dictionary Mode preview">
+    <div className="dictionary-preview-heading">
+      <div className="dictionary-preview-badge"><Crown size={14} /> Live preview</div>
+      <p>This preview uses the same layout rules as Dictionary Mode, so it changes from a two-page desk view to a single-page mobile view on smaller screens.</p>
+    </div>
+
+    <div className="dictionary-preview-frame">
+      <div className="dictionary-preview-callout dictionary-preview-callout-search">
+        <span>Search terms</span>
+        <i aria-hidden />
+      </div>
+      <div className="dictionary-preview-callout dictionary-preview-callout-letters">
+        <span>A-Z jump bar</span>
+        <i aria-hidden />
+      </div>
+      <div className="dictionary-preview-callout dictionary-preview-callout-pages">
+        <span>Flip pages</span>
+        <i aria-hidden />
+      </div>
+      <div className="dictionary-preview-callout dictionary-preview-callout-voice">
+        <span>Voice reading</span>
+        <i aria-hidden />
+      </div>
+      <div className="dictionary-preview-callout dictionary-preview-callout-views">
+        <span>Book, list, grid</span>
+        <i aria-hidden />
+      </div>
+      <div className="dictionary-preview-callout dictionary-preview-callout-zoom">
+        <span>Zoom & fullscreen</span>
+        <i aria-hidden />
+      </div>
+
+      <div className="dictionary-preview-alpha" aria-hidden>
+        <div className="dictionary-preview-search"><Search size={15} /><span>Search terms...</span></div>
+        <strong>Jump to</strong>
+        {['All', 'A', 'B', 'C', 'D', 'E', 'F', 'G'].map((letter) => (
+          <span key={letter} className={letter === 'All' ? 'is-active' : ''}>{letter}</span>
+        ))}
+      </div>
+
+      <div className="dictionary-book-zone dictionary-preview-zone" aria-hidden>
+        <button className="dictionary-side-nav dictionary-side-nav-left" disabled>
+          <ChevronLeft size={30} />
+          <span>Previous</span>
+        </button>
+        <div className="dictionary-spread-shell view-book">
+          <div className="dictionary-spread">
+            <DictionaryPagePanel
+              entries={FEATURED_ENTRIES.slice(0, 4)}
+              pageNumber={1}
+              speakingId=""
+              preparingId=""
+              onSpeak={() => {}}
+            />
+            <DictionaryPagePanel
+              entries={FEATURED_ENTRIES.slice(4, 8)}
+              pageNumber={2}
+              speakingId=""
+              preparingId=""
+              onSpeak={() => {}}
+            />
+          </div>
+        </div>
+        <button className="dictionary-side-nav dictionary-side-nav-right">
+          <ChevronRight size={30} />
+          <span>Next</span>
+        </button>
+      </div>
+
+      <div className="dictionary-controls dictionary-preview-controls" aria-hidden>
+        <div className="dictionary-page-select"><BookOpen size={18} /><span>Page 1-2 of 128</span><ChevronDown size={16} /></div>
+        <div className="dictionary-view-toggle">
+          <button className="is-active"><BookOpen size={18} /></button>
+          <button><List size={18} /></button>
+          <button><Grid2X2 size={18} /></button>
+        </div>
+        <div className="dictionary-zoom-controls">
+          <button><ZoomIn size={17} /></button>
+          <span>100%</span>
+          <button><ZoomOut size={17} /></button>
+          <button><Maximize2 size={17} /></button>
+        </div>
+      </div>
+    </div>
+  </div>
+)
+
 export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremium, onOpenPricing, onOpenTerm, onSpeak, speakingId, preparingId, authToken }) => {
   const [entries, setEntries] = useState<Entry[]>([])
   const [loading, setLoading] = useState(true)
@@ -361,51 +449,51 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
           </a>
         </div>
 
-        <div className="dictionary-alpha-bar">
-          <div className={`dictionary-search-box ${searchOpen || query ? 'is-open' : ''}`}>
+        {isPremium && (
+          <div className="dictionary-alpha-bar">
+            <div className={`dictionary-search-box ${searchOpen || query ? 'is-open' : ''}`}>
+              <button
+                className="dictionary-icon-button"
+                onClick={() => setSearchOpen((open) => !open)}
+                aria-label="Search dictionary"
+                title="Search dictionary"
+              >
+                <Search size={18} />
+              </button>
+              {(searchOpen || query) && (
+                <input
+                  value={query}
+                  onChange={(event) => {
+                    setQuery(event.target.value)
+                    setActiveLetter('All')
+                  }}
+                  autoFocus
+                  placeholder="Search terms..."
+                  aria-label="Search terms"
+                />
+              )}
+            </div>
+            <span className="dictionary-jump-label">Jump to</span>
             <button
-              className="dictionary-icon-button"
-              onClick={() => setSearchOpen((open) => !open)}
-              aria-label="Search dictionary"
-              title="Search dictionary"
+              className={`dictionary-letter ${activeLetter === 'All' ? 'is-active' : ''}`}
+              onClick={() => jumpToLetter('All')}
             >
-              <Search size={18} />
+              All
             </button>
-            {(searchOpen || query) && (
-              <input
-                value={query}
-                onChange={(event) => {
-                  setQuery(event.target.value)
-                  setActiveLetter('All')
-                }}
-                autoFocus
-                placeholder="Search terms..."
-                aria-label="Search terms"
-              />
-            )}
+            {LETTERS.map((letter) => (
+              <button
+                key={letter}
+                className={`dictionary-letter ${activeLetter === letter ? 'is-active' : ''}`}
+                onClick={() => jumpToLetter(letter)}
+              >
+                {letter}
+              </button>
+            ))}
           </div>
-          <span className="dictionary-jump-label">Jump to</span>
-          <button
-            className={`dictionary-letter ${activeLetter === 'All' ? 'is-active' : ''}`}
-            onClick={() => jumpToLetter('All')}
-          >
-            All
-          </button>
-          {LETTERS.map((letter) => (
-            <button
-              key={letter}
-              className={`dictionary-letter ${activeLetter === letter ? 'is-active' : ''}`}
-              onClick={() => jumpToLetter(letter)}
-            >
-              {letter}
-            </button>
-          ))}
-        </div>
+        )}
 
         {!isPremium ? (
-          <div className="dictionary-load-error">
-            Dictionary Mode is a premium feature. Free users can search 2 words per day from the home page.
-          </div>
+          <DictionaryLockedPreview />
         ) : loadError ? (
           <div className="dictionary-load-error">{loadError}</div>
         ) : (
@@ -535,7 +623,7 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
                 <p>Go Premium to unlock advanced search, voice reading, contextual examples, and more.</p>
               </div>
             </div>
-            <button onClick={onOpenPricing} className="btn btn-premium"><Crown size={15} />Go Premium</button>
+            <button onClick={onOpenPricing} className="btn btn-premium"><Crown size={15} /> Go Premium</button>
           </div>
         </div>
       )}
@@ -577,7 +665,6 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
           --dict-premium-border: #dceee6;
           --dict-premium-bg: linear-gradient(90deg, rgba(20,174,92,0.10), rgba(20,174,92,0.03));
           background: var(--bg);
-          min-height: calc(100vh - 64px);
         }
 
         :root[data-theme="dark"] .dictionary-mode-page {
@@ -1032,6 +1119,279 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
           text-align: center;
         }
 
+        .dictionary-locked-preview {
+          position: relative;
+          z-index: 2;
+          width: min(1180px, 100%);
+          margin: 0 auto;
+        }
+
+        .dictionary-preview-heading {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 14px;
+          margin: 0 auto 16px;
+          color: var(--dict-muted);
+          text-align: left;
+        }
+
+        .dictionary-preview-heading p {
+          max-width: 700px;
+          font-size: 13px;
+          line-height: 1.45;
+        }
+
+        .dictionary-preview-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 7px;
+          padding: 8px 13px;
+          border-radius: 999px;
+          background: var(--primary-bg);
+          color: var(--primary);
+          font-size: 12px;
+          font-weight: 900;
+          white-space: nowrap;
+        }
+
+        .dictionary-preview-frame {
+          position: relative;
+          min-height: 662px;
+          padding: 58px 18px 24px;
+          border: 1px solid var(--dict-frosted-border);
+          border-radius: 16px;
+          background:
+            linear-gradient(180deg, rgba(255,255,255,0.68), rgba(255,255,255,0.30)),
+            var(--dict-frosted-soft-bg);
+          box-shadow: 0 18px 52px var(--dict-shadow-soft);
+          overflow: hidden;
+          backdrop-filter: blur(10px);
+        }
+
+        :root[data-theme="dark"] .dictionary-preview-frame {
+          background:
+            linear-gradient(180deg, rgba(23,28,25,0.76), rgba(23,28,25,0.42)),
+            var(--dict-frosted-soft-bg);
+        }
+
+        .dictionary-preview-frame::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          background: linear-gradient(90deg, rgba(182,84,55,0.06), transparent 26%, transparent 74%, rgba(0,79,70,0.05));
+        }
+
+        .dictionary-preview-alpha {
+          position: absolute;
+          z-index: 3;
+          top: 14px;
+          left: 50%;
+          width: min(780px, calc(100% - 36px));
+          transform: translateX(-50%);
+          display: flex;
+          align-items: center;
+          gap: 7px;
+          min-height: 38px;
+          padding: 6px 8px;
+          border: 1px solid var(--dict-control-border);
+          border-radius: 10px;
+          background: var(--dict-frosted-bg);
+          box-shadow: 0 4px 18px var(--dict-shadow-control);
+          color: var(--dict-muted);
+          overflow: hidden;
+        }
+
+        .dictionary-preview-search {
+          display: inline-flex;
+          align-items: center;
+          gap: 7px;
+          min-width: 170px;
+          height: 28px;
+          padding: 0 9px;
+          border: 1px solid var(--dict-icon-border);
+          border-radius: 8px;
+          background: var(--dict-icon-bg);
+          color: var(--dict-muted);
+          font-size: 12px;
+          font-weight: 700;
+        }
+
+        .dictionary-preview-alpha strong {
+          margin-left: 4px;
+          color: var(--dict-muted);
+          font-size: 11px;
+          white-space: nowrap;
+        }
+
+        .dictionary-preview-alpha > span {
+          display: grid;
+          place-items: center;
+          width: 24px;
+          height: 26px;
+          border-radius: 999px;
+          font-size: 11px;
+          font-weight: 900;
+          flex: 0 0 auto;
+        }
+
+        .dictionary-preview-alpha > span.is-active {
+          background: var(--primary-bg);
+          color: var(--primary);
+        }
+
+        .dictionary-preview-zone {
+          height: 494px;
+          pointer-events: none;
+        }
+
+        .dictionary-preview-zone .dictionary-side-nav-right {
+          opacity: 1;
+          animation: dict-preview-nudge-right 1.6s ease-in-out infinite;
+        }
+
+        .dictionary-preview-zone .dictionary-sound-button {
+          animation: dict-preview-pulse 1.8s ease-in-out infinite;
+        }
+
+        .dictionary-preview-controls {
+          margin-top: 12px;
+        }
+
+        .dictionary-preview-controls span {
+          color: var(--dict-strong-text);
+          font-size: 14px;
+          font-weight: 800;
+          padding: 0 12px;
+        }
+
+        .dictionary-preview-callout {
+          position: absolute;
+          z-index: 5;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          color: var(--dict-strong-text);
+          font-size: 12px;
+          font-weight: 900;
+          letter-spacing: 0;
+          filter: drop-shadow(0 5px 12px rgba(0,0,0,0.12));
+          animation: dict-preview-float 2.4s ease-in-out infinite;
+          pointer-events: none;
+        }
+
+        .dictionary-preview-callout span {
+          display: inline-flex;
+          align-items: center;
+          min-height: 30px;
+          padding: 6px 10px;
+          border-radius: 999px;
+          border: 1px solid rgba(182,84,55,0.28);
+          background: var(--dict-icon-bg);
+          color: var(--primary);
+          white-space: nowrap;
+        }
+
+        .dictionary-preview-callout i {
+          position: relative;
+          display: block;
+          width: 76px;
+          height: 2px;
+          background: var(--primary);
+          transform-origin: center;
+        }
+
+        .dictionary-preview-callout i::after {
+          content: '';
+          position: absolute;
+          right: -1px;
+          top: 50%;
+          width: 9px;
+          height: 9px;
+          border-top: 2px solid var(--primary);
+          border-right: 2px solid var(--primary);
+          transform: translateY(-50%) rotate(45deg);
+        }
+
+        .dictionary-preview-callout-search {
+          top: 9px;
+          left: 18px;
+        }
+
+        .dictionary-preview-callout-search i {
+          width: 110px;
+          transform: rotate(8deg);
+        }
+
+        .dictionary-preview-callout-letters {
+          top: 72px;
+          right: 24px;
+          flex-direction: row-reverse;
+        }
+
+        .dictionary-preview-callout-letters i {
+          width: 112px;
+          transform: rotate(170deg);
+        }
+
+        .dictionary-preview-callout-pages {
+          top: 276px;
+          right: 22px;
+          flex-direction: row-reverse;
+        }
+
+        .dictionary-preview-callout-pages i {
+          width: 94px;
+          transform: rotate(180deg);
+        }
+
+        .dictionary-preview-callout-voice {
+          top: 226px;
+          left: 28px;
+        }
+
+        .dictionary-preview-callout-voice i {
+          width: 86px;
+          transform: rotate(-14deg);
+        }
+
+        .dictionary-preview-callout-views {
+          bottom: 48px;
+          left: 31%;
+        }
+
+        .dictionary-preview-callout-views i {
+          width: 74px;
+          transform: rotate(-13deg);
+        }
+
+        .dictionary-preview-callout-zoom {
+          bottom: 48px;
+          right: 6%;
+          flex-direction: row-reverse;
+        }
+
+        .dictionary-preview-callout-zoom i {
+          width: 82px;
+          transform: rotate(194deg);
+        }
+
+        @keyframes dict-preview-float {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-5px); }
+        }
+
+        @keyframes dict-preview-pulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(182,84,55,0.24); }
+          50% { box-shadow: 0 0 0 8px rgba(182,84,55,0); }
+        }
+
+        @keyframes dict-preview-nudge-right {
+          0%, 100% { transform: translateY(-50%); }
+          50% { transform: translate(6px, -50%); }
+        }
+
         .dictionary-list-view,
         .dictionary-grid-view {
           width: min(888px, calc(100vw - 310px));
@@ -1187,18 +1547,30 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
         }
 
         .dictionary-premium-banner {
+          position: sticky;
+          bottom: 0;
+          z-index: 20;
           border-top: 1px solid var(--dict-premium-border);
-          border-bottom: 1px solid var(--dict-premium-border);
-          background: var(--dict-premium-bg);
-          padding: 16px 24px;
+          background:
+            linear-gradient(90deg, rgba(255,255,255,0.92), rgba(255,255,255,0.86)),
+            var(--dict-premium-bg);
+          padding: 12px 24px calc(12px + var(--safe-bottom));
+          box-shadow: 0 -14px 36px rgba(24, 35, 52, 0.10);
+          backdrop-filter: blur(12px);
+        }
+
+        :root[data-theme="dark"] .dictionary-premium-banner {
+          background:
+            linear-gradient(90deg, rgba(17,20,18,0.92), rgba(17,20,18,0.86)),
+            var(--dict-premium-bg);
+          box-shadow: 0 -14px 36px rgba(0, 0, 0, 0.30);
         }
 
         .dictionary-premium-banner .container {
-          display: flex;
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
           align-items: center;
-          justify-content: space-between;
           gap: 16px;
-          flex-wrap: wrap;
         }
 
         .dictionary-premium-copy {
@@ -1208,23 +1580,33 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
         }
 
         .dictionary-premium-copy > div:first-child {
-          width: 48px;
-          height: 48px;
-          border-radius: 50%;
+          width: 42px;
+          height: 42px;
+          border-radius: 10px;
           background: rgba(20,174,92,0.12);
           color: var(--success-green);
           display: grid;
           place-items: center;
+          flex: 0 0 auto;
         }
 
         .dictionary-premium-copy strong {
           color: var(--text-main);
-          font-size: 14px;
+          font-size: 15px;
+          line-height: 1.25;
         }
 
         .dictionary-premium-copy p {
           color: var(--text-sub);
           font-size: 13px;
+          line-height: 1.35;
+          margin-top: 2px;
+        }
+
+        .dictionary-premium-banner .btn {
+          min-height: 42px;
+          border-radius: 9px;
+          box-shadow: 0 8px 20px rgba(6,63,58,0.20);
         }
 
         @media (max-width: 1100px) {
@@ -1241,6 +1623,20 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
 
           .dictionary-paper-content {
             padding: 26px 30px 18px;
+          }
+
+          .dictionary-preview-callout-search,
+          .dictionary-preview-callout-voice {
+            left: 8px;
+          }
+
+          .dictionary-preview-callout-letters,
+          .dictionary-preview-callout-pages {
+            right: 8px;
+          }
+
+          .dictionary-preview-callout i {
+            width: 54px;
           }
         }
 
@@ -1261,6 +1657,34 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
             padding: 8px;
           }
 
+          .dictionary-preview-heading {
+            align-items: flex-start;
+            justify-content: flex-start;
+            flex-direction: column;
+            gap: 8px;
+          }
+
+          .dictionary-preview-frame {
+            min-height: 754px;
+            padding: 106px 0 130px;
+            border-radius: 12px;
+            overflow: hidden;
+          }
+
+          .dictionary-preview-alpha {
+            top: 10px;
+            width: calc(100% - 20px);
+          }
+
+          .dictionary-preview-search {
+            min-width: 142px;
+          }
+
+          .dictionary-preview-alpha strong,
+          .dictionary-preview-alpha > span:nth-last-child(-n+4) {
+            display: none;
+          }
+
           .dictionary-book-cta {
             grid-template-columns: 44px minmax(0, 1fr);
             width: 100%;
@@ -1279,6 +1703,10 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
             height: 526px;
             padding: 0 0 70px;
             align-items: stretch;
+          }
+
+          .dictionary-preview-zone {
+            height: 526px;
           }
 
           .dictionary-spread,
@@ -1344,6 +1772,126 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
             font-size: 13px;
             font-weight: 700;
             margin-top: 10px;
+          }
+
+          .dictionary-preview-controls {
+            position: absolute;
+            left: 10px;
+            right: 10px;
+            bottom: 14px;
+            display: grid;
+            grid-template-columns: 1fr;
+            justify-items: center;
+            margin: 0;
+          }
+
+          .dictionary-preview-controls .dictionary-page-select {
+            display: none;
+          }
+
+          .dictionary-preview-controls .dictionary-zoom-controls {
+            display: none;
+          }
+
+          .dictionary-preview-callout {
+            font-size: 11px;
+          }
+
+          .dictionary-preview-callout span {
+            min-height: 28px;
+            padding: 5px 8px;
+          }
+
+          .dictionary-preview-callout i {
+            width: 38px;
+          }
+
+          .dictionary-preview-callout-search {
+            top: 56px;
+            left: 10px;
+          }
+
+          .dictionary-preview-callout-search i {
+            width: 30px;
+            transform: rotate(-28deg);
+          }
+
+          .dictionary-preview-callout-letters {
+            top: 56px;
+            right: 10px;
+          }
+
+          .dictionary-preview-callout-letters i {
+            width: 30px;
+            transform: rotate(208deg);
+          }
+
+          .dictionary-preview-callout-pages {
+            top: auto;
+            right: 18px;
+            bottom: 126px;
+          }
+
+          .dictionary-preview-callout-pages i {
+            transform: rotate(164deg);
+          }
+
+          .dictionary-preview-callout-voice {
+            top: 124px;
+            left: auto;
+            right: 10px;
+            flex-direction: row-reverse;
+          }
+
+          .dictionary-preview-callout-voice i {
+            width: 38px;
+            transform: rotate(192deg);
+          }
+
+          .dictionary-preview-callout-views {
+            left: 10px;
+            bottom: 78px;
+          }
+
+          .dictionary-preview-callout-views i {
+            width: 44px;
+            transform: rotate(12deg);
+          }
+
+          .dictionary-preview-callout-zoom {
+            display: none;
+          }
+
+          .dictionary-premium-banner {
+            padding: 10px 14px calc(10px + var(--safe-bottom));
+          }
+
+          .dictionary-premium-banner .container {
+            grid-template-columns: 1fr;
+            gap: 10px;
+            padding: 0;
+          }
+
+          .dictionary-premium-copy {
+            align-items: flex-start;
+            gap: 10px;
+          }
+
+          .dictionary-premium-copy > div:first-child {
+            width: 36px;
+            height: 36px;
+          }
+
+          .dictionary-premium-copy strong {
+            font-size: 14px;
+          }
+
+          .dictionary-premium-copy p {
+            font-size: 12px;
+          }
+
+          .dictionary-premium-banner .btn {
+            width: 100%;
           }
         }
       `}</style>

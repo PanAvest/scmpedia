@@ -71,9 +71,9 @@ function AppShell() {
   const handleOpenTermFromDict = (entry: Entry) => navigate(`/term/${termToSlug(entry.term)}`, { state: { from: 'dictionary' } })
   const handleOpenTermFromChat = (entry: Entry) => navigate(`/term/${termToSlug(entry.term)}`, { state: { from: 'chat' } })
   const handleSignIn = () => navigate('/auth')
-  const handleSignOut = () => {
-    auth.signOut()
-    navigate('/')
+  const handleSignOut = async () => {
+    await auth.signOut()
+    window.location.replace('/')
   }
   const handleOpenPricing = () => {
     setPricingOpen(true)
