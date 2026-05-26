@@ -309,7 +309,6 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
       }
       let offset = 0
       let all: Entry[] = []
-      let displayedFirstBatch = false
       try {
         while (!cancelled) {
           const res = await fetch(`/api/words?browse=1&limit=${DICTIONARY_FETCH_LIMIT}&offset=${offset}`, {
@@ -320,11 +319,6 @@ export const DictionaryModePage: React.FC<DictionaryModePageProps> = ({ isPremiu
           const next = Array.isArray(body?.words) ? body.words.map(normalizeEntry).filter((entry: Entry) => entry.term && entry.definition) : []
           all = [...all, ...next]
           if (!cancelled) setLoadedCount(all.length)
-          if (!cancelled && !displayedFirstBatch && all.length >= 1200) {
-            displayedFirstBatch = true
-            setEntries(all)
-            setLoading(false)
-          }
           if (!next.length || next.length < DICTIONARY_FETCH_LIMIT) break
           offset = Number(body?.nextOffset || offset + next.length)
         }
