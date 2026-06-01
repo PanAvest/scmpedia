@@ -5,7 +5,9 @@ import Papa from 'papaparse'
 import { createClient } from '@supabase/supabase-js'
 
 const root = process.cwd()
-const csvPath = process.argv[2] || path.join(root, 'data', 'scmpedia_full_UPDATED.csv')
+const publicCsvPath = path.join(root, 'public', 'scmpedia_full_UPDATED.csv')
+const dataCsvPath = path.join(root, 'data', 'scmpedia_full_UPDATED.csv')
+const csvPath = process.argv[2] || publicCsvPath
 
 try {
   const envText = await fs.readFile(path.join(root, '.env.local'), 'utf8')
@@ -48,7 +50,18 @@ const chunk = (items, size) => {
   return chunks
 }
 
-const csv = await fs.readFile(csvPath, 'utf8')
+const readCsv = async () => {
+  try {
+    return await fs.readFile(csvPath, 'utf8')
+  } catch (error) {
+    if (process.argv[2] || csvPath !== publicCsvPath) throw error
+    return fs.readFile(dataCsvPath, 'utf8')
+  }
+}
+
+const withoutSourceKey = (rows) => rows.map(({ source_key, ...row }) => row)
+
+const csv = await readCsv()
 const parsed = Papa.parse(csv, {
   header: true,
   skipEmptyLines: true,
@@ -82,8 +95,16 @@ for (const batch of chunk(entries, 500)) {
   const { error } = await supabase.from('words').upsert(batch, { onConflict: 'source_key' })
   if (error) {
     if (String(error.message || '').includes('source_key')) {
-      console.error('The words table is missing the source_key import column.')
-      console.error('Run supabase-allow-duplicate-words.sql in Supabase SQL Editor, then rerun this import.')
+      const fallback = await supabase.from('words').upsert(withoutSourceKey(batch), { onConflict: 'term' })
+      if (fallback.error) {
+        console.error('The words table is missing the source_key import column and term fallback failed.')
+        console.error('Run supabase-allow-duplicate-words.sql in Supabase SQL Editor to preserve duplicate term rows.')
+        console.error(fallback.error)
+        process.exit(1)
+      }
+      uploaded += batch.length
+      console.log(`Uploaded ${uploaded}/${entries.length} using term fallback`)
+      continue
     }
     console.error(error)
     process.exit(1)

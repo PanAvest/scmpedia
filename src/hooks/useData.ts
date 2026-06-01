@@ -1,6 +1,23 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import Papa from 'papaparse'
 import type { Entry } from '../types'
 import { cleanReplacementChars, getEntryTags, LOCAL_ENTRIES_KEY } from '../utils'
+
+const DICTIONARY_CSV_SOURCES = ['/scmpedia_full_UPDATED.csv', '/scmpedia_full.csv']
+
+const normalizeEntry = (r: any): Entry => {
+  const entry = {
+    id: r.id ? String(r.id) : undefined,
+    term: cleanReplacementChars(String(r.term || r.Term || '')).trim(),
+    definition: cleanReplacementChars(String(r.definition || r.Definition || '')).trim(),
+    synonyms: cleanReplacementChars(String(r.synonyms || r.Synonyms || '')),
+    tags: cleanReplacementChars(String(r.tags || r.Tags || '')),
+    pos: cleanReplacementChars(String(r.pos || r.Pos || '')),
+    pronunciation: cleanReplacementChars(String(r.pronunciation || r.Pronunciation || '')),
+    examples: cleanReplacementChars(String(r.examples || r.Examples || '')),
+  }
+  return { ...entry, tags: getEntryTags(entry).join(', ') }
+}
 
 export function useData(accessToken?: string) {
   const [data, setData] = useState<Entry[]>([])
@@ -8,20 +25,6 @@ export function useData(accessToken?: string) {
   const [serverBacked, setServerBacked] = useState(false)
   const fuseLibRef = useRef<any>(null)
   const fuseRef = useRef<any>(null)
-
-  const normalizeEntry = (r: any): Entry => {
-    const entry = {
-      id: r.id ? String(r.id) : undefined,
-      term: cleanReplacementChars(String(r.term || r.Term || '')).trim(),
-      definition: cleanReplacementChars(String(r.definition || r.Definition || '')).trim(),
-      synonyms: cleanReplacementChars(String(r.synonyms || r.Synonyms || '')),
-      tags: cleanReplacementChars(String(r.tags || r.Tags || '')),
-      pos: cleanReplacementChars(String(r.pos || r.Pos || '')),
-      pronunciation: cleanReplacementChars(String(r.pronunciation || r.Pronunciation || '')),
-      examples: cleanReplacementChars(String(r.examples || r.Examples || '')),
-    }
-    return { ...entry, tags: getEntryTags(entry).join(', ') }
-  }
 
   const readLocalEntries = useCallback(() => {
     try {
@@ -33,6 +36,11 @@ export function useData(accessToken?: string) {
     } catch {
       return []
     }
+  }, [])
+
+  const parseCsvEntries = useCallback((csv: string) => {
+    const parsed = Papa.parse<Record<string, unknown>>(csv, { header: true, skipEmptyLines: true })
+    return parsed.data.map(normalizeEntry).filter((e: Entry) => e.term && e.definition)
   }, [])
 
   const applyEntries = useCallback((entries: Entry[]) => {
@@ -54,6 +62,22 @@ export function useData(accessToken?: string) {
       setStatus('empty')
     }
   }, [])
+
+  const loadBundledWords = useCallback(async () => {
+    for (const src of DICTIONARY_CSV_SOURCES) {
+      try {
+        const res = await fetch(src, { cache: 'no-store' })
+        if (!res.ok) continue
+        const entries = parseCsvEntries(await res.text())
+        if (!entries.length) continue
+        applyEntries(entries)
+        return true
+      } catch (error) {
+        console.warn(`Bundled dictionary load failed for ${src}:`, error)
+      }
+    }
+    return false
+  }, [applyEntries, parseCsvEntries])
 
   const searchServerWords = useCallback(async (query: string, limit = 8, options?: { suggest?: boolean }) => {
     const q = query.trim()
@@ -147,12 +171,15 @@ export function useData(accessToken?: string) {
       const localEntries = readLocalEntries()
       if (localEntries.length) {
         applyEntries(localEntries)
+        setServerBacked(true)
         return
       }
       setServerBacked(true)
-      setStatus('ready')
+      void loadBundledWords().then((loaded) => {
+        if (!loaded) setStatus('ready')
+      })
     })
-  }, [applyEntries, readLocalEntries])
+  }, [applyEntries, loadBundledWords, readLocalEntries])
 
   useEffect(() => {
     const syncLocalEntries = (event?: StorageEvent) => {
