@@ -133,6 +133,28 @@ export const HomePage: React.FC<HomePageProps> = ({
 
   const stopWords = /^(what is|what's|define|explain|describe|meaning of|tell me about|search for|look up|do you know)\s+/i
 
+  const getLocalSuggestions = useCallback((query: string) => {
+    const fuse = fuseRef.current
+    if (!fuse) return []
+
+    const searches = [query]
+    if (query.length > 4) searches.push(query.slice(0, 4))
+
+    const seen = new Set<string>()
+    const next: Entry[] = []
+    for (const term of searches) {
+      for (const hit of fuse.search(term)) {
+        const entry = hit.item as Entry
+        const key = getEntryId(entry).toLowerCase()
+        if (seen.has(key)) continue
+        seen.add(key)
+        next.push(entry)
+        if (next.length >= 5) return next
+      }
+    }
+    return next
+  }, [fuseRef])
+
   // Suggestions
   useEffect(() => {
     const requestId = ++suggestionsRequestRef.current
@@ -144,7 +166,7 @@ export const HomePage: React.FC<HomePageProps> = ({
     }
     if (fuseRef.current) {
       setSuggestionsLoading(false)
-      setSuggestions(fuseRef.current.search(query).slice(0, 5).map((h: any) => h.item))
+      setSuggestions(getLocalSuggestions(query))
       return
     }
     if (serverBacked) {
@@ -162,7 +184,7 @@ export const HomePage: React.FC<HomePageProps> = ({
     }
     setSuggestions([])
     setSuggestionsLoading(false)
-  }, [input, fuseRef, searchServerWords, serverBacked])
+  }, [input, fuseRef, getLocalSuggestions, searchServerWords, serverBacked])
 
   useEffect(() => {
     onChatModeChange(messages.length > 0)
