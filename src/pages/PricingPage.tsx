@@ -35,7 +35,7 @@ const CURRENCY = 'GH₵'
 const money = (n: number) => `${CURRENCY}${Number.isInteger(n) ? n : n.toFixed(2)}`
 // Yearly discount vs. paying monthly for 12 months, as a rounded percentage.
 const savingsPct = (monthly: number, annual: number) =>
-  monthly > 0 ? Math.round((1 - annual / (monthly * 12)) * 100) : 0
+  monthly > 0 ? Math.max(0, Math.round((1 - annual / (monthly * 12)) * 100)) : 0
 // Absolute cedis saved per year by choosing annual over monthly.
 const savingsAmount = (monthly: number, annual: number) => Math.max(monthly * 12 - annual, 0)
 
@@ -271,6 +271,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe
             const price = annual ? effAnnual : effMonthly
             const pct = savingsPct(effMonthly, effAnnual)
             const saveAmt = savingsAmount(effMonthly, effAnnual)
+            const hasDiscount = saveAmt > 0 && pct > 0
             const perMonthAnnual = effAnnual / 12
             const planCheckoutId = plan.tier ? `${plan.tier}-${annual ? 'annual' : 'monthly'}` : null
             const isCheckingOut = !!planCheckoutId && checkingOut === planCheckoutId
@@ -337,7 +338,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 38, fontWeight: 900, color: plan.color, lineHeight: 1 }}>{money(price)}</span>
                     <span style={{ fontSize: 14, color: 'var(--text-sub)' }}>/{isFree ? 'forever' : annual ? 'year' : 'month'}</span>
-                    {!isFree && annual && (
+                    {!isFree && annual && hasDiscount && (
                       <span style={{ fontSize: 14, color: 'var(--text-sub)', textDecoration: 'line-through', opacity: 0.75 }}>
                         {money(effMonthly * 12)}
                       </span>
@@ -348,13 +349,17 @@ export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe
                     <div style={{ fontSize: 12, color: 'var(--text-sub)', marginTop: 8 }}>No credit card required</div>
                   ) : (
                     <>
-                      <div style={{ marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--pricing-green-soft)', color: 'var(--pricing-green)', fontSize: 12, fontWeight: 800, padding: '4px 10px', borderRadius: 999 }}>
-                        {annual ? `Save ${pct}% · ${money(saveAmt)}/yr` : `Save ${pct}% if billed yearly`}
-                      </div>
+                      {hasDiscount && (
+                        <div style={{ marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--pricing-green-soft)', color: 'var(--pricing-green)', fontSize: 12, fontWeight: 800, padding: '4px 10px', borderRadius: 999 }}>
+                          {annual ? `Save ${pct}% · ${money(saveAmt)}/yr` : `Save ${pct}% if billed yearly`}
+                        </div>
+                      )}
                       <div style={{ fontSize: 12, color: 'var(--text-sub)', marginTop: 8 }}>
                         {annual
                           ? `≈ ${money(perMonthAnnual)}/month, billed annually`
-                          : `or ${money(effAnnual)}/year — save ${money(saveAmt)}`}
+                          : hasDiscount
+                          ? `or ${money(effAnnual)}/year — save ${money(saveAmt)}`
+                          : `or ${money(effAnnual)}/year`}
                       </div>
                     </>
                   )}

@@ -13,9 +13,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
-  const service = SUPABASE_URL && SERVICE_ROLE_KEY
-    ? createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } })
-    : null
+  let service = null
+  try {
+    service = SUPABASE_URL && SERVICE_ROLE_KEY
+      ? createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } })
+      : null
+  } catch {
+    service = null // degrade to default pricing rather than 500
+  }
 
   const plans = (await loadAllPlans(service)).filter((p) => p.active)
   res.setHeader('Cache-Control', 'public, max-age=30, stale-while-revalidate=300')

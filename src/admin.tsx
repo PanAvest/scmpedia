@@ -767,9 +767,7 @@ function AdminApp() {
               <div className="form-grid">
                 {plans.map((p) => (
                   <div className="form-row" key={p.id}>
-                    <label className="label">
-                      {p.label} · {p.period === 'annual' ? 'Yearly' : 'Monthly'}
-                    </label>
+                    <label className="label">{p.label}</label>
                     <div className="price-field">
                       <span className="price-affix">GH₵</span>
                       <input

@@ -693,6 +693,7 @@ export default defineConfig(({ mode }) => {
                     metadata: {
                       user_id: userData.user.id,
                       plan: planId,
+                      amount: plan.amount,
                       duration_days: plan.duration_days,
                       product: 'scmpedia-premium',
                     },
@@ -805,7 +806,8 @@ export default defineConfig(({ mode }) => {
                   )
                   return
                 }
-                if (!plan || payment.data.metadata?.user_id !== userData.user.id || Number(payment.data.amount) !== plan.amount) {
+                const expectedAmount = Number(payment.data.metadata?.amount) > 0 ? Number(payment.data.metadata?.amount) : plan?.amount
+                if (!plan || payment.data.metadata?.user_id !== userData.user.id || Number(payment.data.amount) !== expectedAmount) {
                   res.statusCode = 400
                   res.setHeader('Content-Type', 'application/json')
                   res.end(
@@ -958,6 +960,21 @@ export default defineConfig(({ mode }) => {
                     res.setHeader('Content-Type', 'application/json')
                     res.end(JSON.stringify({ error: 'No valid plans to update' }))
                     return
+                  }
+                  const byTier: Record<string, { monthly?: number; annual?: number }> = {}
+                  for (const r of rows) {
+                    const entry = byTier[r.tier] ?? {}
+                    if (r.period === 'monthly') entry.monthly = Number(r.amount)
+                    if (r.period === 'annual') entry.annual = Number(r.amount)
+                    byTier[r.tier] = entry
+                  }
+                  for (const [tier, pair] of Object.entries(byTier)) {
+                    if (pair.monthly !== undefined && pair.annual !== undefined && pair.annual > pair.monthly * 12) {
+                      res.statusCode = 400
+                      res.setHeader('Content-Type', 'application/json')
+                      res.end(JSON.stringify({ error: `For ${tier}, the yearly price must not exceed 12× the monthly price.` }))
+                      return
+                    }
                   }
                   const { error } = await service.from('scmpedia_plans').upsert(rows, { onConflict: 'id' })
                   if (error) {

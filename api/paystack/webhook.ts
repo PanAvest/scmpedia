@@ -50,7 +50,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     auth: { persistSession: false, autoRefreshToken: false },
   })
   const plan = await loadPlan(admin, planId)
-  if (!plan || !userId || !reference || Number(payment.amount) !== plan.amount) {
+  // Validate against the amount locked in at checkout time (metadata), not the current
+  // (possibly admin-edited) price. Fall back to the plan amount for older references.
+  const expectedAmount = Number(metadata.amount) > 0 ? Number(metadata.amount) : plan?.amount
+  if (!plan || !userId || !reference || Number(payment.amount) !== expectedAmount) {
     res.status(200).json({ received: true, ignored: true })
     return
   }

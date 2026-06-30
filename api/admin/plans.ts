@@ -63,6 +63,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return
     }
 
+    // When both periods for a tier are present, the yearly price must be a real
+    // discount (<= 12x monthly) so the pricing page never shows negative savings.
+    const byTier: Record<string, { monthly?: number; annual?: number }> = {}
+    for (const r of rows) {
+      const tier = String(r.tier)
+      const entry = byTier[tier] ?? {}
+      if (r.period === 'monthly') entry.monthly = Number(r.amount)
+      if (r.period === 'annual') entry.annual = Number(r.amount)
+      byTier[tier] = entry
+    }
+    for (const [tier, pair] of Object.entries(byTier)) {
+      if (pair.monthly !== undefined && pair.annual !== undefined && pair.annual > pair.monthly * 12) {
+        res.status(400).json({ error: `For ${tier}, the yearly price must not exceed 12× the monthly price.` })
+        return
+      }
+    }
+
     const { error } = await service.from('scmpedia_plans').upsert(rows, { onConflict: 'id' })
     if (error) {
       res.status(500).json({

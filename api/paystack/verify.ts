@@ -62,7 +62,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const metadata = payment.data.metadata || {}
   const planId = String(metadata.plan || '').toLowerCase()
   const plan = await loadPlan(admin, planId)
-  if (!plan || metadata.user_id !== userData.user.id || Number(payment.data.amount) !== plan.amount) {
+  // Validate against the amount locked in at checkout time (metadata), so an admin
+  // price edit between init and verify can't reject an already-paid customer.
+  // Fall back to the current plan amount for older/in-flight references.
+  const expectedAmount = Number(metadata.amount) > 0 ? Number(metadata.amount) : plan?.amount
+  if (!plan || metadata.user_id !== userData.user.id || Number(payment.data.amount) !== expectedAmount) {
     res.status(400).json({ error: 'Payment does not match this subscription' })
     return
   }

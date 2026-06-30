@@ -69,6 +69,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       metadata: {
         user_id: userData.user.id,
         plan: planId,
+        amount: plan.amount,
         duration_days: plan.duration_days,
         product: 'scmpedia-premium',
       },
