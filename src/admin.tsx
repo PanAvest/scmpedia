@@ -21,6 +21,16 @@ type PapaParse = {
 const LOCAL_ENTRIES_KEY = 'scmpedia-admin-entries-v1'
 const ADMIN_TOKEN_KEY = 'scmpedia-admin-token-v1'
 
+type PlanRow = {
+  id: string
+  tier: string
+  period: string
+  amount: number // pesewas (GHS * 100)
+  duration_days: number
+  label: string
+  active: boolean
+}
+
 const STYLES = `
 :root {
   --bg: #f7f5f2;
@@ -79,6 +89,9 @@ body { margin: 0; font-family: "Google Sans", "Segoe UI", Roboto, Helvetica, Ari
 .input, .textarea { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: 14px; font-family: inherit; background: #fff; }
 .textarea { min-height: 90px; resize: vertical; }
 .helper { font-size: 12px; color: var(--text-sub); margin-top: 6px; }
+.price-field { display: flex; align-items: center; gap: 8px; }
+.price-field .input { flex: 1; min-width: 0; }
+.price-affix { font-size: 13px; font-weight: 700; color: var(--text-sub); white-space: nowrap; }
 .status { font-size: 12px; color: var(--primary-dark); font-weight: 600; width: 100%; }
 .status.success { color: #047857; }
 .status.warn { color: #b45309; }
@@ -135,6 +148,11 @@ function AdminApp() {
   const [totalCount, setTotalCount] = useState<number | null>(null)
   const [status, setStatus] = useState('Ready')
   const [statusTone, setStatusTone] = useState<'default' | 'success' | 'warn' | 'error'>('default')
+  const [plans, setPlans] = useState<PlanRow[]>([])
+  const [priceDrafts, setPriceDrafts] = useState<Record<string, string>>({})
+  const [plansLoading, setPlansLoading] = useState(false)
+  const [plansStatus, setPlansStatus] = useState('')
+  const [plansTone, setPlansTone] = useState<'default' | 'success' | 'error'>('default')
   const papaRef = useRef<PapaParse | null>(null)
 
   const filtered = useMemo(() => {
@@ -320,8 +338,66 @@ function AdminApp() {
     }
   }
 
+  const loadPlans = async () => {
+    setPlansLoading(true)
+    try {
+      const res = await fetch('/api/admin/plans', {
+        headers: { Authorization: `Bearer ${adminToken}` },
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body?.error || 'Could not load plans')
+      const list: PlanRow[] = Array.isArray(body.plans) ? body.plans : []
+      setPlans(list)
+      setPriceDrafts(Object.fromEntries(list.map((p) => [p.id, String(p.amount / 100)])))
+      setPlansStatus('')
+      setPlansTone('default')
+    } catch (err) {
+      setPlansStatus(err instanceof Error ? err.message : 'Could not load plans')
+      setPlansTone('error')
+    } finally {
+      setPlansLoading(false)
+    }
+  }
+
+  const savePlans = async () => {
+    const updates = plans.map((p) => ({
+      id: p.id,
+      amount: Math.round(parseFloat(priceDrafts[p.id] ?? '') * 100),
+    }))
+    if (updates.some((u) => !Number.isFinite(u.amount) || u.amount <= 0)) {
+      setPlansStatus('Enter a valid price (greater than 0) for every plan.')
+      setPlansTone('error')
+      return
+    }
+    setPlansLoading(true)
+    setPlansStatus('Saving prices...')
+    setPlansTone('default')
+    try {
+      const res = await fetch('/api/admin/plans', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+        body: JSON.stringify({ plans: updates }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body?.error || 'Could not save prices')
+      const list: PlanRow[] = Array.isArray(body.plans) ? body.plans : plans
+      setPlans(list)
+      setPriceDrafts(Object.fromEntries(list.map((p) => [p.id, String(p.amount / 100)])))
+      setPlansStatus('Saved. New checkouts use these prices immediately.')
+      setPlansTone('success')
+    } catch (err) {
+      setPlansStatus(err instanceof Error ? err.message : 'Could not save prices')
+      setPlansTone('error')
+    } finally {
+      setPlansLoading(false)
+    }
+  }
+
   useEffect(() => {
-    if (authed) loadCsv()
+    if (authed) {
+      loadCsv()
+      void loadPlans()
+    }
   }, [authed])
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -676,6 +752,52 @@ function AdminApp() {
             </div>
           </div>
           <div className="helper">Admin changes save directly to the server. Download the UTF-8 CSV when you want a backup copy.</div>
+        </section>
+
+        <section className="panel" style={{ gridColumn: '1 / -1' }}>
+          <div className="panel-title-row">
+            <div className="panel-title">Subscription Pricing</div>
+            {plansLoading && <span className="spinner" />}
+          </div>
+          <div className="helper" style={{ marginTop: 0, marginBottom: 14 }}>
+            Set the price (Ghana Cedis) for each plan. Saved prices apply to new checkouts immediately — the server validates every payment against these amounts.
+          </div>
+          {plans.length ? (
+            <>
+              <div className="form-grid">
+                {plans.map((p) => (
+                  <div className="form-row" key={p.id}>
+                    <label className="label">
+                      {p.label} · {p.period === 'annual' ? 'Yearly' : 'Monthly'}
+                    </label>
+                    <div className="price-field">
+                      <span className="price-affix">GH₵</span>
+                      <input
+                        className="input"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={priceDrafts[p.id] ?? ''}
+                        onChange={(e) => setPriceDrafts((d) => ({ ...d, [p.id]: e.target.value }))}
+                      />
+                      <span className="price-affix">/{p.period === 'annual' ? 'yr' : 'mo'}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+                <button className="btn btn-primary" onClick={savePlans} disabled={plansLoading}>
+                  Save Prices
+                </button>
+                <button className="btn btn-secondary" onClick={loadPlans} disabled={plansLoading}>
+                  Reload
+                </button>
+                <div className={`status ${plansTone === 'default' ? '' : plansTone}`}>{plansStatus}</div>
+              </div>
+            </>
+          ) : (
+            <div className="helper">{plansLoading ? 'Loading plans…' : plansStatus || 'No plans loaded.'}</div>
+          )}
         </section>
       </main>
     </div>

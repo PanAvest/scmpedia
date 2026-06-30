@@ -148,6 +148,8 @@ function AppShell() {
           onSubscribe={handleSubscribe}
           onSignIn={handleSignIn}
           user={auth.user}
+          checkingOut={subscription.checkingOut}
+          error={subscription.error}
         />
       </div>
     </div>
@@ -212,6 +214,8 @@ function AppShell() {
                 onSubscribe={handleSubscribe}
                 onSignIn={handleSignIn}
                 user={auth.user}
+                checkingOut={subscription.checkingOut}
+                error={subscription.error}
               />
             }
           />

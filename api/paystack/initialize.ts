@@ -1,19 +1,12 @@
 import type { VercelRequest, VercelResponse } from '../vercel-types'
 import { createClient } from '@supabase/supabase-js'
 import { getBearerToken } from '../server-auth.js'
+import { loadPlan } from '../_plans.js'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_ANON_KEY
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY
-
-const plans = {
-  'student-monthly': { amount: 500, label: 'SCMPEDIA Student · Monthly', durationDays: 31 },
-  'student-annual': { amount: 5000, label: 'SCMPEDIA Student · Annual', durationDays: 366 },
-  'pro-monthly': { amount: 1200, label: 'SCMPEDIA Professional · Monthly', durationDays: 31 },
-  'pro-annual': { amount: 12000, label: 'SCMPEDIA Professional · Annual', durationDays: 366 },
-} as const
-
-type PlanId = keyof typeof plans
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -26,12 +19,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
-  const planId = String(req.body?.plan || '').toLowerCase() as PlanId
-  const plan = plans[planId]
-  if (!plan) {
-    res.status(400).json({ error: 'Invalid subscription plan' })
-    return
-  }
+  const planId = String(req.body?.plan || '').toLowerCase()
 
   const token = getBearerToken(req.headers.authorization)
   if (!token) {
@@ -57,6 +45,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
+  const planService = SERVICE_ROLE_KEY
+    ? createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } })
+    : null
+  const plan = await loadPlan(planService, planId)
+  if (!plan || !plan.active) {
+    res.status(400).json({ error: 'Invalid subscription plan' })
+    return
+  }
+
   const origin = String(req.headers.origin || `https://${req.headers.host}`)
   const response = await fetch('https://api.paystack.co/transaction/initialize', {
     method: 'POST',
@@ -72,7 +69,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       metadata: {
         user_id: userData.user.id,
         plan: planId,
-        duration_days: plan.durationDays,
+        duration_days: plan.duration_days,
         product: 'scmpedia-premium',
       },
     }),

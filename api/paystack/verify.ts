@@ -1,20 +1,12 @@
 import type { VercelRequest, VercelResponse } from '../vercel-types'
 import { createClient } from '@supabase/supabase-js'
 import { getBearerToken } from '../server-auth.js'
+import { loadPlan } from '../_plans.js'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_ANON_KEY
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY
-
-const plans = {
-  'student-monthly': { amount: 500, durationDays: 31 },
-  'student-annual': { amount: 5000, durationDays: 366 },
-  'pro-monthly': { amount: 1200, durationDays: 31 },
-  'pro-annual': { amount: 12000, durationDays: 366 },
-} as const
-
-type PlanId = keyof typeof plans
 
 const addDays = (days: number) => {
   const date = new Date()
@@ -63,18 +55,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
+  const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+
   const metadata = payment.data.metadata || {}
-  const planId = String(metadata.plan || '').toLowerCase() as PlanId
-  const plan = plans[planId]
+  const planId = String(metadata.plan || '').toLowerCase()
+  const plan = await loadPlan(admin, planId)
   if (!plan || metadata.user_id !== userData.user.id || Number(payment.data.amount) !== plan.amount) {
     res.status(400).json({ error: 'Payment does not match this subscription' })
     return
   }
 
-  const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  })
-  const expiresAt = addDays(plan.durationDays)
+  const expiresAt = addDays(plan.duration_days)
   await admin.from('scmpedia_payments').upsert(
     {
       reference,

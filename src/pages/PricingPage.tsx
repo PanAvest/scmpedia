@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Check, X, Crown, Zap, GraduationCap } from 'lucide-react'
 
 interface PricingPageProps {
@@ -6,6 +6,9 @@ interface PricingPageProps {
   onSubscribe: (plan: string) => void
   onSignIn: () => void
   user: unknown
+  // Plan id currently being sent to Paystack (e.g. 'pro-annual'), or null when idle.
+  checkingOut?: string | null
+  error?: string
 }
 
 type Plan = {
@@ -124,11 +127,7 @@ const COMPARE_ROWS: { feature: string; free: boolean | string; student: boolean 
   { feature: 'Favorites', free: 'Up to 20', student: 'Unlimited', pro: 'Unlimited' },
   { feature: 'Download & share', free: false, student: true, pro: true },
   { feature: 'Priority support', free: false, student: false, pro: true },
-  { feature: 'Price per year', free: money(0), student: money(50), pro: money(120) },
 ]
-
-const paidPlans = PLANS.filter((p) => p.monthly > 0)
-const maxSavings = Math.max(...paidPlans.map((p) => savingsPct(p.monthly, p.annual)))
 
 function FeatureCell({ value }: { value: boolean | string }) {
   if (typeof value === 'string') {
@@ -141,10 +140,40 @@ function FeatureCell({ value }: { value: boolean | string }) {
   )
 }
 
-export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe, onSignIn, user }) => {
+export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe, onSignIn, user, checkingOut = null, error = '' }) => {
   const [annual, setAnnual] = useState(true)
+  // Live prices (in cedis) keyed by plan id, fetched from /api/plans so admin edits show up.
+  const [livePrices, setLivePrices] = useState<Record<string, number>>({})
+
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/plans')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled || !data || !Array.isArray(data.plans)) return
+        const map: Record<string, number> = {}
+        for (const p of data.plans) {
+          if (p && typeof p.id === 'string' && typeof p.price === 'number') map[p.id] = p.price
+        }
+        setLivePrices(map)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const priceFor = (tier: 'student' | 'pro' | null, period: 'monthly' | 'annual', fallback: number) =>
+    tier ? livePrices[`${tier}-${period}`] ?? fallback : fallback
+
+  const paid = PLANS.filter((p) => p.tier)
+  const maxSavings = Math.max(
+    0,
+    ...paid.map((p) => savingsPct(priceFor(p.tier, 'monthly', p.monthly), priceFor(p.tier, 'annual', p.annual))),
+  )
 
   const handleCTA = (plan: Plan) => {
+    if (checkingOut) return
     if (plan.key === 'free') {
       if (!user) onSignIn()
       return
@@ -159,6 +188,17 @@ export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe
 
   return (
     <div className="pricing-page-v2" style={{ background: 'var(--pricing-page-bg)', minHeight: '100vh' }}>
+      {/* Connecting-to-Paystack overlay */}
+      {checkingOut && (
+        <div className="pp-overlay" role="status" aria-live="polite">
+          <div className="pp-overlay-card">
+            <span className="pp-spinner pp-spinner-lg" aria-hidden />
+            <div className="pp-overlay-title">Connecting to Paystack…</div>
+            <div className="pp-overlay-sub">Hold on — taking you to secure checkout.</div>
+          </div>
+        </div>
+      )}
+
       {/* Hero */}
       <div style={{ textAlign: 'center', padding: '58px 24px 46px', background: 'var(--pricing-hero-bg)', borderBottom: '1px solid var(--border)', position: 'relative', overflow: 'hidden' }}>
         <img src="/logo2.png" alt="" aria-hidden style={{ position: 'absolute', left: '7%', top: 18, width: 150, opacity: 'var(--pricing-mark-opacity)', transform: 'rotate(-30deg)' }} />
@@ -208,6 +248,11 @@ export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe
 
       {/* Cards */}
       <div className="container" style={{ paddingTop: 72, paddingBottom: 64 }}>
+        {error && (
+          <div className="pp-error" role="alert">
+            {error}
+          </div>
+        )}
         <div
           style={{
             display: 'grid',
@@ -221,10 +266,14 @@ export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe
           {PLANS.map((plan) => {
             const isPro = plan.key === 'pro'
             const isFree = plan.key === 'free'
-            const price = annual ? plan.annual : plan.monthly
-            const pct = savingsPct(plan.monthly, plan.annual)
-            const saveAmt = savingsAmount(plan.monthly, plan.annual)
-            const perMonthAnnual = plan.annual / 12
+            const effMonthly = priceFor(plan.tier, 'monthly', plan.monthly)
+            const effAnnual = priceFor(plan.tier, 'annual', plan.annual)
+            const price = annual ? effAnnual : effMonthly
+            const pct = savingsPct(effMonthly, effAnnual)
+            const saveAmt = savingsAmount(effMonthly, effAnnual)
+            const perMonthAnnual = effAnnual / 12
+            const planCheckoutId = plan.tier ? `${plan.tier}-${annual ? 'annual' : 'monthly'}` : null
+            const isCheckingOut = !!planCheckoutId && checkingOut === planCheckoutId
             return (
               <div
                 key={plan.key}
@@ -290,7 +339,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe
                     <span style={{ fontSize: 14, color: 'var(--text-sub)' }}>/{isFree ? 'forever' : annual ? 'year' : 'month'}</span>
                     {!isFree && annual && (
                       <span style={{ fontSize: 14, color: 'var(--text-sub)', textDecoration: 'line-through', opacity: 0.75 }}>
-                        {money(plan.monthly * 12)}
+                        {money(effMonthly * 12)}
                       </span>
                     )}
                   </div>
@@ -305,7 +354,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe
                       <div style={{ fontSize: 12, color: 'var(--text-sub)', marginTop: 8 }}>
                         {annual
                           ? `≈ ${money(perMonthAnnual)}/month, billed annually`
-                          : `or ${money(plan.annual)}/year — save ${money(saveAmt)}`}
+                          : `or ${money(effAnnual)}/year — save ${money(saveAmt)}`}
                       </div>
                     </>
                   )}
@@ -313,7 +362,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe
 
                 <button
                   onClick={() => handleCTA(plan)}
-                  disabled={isPremium && !isFree}
+                  disabled={(isPremium && !isFree) || (!!checkingOut && !isCheckingOut)}
                   className={`btn btn-${plan.ctaStyle === 'premium' ? 'premium' : 'outline'}`}
                   style={{
                     width: '100%',
@@ -322,7 +371,15 @@ export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe
                     ...(isPro && { background: 'var(--pricing-green)', color: '#fff', border: 'none' }),
                   }}
                 >
-                  {isPremium && !isFree ? 'Subscription active' : plan.cta}
+                  {isCheckingOut ? (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                      <span className="pp-spinner" aria-hidden /> Redirecting…
+                    </span>
+                  ) : isPremium && !isFree ? (
+                    'Subscription active'
+                  ) : (
+                    plan.cta
+                  )}
                 </button>
 
                 {plan.note && (
@@ -404,6 +461,23 @@ export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe
                 </div>
               </div>
             ))}
+
+            {/* Price row */}
+            <div
+              className="pricing-compare-grid"
+              style={{ display: 'grid', gridTemplateColumns: '1fr repeat(3, 140px)', borderTop: '1px solid var(--border)', background: 'var(--surface)' }}
+            >
+              <div style={{ padding: '14px 20px', fontSize: 13, fontWeight: 700, color: 'var(--text-sub)' }}>
+                Price per {annual ? 'year' : 'month'}
+              </div>
+              <div style={{ padding: '14px 0', textAlign: 'center', fontSize: 13, fontWeight: 800, color: 'var(--text-main)' }}>{money(0)}</div>
+              <div style={{ padding: '14px 0', textAlign: 'center', fontSize: 13, fontWeight: 800, color: 'var(--text-main)' }}>
+                {money(annual ? priceFor('student', 'annual', 50) : priceFor('student', 'monthly', 5))}
+              </div>
+              <div style={{ padding: '14px 0', textAlign: 'center', fontSize: 13, fontWeight: 800, color: 'var(--pricing-green)' }}>
+                {money(annual ? priceFor('pro', 'annual', 120) : priceFor('pro', 'monthly', 12))}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -413,7 +487,10 @@ export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe
           <p style={{ fontSize: 14, color: 'var(--text-sub)', marginBottom: 36 }}>Everything you need to know about our plans.</p>
 
           {[
-            { q: 'How much do I save with annual billing?', a: `Annual plans are billed once a year and save you about ${maxSavings}% versus paying monthly — that's ${money(savingsAmount(5, 50))}/year on the Student plan and ${money(savingsAmount(12, 120))}/year on the Professional plan.` },
+            {
+              q: 'How much do I save with annual billing?',
+              a: `Annual plans are billed once a year and save you about ${maxSavings}% versus paying monthly — that's ${money(savingsAmount(priceFor('student', 'monthly', 5), priceFor('student', 'annual', 50)))}/year on the Student plan and ${money(savingsAmount(priceFor('pro', 'monthly', 12), priceFor('pro', 'annual', 120)))}/year on the Professional plan.`,
+            },
             { q: 'Who qualifies for the Student plan?', a: 'Any enrolled student. We may ask you to confirm your student status with a valid student ID or school email. The Student plan includes everything except priority support.' },
             { q: 'Can I cancel anytime?', a: "Yes. You can cancel your subscription at any time from your account settings. You'll retain access until the end of your billing period." },
             { q: 'What payment methods do you accept?', a: 'We accept all major cards and mobile money via Paystack, billed securely in Ghana Cedis (GHS).' },
@@ -466,14 +543,71 @@ export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe
           --pricing-pro-shadow: 0 18px 44px rgba(0,0,0,0.28);
         }
 
+        /* Paystack loading UI */
+        .pp-spinner {
+          display: inline-block;
+          width: 15px;
+          height: 15px;
+          border-radius: 50%;
+          border: 2px solid rgba(128,128,128,0.35);
+          border-top-color: currentColor;
+          animation: pp-spin 0.7s linear infinite;
+        }
+        .pp-spinner-lg {
+          width: 34px;
+          height: 34px;
+          border-width: 3px;
+          border-color: var(--pricing-green-soft);
+          border-top-color: var(--pricing-green);
+        }
+        @keyframes pp-spin { to { transform: rotate(360deg); } }
+        .pp-overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 2000;
+          background: rgba(8,12,10,0.55);
+          backdrop-filter: blur(3px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 24px;
+          animation: pp-fade 0.18s ease;
+        }
+        .pp-overlay-card {
+          background: var(--surface);
+          border: 1px solid var(--border);
+          border-radius: 16px;
+          padding: 28px 32px;
+          text-align: center;
+          box-shadow: 0 20px 50px rgba(0,0,0,0.28);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 12px;
+          max-width: 320px;
+        }
+        .pp-overlay-title { font-weight: 800; font-size: 16px; color: var(--text-main); }
+        .pp-overlay-sub { font-size: 13px; color: var(--text-sub); }
+        @keyframes pp-fade { from { opacity: 0; } to { opacity: 1; } }
+        .pp-error {
+          max-width: 1000px;
+          margin: 0 auto 24px;
+          background: rgba(185,28,28,0.08);
+          color: #b91c1c;
+          border: 1px solid rgba(185,28,28,0.25);
+          border-radius: 12px;
+          padding: 12px 16px;
+          font-size: 13px;
+          font-weight: 600;
+          text-align: center;
+        }
+
         /* 3 cards stack straight to a single centred column to avoid an orphan card. */
         @media (max-width: 900px) {
           .pricing-grid {
             grid-template-columns: minmax(0, 460px) !important;
             justify-content: center !important;
           }
-        }
-        @media (max-width: 900px) {
           .pricing-compare {
             max-width: 100% !important;
           }

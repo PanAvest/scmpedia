@@ -3,6 +3,14 @@ import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
 import { createClient } from '@supabase/supabase-js'
 import { createHmac } from 'crypto'
+import { DEFAULT_PLANS, loadPlan, loadAllPlans } from './api/_plans'
+
+// Supabase's client builds a realtime client (needs a global WebSocket) at construction.
+// Node < 22 has none, and the dev middleware never opens a realtime channel, so a harmless
+// stub lets createClient() work locally without pulling in the `ws` package.
+if (typeof (globalThis as { WebSocket?: unknown }).WebSocket === 'undefined') {
+  ;(globalThis as { WebSocket?: unknown }).WebSocket = class {}
+}
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
@@ -615,17 +623,14 @@ export default defineConfig(({ mode }) => {
                   return
                 }
 
-                const plans: any = {
-                  'student-monthly': { amount: 500, durationDays: 31 },
-                  'student-annual': { amount: 5000, durationDays: 366 },
-                  'pro-monthly': { amount: 1200, durationDays: 31 },
-                  'pro-annual': { amount: 12000, durationDays: 366 },
-                }
                 const parsed = JSON.parse(body || '{}')
                 const planId = String(parsed.plan || '').toLowerCase()
-                const plan = plans[planId]
+                const planService = supabaseServiceRoleKey
+                  ? createClient(supabaseUrl, supabaseServiceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } })
+                  : null
+                const plan = await loadPlan(planService, planId)
                 const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '')
-                if (!plan) {
+                if (!plan || !plan.active) {
                   res.statusCode = 400
                   res.setHeader('Content-Type', 'application/json')
                   res.end(JSON.stringify({ error: 'Invalid subscription plan' }))
@@ -688,7 +693,7 @@ export default defineConfig(({ mode }) => {
                     metadata: {
                       user_id: userData.user.id,
                       plan: planId,
-                      duration_days: plan.durationDays,
+                      duration_days: plan.duration_days,
                       product: 'scmpedia-premium',
                     },
                   }),
@@ -785,14 +790,11 @@ export default defineConfig(({ mode }) => {
                   headers: { Authorization: `Bearer ${paystackSecretKey}` },
                 })
                 const payment = await response.json().catch(() => ({}))
-                const plans: any = {
-                  'student-monthly': { amount: 500, durationDays: 31 },
-                  'student-annual': { amount: 5000, durationDays: 366 },
-                  'pro-monthly': { amount: 1200, durationDays: 31 },
-                  'pro-annual': { amount: 12000, durationDays: 366 },
-                }
+                const adminService = createClient(supabaseUrl, supabaseServiceRoleKey, {
+                  auth: { persistSession: false, autoRefreshToken: false },
+                })
                 const planId = String(payment?.data?.metadata?.plan || '').toLowerCase()
-                const plan = plans[planId]
+                const plan = await loadPlan(adminService, planId)
                 if (!response.ok || !payment?.status || payment?.data?.status !== 'success') {
                   res.statusCode = 402
                   res.setHeader('Content-Type', 'application/json')
@@ -815,7 +817,7 @@ export default defineConfig(({ mode }) => {
                 }
 
                 const expiresAt = new Date()
-                expiresAt.setDate(expiresAt.getDate() + plan.durationDays)
+                expiresAt.setDate(expiresAt.getDate() + plan.duration_days)
                 const admin = createClient(supabaseUrl, supabaseServiceRoleKey, {
                   auth: { persistSession: false, autoRefreshToken: false },
                 })
@@ -861,6 +863,125 @@ export default defineConfig(({ mode }) => {
                 )
               }
             })
+          })
+
+          server.middlewares.use('/api/plans', async (req, res) => {
+            if (req.method !== 'GET') {
+              res.statusCode = 405
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify({ error: 'Method not allowed' }))
+              return
+            }
+            const service = supabaseUrl && supabaseServiceRoleKey
+              ? createClient(supabaseUrl, supabaseServiceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } })
+              : null
+            const all = await loadAllPlans(service)
+            res.statusCode = 200
+            res.setHeader('Content-Type', 'application/json')
+            res.end(
+              JSON.stringify({
+                currency: 'GHS',
+                plans: all
+                  .filter((p) => p.active)
+                  .map((p) => ({ id: p.id, tier: p.tier, period: p.period, amount: p.amount, price: p.amount / 100, label: p.label })),
+              }),
+            )
+          })
+
+          server.middlewares.use('/api/admin/plans', (req, res) => {
+            const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '')
+            if (!verifyAdminToken(token)) {
+              res.statusCode = 401
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify({ error: 'Admin sign-in required' }))
+              return
+            }
+            if (!supabaseUrl || !supabaseServiceRoleKey) {
+              res.statusCode = 500
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify({ error: 'Missing server configuration' }))
+              return
+            }
+            const service = createClient(supabaseUrl, supabaseServiceRoleKey, {
+              auth: { persistSession: false, autoRefreshToken: false },
+            })
+
+            if (req.method === 'GET') {
+              loadAllPlans(service)
+                .then((all) => {
+                  res.statusCode = 200
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ plans: all }))
+                })
+                .catch((err: any) => {
+                  res.statusCode = 500
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ error: err?.message || 'Could not load plans' }))
+                })
+              return
+            }
+
+            if (req.method === 'PUT' || req.method === 'POST') {
+              let body = ''
+              req.on('data', (chunk) => {
+                body += chunk
+              })
+              req.on('end', async () => {
+                try {
+                  const parsed = JSON.parse(body || '{}')
+                  const updates = Array.isArray(parsed.plans) ? parsed.plans : []
+                  const rows: any[] = []
+                  for (const update of updates) {
+                    const id = String(update?.id || '')
+                    const base = DEFAULT_PLANS[id]
+                    if (!base) continue
+                    const amount = Math.round(Number(update?.amount))
+                    if (!Number.isFinite(amount) || amount <= 0) {
+                      res.statusCode = 400
+                      res.setHeader('Content-Type', 'application/json')
+                      res.end(JSON.stringify({ error: `Enter a valid price (greater than 0) for ${base.label}` }))
+                      return
+                    }
+                    rows.push({
+                      id,
+                      tier: base.tier,
+                      period: base.period,
+                      amount,
+                      duration_days: base.duration_days,
+                      label: typeof update?.label === 'string' && update.label.trim() ? update.label.trim() : base.label,
+                      active: update?.active === undefined ? true : Boolean(update.active),
+                      updated_at: new Date().toISOString(),
+                    })
+                  }
+                  if (!rows.length) {
+                    res.statusCode = 400
+                    res.setHeader('Content-Type', 'application/json')
+                    res.end(JSON.stringify({ error: 'No valid plans to update' }))
+                    return
+                  }
+                  const { error } = await service.from('scmpedia_plans').upsert(rows, { onConflict: 'id' })
+                  if (error) {
+                    res.statusCode = 500
+                    res.setHeader('Content-Type', 'application/json')
+                    res.end(JSON.stringify({ error: `Could not save prices: ${error.message}. Has the scmpedia_plans table been created?` }))
+                    return
+                  }
+                  const all = await loadAllPlans(service)
+                  res.statusCode = 200
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ plans: all }))
+                } catch (err: any) {
+                  res.statusCode = 500
+                  res.setHeader('Content-Type', 'application/json')
+                  res.end(JSON.stringify({ error: err?.message || 'Could not save prices' }))
+                }
+              })
+              return
+            }
+
+            res.statusCode = 405
+            res.setHeader('Content-Type', 'application/json')
+            res.end(JSON.stringify({ error: 'Method not allowed' }))
           })
 
           server.middlewares.use('/api/words', async (req, res) => {
