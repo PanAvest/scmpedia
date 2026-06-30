@@ -616,8 +616,10 @@ export default defineConfig(({ mode }) => {
                 }
 
                 const plans: any = {
-                  monthly: { amount: 2258, durationDays: 31 },
-                  annual: { amount: 22578, durationDays: 366 },
+                  'student-monthly': { amount: 500, durationDays: 31 },
+                  'student-annual': { amount: 5000, durationDays: 366 },
+                  'pro-monthly': { amount: 1200, durationDays: 31 },
+                  'pro-annual': { amount: 12000, durationDays: 366 },
                 }
                 const parsed = JSON.parse(body || '{}')
                 const planId = String(parsed.plan || '').toLowerCase()
@@ -784,8 +786,10 @@ export default defineConfig(({ mode }) => {
                 })
                 const payment = await response.json().catch(() => ({}))
                 const plans: any = {
-                  monthly: { amount: 2258, durationDays: 31 },
-                  annual: { amount: 22578, durationDays: 366 },
+                  'student-monthly': { amount: 500, durationDays: 31 },
+                  'student-annual': { amount: 5000, durationDays: 366 },
+                  'pro-monthly': { amount: 1200, durationDays: 31 },
+                  'pro-annual': { amount: 12000, durationDays: 366 },
                 }
                 const planId = String(payment?.data?.metadata?.plan || '').toLowerCase()
                 const plan = plans[planId]

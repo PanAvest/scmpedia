@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Check, X, Crown, Zap, Building2 } from 'lucide-react'
+import { Check, X, Crown, Zap, GraduationCap } from 'lucide-react'
 
 interface PricingPageProps {
   isPremium: boolean
@@ -8,20 +8,49 @@ interface PricingPageProps {
   user: unknown
 }
 
-const PLANS = [
+type Plan = {
+  key: string
+  tier: 'student' | 'pro' | null
+  label: string
+  icon: React.ReactNode
+  monthly: number
+  annual: number
+  color: string
+  accentBg: string
+  description: string
+  cta: string
+  ctaStyle: 'premium' | 'outline'
+  badge?: string
+  note?: string
+  features: string[]
+  missing: string[]
+}
+
+const CURRENCY = 'GH₵'
+
+// 5 → "GH₵5", 4.1666 → "GH₵4.17"
+const money = (n: number) => `${CURRENCY}${Number.isInteger(n) ? n : n.toFixed(2)}`
+// Yearly discount vs. paying monthly for 12 months, as a rounded percentage.
+const savingsPct = (monthly: number, annual: number) =>
+  monthly > 0 ? Math.round((1 - annual / (monthly * 12)) * 100) : 0
+// Absolute cedis saved per year by choosing annual over monthly.
+const savingsAmount = (monthly: number, annual: number) => Math.max(monthly * 12 - annual, 0)
+
+const PLANS: Plan[] = [
   {
     key: 'free',
+    tier: null,
     label: 'Free',
     icon: <Zap size={20} />,
-    monthlyPrice: 0,
-    annualPrice: 0,
+    monthly: 0,
+    annual: 0,
     color: 'var(--text-sub)',
     accentBg: 'var(--surface)',
     description: 'Perfect for getting started',
     cta: 'Get Started Free',
     ctaStyle: 'outline',
     features: [
-      '2 dictionary word searches per day',
+      '3 dictionary word searches per day',
       'Basic definitions & examples',
       'Standard contextual images',
       'Voice search (limited)',
@@ -30,72 +59,76 @@ const PLANS = [
     missing: [
       'Unlimited AI explanations',
       'Voice text-to-speech',
-      'Contextual images',
       'Dictionary mode (page-flip)',
-      'Favorites & history',
-      'Advanced search filters',
+      'Smart history & study flow',
     ],
   },
   {
-    key: 'pro',
-    label: 'Premium',
-    icon: <Crown size={20} />,
-    monthlyPrice: 22.58,
-    annualPrice: 225.78,
+    key: 'student',
+    tier: 'student',
+    label: 'Student',
+    icon: <GraduationCap size={20} />,
+    monthly: 5,
+    annual: 50,
     color: 'var(--pricing-green)',
-    accentBg: 'var(--card-bg)',
-    description: 'For serious supply chain professionals',
-    cta: 'Go Premium',
-    ctaStyle: 'premium',
-    badge: 'Most Popular',
+    accentBg: 'var(--surface)',
+    description: 'Full access at a student-friendly price',
+    cta: 'Get Student Plan',
+    ctaStyle: 'outline',
+    note: 'Valid student ID may be required.',
     features: [
       'Unlimited dictionary searches',
       'AI-powered explanations & insights',
-      'Voice search (unlimited)',
+      'Voice search & text-to-speech',
       'Dictionary mode (full access)',
       'Dark mode',
+      'Smart study flow & history',
+      'Download & share definitions',
+    ],
+    missing: ['Priority support'],
+  },
+  {
+    key: 'pro',
+    tier: 'pro',
+    label: 'Professional',
+    icon: <Crown size={20} />,
+    monthly: 12,
+    annual: 120,
+    color: 'var(--pricing-green)',
+    accentBg: 'var(--card-bg)',
+    description: 'For working supply chain professionals',
+    cta: 'Go Professional',
+    ctaStyle: 'premium',
+    badge: 'Most Popular',
+    features: [
+      'Everything in Student',
+      'Unlimited AI explanations & insights',
+      'Voice search (unlimited)',
+      'Dictionary mode (full access)',
       'Smart study flow & smart history',
       'Download & share definitions',
       'Priority support',
     ],
     missing: [],
   },
-  {
-    key: 'enterprise',
-    label: 'Team',
-    icon: <Building2 size={20} />,
-    monthlyPrice: null,
-    annualPrice: null,
-    color: 'var(--text-main)',
-    accentBg: 'var(--surface)',
-    description: 'For teams and organizations',
-    cta: 'Contact Sales',
-    ctaStyle: 'outline',
-    features: [
-      'Everything in Premium',
-      'Team management & roles',
-      'Custom integrations (API)',
-      'SSO / SAML authentication',
-      'Dedicated account manager',
-      'SLA & uptime guarantee',
-      'Custom onboarding',
-      'Volume licensing',
-    ],
-    missing: [],
-  },
 ]
 
-const COMPARE_ROWS = [
-  { feature: 'Dictionary searches', free: '2/day', pro: 'Unlimited', enterprise: 'Unlimited' },
-  { feature: 'AI-powered explanations', free: 'Limited', pro: true, enterprise: true },
-  { feature: 'Voice search', free: 'Limited', pro: 'Unlimited', enterprise: 'Unlimited' },
-  { feature: 'Dictionary mode', free: 'Basic', pro: true, enterprise: true },
-  { feature: 'Dark mode', free: false, pro: true, enterprise: true },
-  { feature: 'Smart history & study flow', free: 'Basic', pro: true, enterprise: true },
-  { feature: 'Favorites', free: 'Up to 20', pro: 'Unlimited', enterprise: 'Unlimited' },
-  { feature: 'Download & share', free: false, pro: true, enterprise: true },
-  { feature: 'Priority support', free: false, pro: true, enterprise: 'Priority + Dedicated' },
+const COMPARE_ROWS: { feature: string; free: boolean | string; student: boolean | string; pro: boolean | string }[] = [
+  { feature: 'Dictionary searches', free: '3/day', student: 'Unlimited', pro: 'Unlimited' },
+  { feature: 'AI-powered explanations', free: 'Limited', student: true, pro: true },
+  { feature: 'Voice search', free: 'Limited', student: 'Unlimited', pro: 'Unlimited' },
+  { feature: 'Voice text-to-speech', free: false, student: true, pro: true },
+  { feature: 'Dictionary mode', free: 'Basic', student: true, pro: true },
+  { feature: 'Dark mode', free: false, student: true, pro: true },
+  { feature: 'Smart history & study flow', free: 'Basic', student: true, pro: true },
+  { feature: 'Favorites', free: 'Up to 20', student: 'Unlimited', pro: 'Unlimited' },
+  { feature: 'Download & share', free: false, student: true, pro: true },
+  { feature: 'Priority support', free: false, student: false, pro: true },
+  { feature: 'Price per year', free: money(0), student: money(50), pro: money(120) },
 ]
+
+const paidPlans = PLANS.filter((p) => p.monthly > 0)
+const maxSavings = Math.max(...paidPlans.map((p) => savingsPct(p.monthly, p.annual)))
 
 function FeatureCell({ value }: { value: boolean | string }) {
   if (typeof value === 'string') {
@@ -104,24 +137,24 @@ function FeatureCell({ value }: { value: boolean | string }) {
   return value ? (
     <Check size={16} color="var(--success-green)" strokeWidth={2.5} />
   ) : (
-    <X size={16} color="var(--border)" strokeWidth={2} />
+    <X size={16} color="var(--text-sub)" strokeWidth={2} />
   )
 }
 
 export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe, onSignIn, user }) => {
   const [annual, setAnnual] = useState(true)
 
-  const handleCTA = (plan: typeof PLANS[0]) => {
+  const handleCTA = (plan: Plan) => {
     if (plan.key === 'free') {
       if (!user) onSignIn()
       return
     }
-    if (plan.key === 'enterprise') {
-      window.location.href = 'mailto:hello@scmpedia.com?subject=Enterprise%20Inquiry'
+    if (!user) {
+      onSignIn()
       return
     }
-    if (!user) { onSignIn(); return }
-    onSubscribe(annual ? 'annual' : 'monthly')
+    if (!plan.tier) return
+    onSubscribe(`${plan.tier}-${annual ? 'annual' : 'monthly'}`)
   }
 
   return (
@@ -129,30 +162,46 @@ export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe
       {/* Hero */}
       <div style={{ textAlign: 'center', padding: '58px 24px 46px', background: 'var(--pricing-hero-bg)', borderBottom: '1px solid var(--border)', position: 'relative', overflow: 'hidden' }}>
         <img src="/logo2.png" alt="" aria-hidden style={{ position: 'absolute', left: '7%', top: 18, width: 150, opacity: 'var(--pricing-mark-opacity)', transform: 'rotate(-30deg)' }} />
-        <h1 style={{ fontSize: 'clamp(32px, 4.6vw, 46px)', fontWeight: 900, color: 'var(--pricing-hero-title)', margin: '0 0 12px', lineHeight: 1.05, letterSpacing: 0 }}>
+        <h1 style={{ fontSize: 'clamp(30px, 4.6vw, 46px)', fontWeight: 900, color: 'var(--pricing-hero-title)', margin: '0 0 12px', lineHeight: 1.05, letterSpacing: 0 }}>
           Choose the plan that powers<br />
           your <span style={{ color: 'var(--pricing-green)' }}>supply chain success</span>
         </h1>
-        <p style={{ fontSize: 16, color: 'var(--pricing-hero-sub)', margin: '0 0 28px', maxWidth: 540, marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.6 }}>
-          Unlock unlimited knowledge, AI-powered insights, and expert tools designed for supply chain professionals.
+        <p style={{ fontSize: 16, color: 'var(--pricing-hero-sub)', margin: '0 0 28px', maxWidth: 560, marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.6 }}>
+          Unlock unlimited knowledge and AI-powered insights — a student plan for learners and a professional plan for the field. Pay yearly and save {maxSavings}%.
         </p>
 
         {/* Billing toggle */}
-        <div style={{ display: 'inline-flex', alignItems: 'center', padding: 4, background: 'var(--pricing-toggle-bg)', border: '1px solid var(--pricing-toggle-border)', borderRadius: 999, boxShadow: 'var(--shadow-sm)' }}>
-          <button onClick={() => setAnnual(false)} style={{ minWidth: 150, padding: '10px 22px', border: 'none', borderRadius: 999, background: !annual ? 'var(--pricing-green)' : 'transparent', color: !annual ? '#fff' : 'var(--text-main)', fontWeight: 700 }}>Monthly</button>
+        <div className="pricing-toggle" style={{ display: 'inline-flex', alignItems: 'center', padding: 4, background: 'var(--pricing-toggle-bg)', border: '1px solid var(--pricing-toggle-border)', borderRadius: 999, boxShadow: 'var(--shadow-sm)', maxWidth: '100%' }}>
           <button
-            onClick={() => setAnnual((v) => !v)}
+            onClick={() => setAnnual(false)}
+            aria-pressed={!annual}
+            style={{ minWidth: 120, padding: '10px 22px', border: 'none', borderRadius: 999, cursor: 'pointer', background: !annual ? 'var(--pricing-green)' : 'transparent', color: !annual ? '#fff' : 'var(--text-main)', fontWeight: 700 }}
+          >
+            Monthly
+          </button>
+          <button
+            onClick={() => setAnnual(true)}
+            aria-pressed={annual}
             style={{
-              minWidth: 170,
-              padding: '10px 22px',
+              minWidth: 140,
+              padding: '10px 18px',
               borderRadius: 999,
+              cursor: 'pointer',
               background: annual ? 'var(--pricing-green)' : 'transparent',
               border: 'none',
               color: annual ? '#fff' : 'var(--text-main)',
               fontWeight: 700,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              flexWrap: 'wrap',
             }}
           >
-            Annual <span style={{ marginLeft: 6, fontSize: 11, background: annual ? '#fff' : 'var(--pricing-green-soft)', color: 'var(--pricing-green)', padding: '2px 7px', borderRadius: 999 }}>Save 17%</span>
+            Annual
+            <span style={{ fontSize: 11, background: annual ? 'rgba(255,255,255,0.22)' : 'var(--pricing-green-soft)', color: annual ? '#fff' : 'var(--pricing-green)', padding: '2px 8px', borderRadius: 999, fontWeight: 800 }}>
+              Save {maxSavings}%
+            </span>
           </button>
         </div>
       </div>
@@ -162,24 +211,29 @@ export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
+            gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
             gap: 20,
-            maxWidth: 960,
+            maxWidth: 1000,
             margin: '0 auto 64px',
           }}
           className="pricing-grid"
         >
           {PLANS.map((plan) => {
             const isPro = plan.key === 'pro'
-            const price = annual ? plan.annualPrice : plan.monthlyPrice
+            const isFree = plan.key === 'free'
+            const price = annual ? plan.annual : plan.monthly
+            const pct = savingsPct(plan.monthly, plan.annual)
+            const saveAmt = savingsAmount(plan.monthly, plan.annual)
+            const perMonthAnnual = plan.annual / 12
             return (
               <div
                 key={plan.key}
+                className="pricing-card"
                 style={{
                   borderRadius: 16,
                   border: isPro ? '2px solid var(--pricing-green)' : '1px solid var(--border)',
                   background: isPro ? 'var(--pricing-pro-card-bg)' : plan.accentBg,
-                  padding: isPro ? '46px 28px 28px' : 28,
+                  padding: '46px 28px 28px',
                   display: 'flex',
                   flexDirection: 'column',
                   position: 'relative',
@@ -219,7 +273,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: isPro ? 'var(--pricing-green)' : 'var(--text-sub)',
+                    color: isFree ? 'var(--text-sub)' : 'var(--pricing-green)',
                     marginBottom: 16,
                   }}
                 >
@@ -227,51 +281,64 @@ export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe
                 </div>
 
                 <div style={{ fontSize: 18, fontWeight: 800, color: plan.color, marginBottom: 4 }}>{plan.label}</div>
-                <div style={{ fontSize: 13, color: 'var(--text-sub)', marginBottom: 20 }}>{plan.description}</div>
+                <div style={{ fontSize: 13, color: 'var(--text-sub)', marginBottom: 18, minHeight: 34 }}>{plan.description}</div>
 
-                {price !== null ? (
-                  <div style={{ marginBottom: 20 }}>
-                    <span style={{ fontSize: 36, fontWeight: 900, color: plan.color, lineHeight: 1 }}>{plan.key === 'free' ? 'GHC0' : `GHC${price}`}</span>
-                    <span style={{ fontSize: 14, color: 'var(--text-sub)' }}>/{annual && plan.key === 'pro' ? 'year' : 'month'}</span>
-                    {annual && price > 0 && (
-                      <div style={{ fontSize: 12, color: 'var(--text-sub)', marginTop: 2 }}>
-                        GHC22.58/month, billed annually
-                      </div>
+                {/* Price block */}
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 38, fontWeight: 900, color: plan.color, lineHeight: 1 }}>{money(price)}</span>
+                    <span style={{ fontSize: 14, color: 'var(--text-sub)' }}>/{isFree ? 'forever' : annual ? 'year' : 'month'}</span>
+                    {!isFree && annual && (
+                      <span style={{ fontSize: 14, color: 'var(--text-sub)', textDecoration: 'line-through', opacity: 0.75 }}>
+                        {money(plan.monthly * 12)}
+                      </span>
                     )}
                   </div>
-                ) : (
-                  <div style={{ fontSize: 28, fontWeight: 900, color: plan.color, marginBottom: 20 }}>Custom</div>
-                )}
+
+                  {isFree ? (
+                    <div style={{ fontSize: 12, color: 'var(--text-sub)', marginTop: 8 }}>No credit card required</div>
+                  ) : (
+                    <>
+                      <div style={{ marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--pricing-green-soft)', color: 'var(--pricing-green)', fontSize: 12, fontWeight: 800, padding: '4px 10px', borderRadius: 999 }}>
+                        {annual ? `Save ${pct}% · ${money(saveAmt)}/yr` : `Save ${pct}% if billed yearly`}
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--text-sub)', marginTop: 8 }}>
+                        {annual
+                          ? `≈ ${money(perMonthAnnual)}/month, billed annually`
+                          : `or ${money(plan.annual)}/year — save ${money(saveAmt)}`}
+                      </div>
+                    </>
+                  )}
+                </div>
 
                 <button
                   onClick={() => handleCTA(plan)}
-                  disabled={isPremium && plan.key === 'pro'}
+                  disabled={isPremium && !isFree}
                   className={`btn btn-${plan.ctaStyle === 'premium' ? 'premium' : 'outline'}`}
                   style={{
                     width: '100%',
                     justifyContent: 'center',
-                    marginBottom: 24,
+                    marginBottom: 16,
                     ...(isPro && { background: 'var(--pricing-green)', color: '#fff', border: 'none' }),
                   }}
                 >
-                  {isPremium && plan.key === 'pro' ? 'Current Plan' : plan.cta}
+                  {isPremium && !isFree ? 'Subscription active' : plan.cta}
                 </button>
+
+                {plan.note && (
+                  <div style={{ fontSize: 11, color: 'var(--text-sub)', textAlign: 'center', marginBottom: 12 }}>{plan.note}</div>
+                )}
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10, flex: 1 }}>
                   {plan.features.map((f) => (
                     <div key={f} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                      <Check
-                        size={15}
-                        color="var(--pricing-green)"
-                        style={{ flexShrink: 0, marginTop: 1 }}
-                        strokeWidth={2.5}
-                      />
+                      <Check size={15} color="var(--pricing-green)" style={{ flexShrink: 0, marginTop: 1 }} strokeWidth={2.5} />
                       <span style={{ fontSize: 13, color: 'var(--text-main)', lineHeight: 1.4 }}>{f}</span>
                     </div>
                   ))}
                   {plan.missing.map((f) => (
                     <div key={f} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                      <X size={15} color="var(--border)" style={{ flexShrink: 0, marginTop: 1 }} strokeWidth={2} />
+                      <X size={15} color="var(--text-sub)" style={{ flexShrink: 0, marginTop: 1 }} strokeWidth={2} />
                       <span style={{ fontSize: 13, color: 'var(--text-sub)', lineHeight: 1.4 }}>{f}</span>
                     </div>
                   ))}
@@ -306,7 +373,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe
                     textAlign: 'center',
                     fontSize: 13,
                     fontWeight: 700,
-                    color: p.key === 'pro' ? 'var(--primary)' : 'var(--text-main)',
+                    color: p.key === 'pro' ? 'var(--pricing-green)' : 'var(--text-main)',
                   }}
                 >
                   {p.label}
@@ -330,10 +397,10 @@ export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe
                   <FeatureCell value={row.free} />
                 </div>
                 <div style={{ padding: '12px 0', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <FeatureCell value={row.pro} />
+                  <FeatureCell value={row.student} />
                 </div>
                 <div style={{ padding: '12px 0', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <FeatureCell value={row.enterprise} />
+                  <FeatureCell value={row.pro} />
                 </div>
               </div>
             ))}
@@ -346,10 +413,10 @@ export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe
           <p style={{ fontSize: 14, color: 'var(--text-sub)', marginBottom: 36 }}>Everything you need to know about our plans.</p>
 
           {[
+            { q: 'How much do I save with annual billing?', a: `Annual plans are billed once a year and save you about ${maxSavings}% versus paying monthly — that's ${money(savingsAmount(5, 50))}/year on the Student plan and ${money(savingsAmount(12, 120))}/year on the Professional plan.` },
+            { q: 'Who qualifies for the Student plan?', a: 'Any enrolled student. We may ask you to confirm your student status with a valid student ID or school email. The Student plan includes everything except priority support.' },
             { q: 'Can I cancel anytime?', a: "Yes. You can cancel your subscription at any time from your account settings. You'll retain access until the end of your billing period." },
-            { q: 'What payment methods do you accept?', a: 'We accept all major cards via Paystack — Visa, Mastercard, and local bank transfers in supported regions.' },
-            { q: 'Is there a free trial for Pro?', a: 'The Free plan lets you try the core features with 2 dictionary word searches per day. Upgrade whenever you\'re ready for unlimited access.' },
-            { q: 'What is Dictionary Mode?', a: 'Dictionary Mode gives you a beautiful page-flip interface to browse and read supply chain terms like a physical book — a premium-only feature.' },
+            { q: 'What payment methods do you accept?', a: 'We accept all major cards and mobile money via Paystack, billed securely in Ghana Cedis (GHS).' },
           ].map((faq) => (
             <div
               key={faq.q}
@@ -399,25 +466,31 @@ export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe
           --pricing-pro-shadow: 0 18px 44px rgba(0,0,0,0.28);
         }
 
-        @media (max-width: 1024px) {
+        /* 3 cards stack straight to a single centred column to avoid an orphan card. */
+        @media (max-width: 900px) {
           .pricing-grid {
-            grid-template-columns: 1fr 1fr !important;
+            grid-template-columns: minmax(0, 460px) !important;
+            justify-content: center !important;
           }
         }
-        @media (max-width: 768px) {
-          .pricing-grid {
-            grid-template-columns: 1fr !important;
-          }
+        @media (max-width: 900px) {
           .pricing-compare {
             max-width: 100% !important;
           }
           .pricing-compare-grid {
-            grid-template-columns: minmax(104px, 1fr) repeat(3, minmax(72px, 0.8fr)) !important;
+            grid-template-columns: minmax(104px, 1fr) repeat(3, minmax(64px, 0.8fr)) !important;
           }
           .pricing-compare-grid > div {
-            padding-left: 10px !important;
-            padding-right: 10px !important;
+            padding-left: 8px !important;
+            padding-right: 8px !important;
             font-size: 12px !important;
+          }
+        }
+        @media (max-width: 420px) {
+          .pricing-toggle button {
+            min-width: 0 !important;
+            padding-left: 16px !important;
+            padding-right: 16px !important;
           }
         }
       `}</style>

@@ -10,7 +10,7 @@ const getSubscriptionFromUser = (user: User | null): SubscriptionState => {
   if (expiresAt && new Date(expiresAt).getTime() <= Date.now()) return { tier: 'free' }
   return {
     tier: 'premium',
-    plan: subscription.plan === 'monthly' ? 'monthly' : 'annual',
+    plan: typeof subscription.plan === 'string' ? subscription.plan : undefined,
     expiresAt,
   }
 }

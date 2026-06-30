@@ -7,8 +7,10 @@ const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || pr
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY
 
 const plans = {
-  monthly: { amount: 2258, label: 'SCMPEDIA Monthly', durationDays: 31 },
-  annual: { amount: 22578, label: 'SCMPEDIA Annual', durationDays: 366 },
+  'student-monthly': { amount: 500, label: 'SCMPEDIA Student · Monthly', durationDays: 31 },
+  'student-annual': { amount: 5000, label: 'SCMPEDIA Student · Annual', durationDays: 366 },
+  'pro-monthly': { amount: 1200, label: 'SCMPEDIA Professional · Monthly', durationDays: 31 },
+  'pro-annual': { amount: 12000, label: 'SCMPEDIA Professional · Annual', durationDays: 366 },
 } as const
 
 type PlanId = keyof typeof plans

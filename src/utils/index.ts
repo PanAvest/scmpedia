@@ -216,4 +216,16 @@ export const formatSubscriptionDate = (value?: string) => {
   return date.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
 }
 
-export const getPlanLabel = (plan?: string) => (plan === 'monthly' ? 'Monthly' : plan === 'annual' ? 'Annual' : 'Free')
+export const getPlanLabel = (plan?: string) => {
+  if (!plan) return 'Free'
+  const [tier, period] = plan.split('-')
+  // Legacy ids stored only the billing period (e.g. 'monthly').
+  if (!period) {
+    if (tier === 'monthly') return 'Monthly'
+    if (tier === 'annual') return 'Annual'
+    return 'Free'
+  }
+  const tierLabel = tier === 'student' ? 'Student' : tier === 'pro' ? 'Professional' : (tier ?? '')
+  const periodLabel = period === 'annual' ? 'Annual' : 'Monthly'
+  return `${tierLabel} · ${periodLabel}`
+}

@@ -18,6 +18,7 @@ import { useAI } from './hooks/useAI'
 import { useFavorites } from './hooks/useFavorites'
 import { useSubscription } from './hooks/useSubscription'
 import { AUTO_READ_AI_KEY, DICTIONARY_MODE_KEY, THEME_KEY, recordDashboardSearch, termToSlug } from './utils'
+import type { SubscriptionPlan } from './types'
 import type { Entry } from './types'
 import './styles/globals.css'
 
@@ -91,7 +92,7 @@ function AppShell() {
   }
 
   const handleSubscribe = (plan: string) => {
-    void subscription.subscribe(plan as 'monthly' | 'annual')
+    void subscription.subscribe(plan as SubscriptionPlan)
   }
 
   // Pricing dialog (modal overlay on top of any page)
