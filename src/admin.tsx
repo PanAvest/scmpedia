@@ -153,6 +153,16 @@ function AdminApp() {
   const [plansLoading, setPlansLoading] = useState(false)
   const [plansStatus, setPlansStatus] = useState('')
   const [plansTone, setPlansTone] = useState<'default' | 'success' | 'error'>('default')
+  const [adminRole, setAdminRole] = useState(() => localStorage.getItem('scmpedia-admin-role-v1') || '')
+  const [adminEmail, setAdminEmail] = useState(() => localStorage.getItem('scmpedia-admin-email-v1') || '')
+  const [admins, setAdmins] = useState<{ id: string; email: string; role: string; created_at?: string }[]>([])
+  const [accountsLoading, setAccountsLoading] = useState(false)
+  const [accountsStatus, setAccountsStatus] = useState('')
+  const [accountsTone, setAccountsTone] = useState<'default' | 'success' | 'error'>('default')
+  const [newEmail, setNewEmail] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [newRole, setNewRole] = useState<'admin' | 'master'>('admin')
+  const [myPassword, setMyPassword] = useState('')
   const papaRef = useRef<PapaParse | null>(null)
 
   const filtered = useMemo(() => {
@@ -393,10 +403,109 @@ function AdminApp() {
     }
   }
 
+  const loadAccounts = async () => {
+    setAccountsLoading(true)
+    try {
+      const res = await fetch('/api/admin/accounts', { headers: { Authorization: `Bearer ${adminToken}` } })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body?.error || 'Could not load admins')
+      setAdmins(Array.isArray(body.admins) ? body.admins : [])
+      if (body?.me?.role) {
+        setAdminRole(body.me.role)
+        if (body.me.email) setAdminEmail(body.me.email)
+      }
+      setAccountsStatus('')
+      setAccountsTone('default')
+    } catch (err) {
+      setAccountsStatus(err instanceof Error ? err.message : 'Could not load admins')
+      setAccountsTone('error')
+    } finally {
+      setAccountsLoading(false)
+    }
+  }
+
+  const addAdmin = async () => {
+    if (!newEmail.trim() || newPassword.length < 6) {
+      setAccountsStatus('Enter an email and a password of at least 6 characters.')
+      setAccountsTone('error')
+      return
+    }
+    setAccountsLoading(true)
+    try {
+      const res = await fetch('/api/admin/accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+        body: JSON.stringify({ email: newEmail.trim(), password: newPassword, role: newRole }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body?.error || 'Could not add admin')
+      setAdmins(Array.isArray(body.admins) ? body.admins : admins)
+      setNewEmail('')
+      setNewPassword('')
+      setNewRole('admin')
+      setAccountsStatus('Admin added.')
+      setAccountsTone('success')
+    } catch (err) {
+      setAccountsStatus(err instanceof Error ? err.message : 'Could not add admin')
+      setAccountsTone('error')
+    } finally {
+      setAccountsLoading(false)
+    }
+  }
+
+  const deleteAdmin = async (admin: { id: string; email: string }) => {
+    if (!window.confirm(`Remove admin ${admin.email}?`)) return
+    setAccountsLoading(true)
+    try {
+      const res = await fetch('/api/admin/accounts', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+        body: JSON.stringify({ id: admin.id }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body?.error || 'Could not delete admin')
+      setAdmins(Array.isArray(body.admins) ? body.admins : admins)
+      setAccountsStatus(`Removed ${admin.email}.`)
+      setAccountsTone('success')
+    } catch (err) {
+      setAccountsStatus(err instanceof Error ? err.message : 'Could not delete admin')
+      setAccountsTone('error')
+    } finally {
+      setAccountsLoading(false)
+    }
+  }
+
+  const changeMyPassword = async () => {
+    if (myPassword.length < 6) {
+      setAccountsStatus('Your new password must be at least 6 characters.')
+      setAccountsTone('error')
+      return
+    }
+    setAccountsLoading(true)
+    try {
+      const res = await fetch('/api/admin/accounts', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+        body: JSON.stringify({ password: myPassword }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body?.error || 'Could not change password')
+      setMyPassword('')
+      setAccountsStatus('Your password was changed.')
+      setAccountsTone('success')
+    } catch (err) {
+      setAccountsStatus(err instanceof Error ? err.message : 'Could not change password')
+      setAccountsTone('error')
+    } finally {
+      setAccountsLoading(false)
+    }
+  }
+
   useEffect(() => {
     if (authed) {
       loadCsv()
       void loadPlans()
+      void loadAccounts()
     }
   }, [authed])
 
@@ -413,7 +522,11 @@ function AdminApp() {
       const body = await res.json().catch(() => ({}))
       if (!res.ok || !body?.token) throw new Error(body?.error || 'Invalid credentials')
       localStorage.setItem(ADMIN_TOKEN_KEY, body.token)
+      localStorage.setItem('scmpedia-admin-role-v1', body.role || '')
+      localStorage.setItem('scmpedia-admin-email-v1', body.email || '')
       setAdminToken(body.token)
+      setAdminRole(body.role || '')
+      setAdminEmail(body.email || '')
       setAuthed(true)
       setPass('')
     } catch (err) {
@@ -425,7 +538,11 @@ function AdminApp() {
 
   const handleLogout = () => {
     localStorage.removeItem(ADMIN_TOKEN_KEY)
+    localStorage.removeItem('scmpedia-admin-role-v1')
+    localStorage.removeItem('scmpedia-admin-email-v1')
     setAdminToken('')
+    setAdminRole('')
+    setAdminEmail('')
     setAuthed(false)
     setPass('')
     setEntries([])
@@ -796,6 +913,86 @@ function AdminApp() {
           ) : (
             <div className="helper">{plansLoading ? 'Loading plans…' : plansStatus || 'No plans loaded.'}</div>
           )}
+        </section>
+
+        <section className="panel" style={{ gridColumn: '1 / -1' }}>
+          <div className="panel-title-row">
+            <div className="panel-title">Admins &amp; Roles</div>
+            {accountsLoading && <span className="spinner" />}
+          </div>
+          <div className="helper" style={{ marginTop: 0, marginBottom: 14 }}>
+            Signed in as <strong>{adminEmail || 'admin'}</strong> ({adminRole === 'master' ? 'master admin' : 'admin'}).
+            {adminRole !== 'master' && ' Only a master admin can add or remove accounts.'}
+          </div>
+
+          {adminRole === 'master' && (
+            <>
+              <div className="list" style={{ maxHeight: 'none', marginTop: 0 }}>
+                {admins.map((a) => (
+                  <div
+                    key={a.id}
+                    className="list-item"
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'default', gap: 10 }}
+                  >
+                    <span>
+                      {a.email}
+                      <span className="count-pill" style={{ marginLeft: 8 }}>{a.role === 'master' ? 'master' : 'admin'}</span>
+                    </span>
+                    <button
+                      className="btn btn-danger"
+                      onClick={() => deleteAdmin(a)}
+                      disabled={accountsLoading || a.email.toLowerCase() === adminEmail.toLowerCase()}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+                {!admins.length && <div className="helper">No admin accounts in the database yet. Add one below.</div>}
+              </div>
+
+              <div className="form-grid" style={{ marginTop: 14 }}>
+                <div className="form-row">
+                  <label className="label">New admin email</label>
+                  <input className="input" type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="name@example.com" />
+                </div>
+                <div className="form-row">
+                  <label className="label">Temporary password</label>
+                  <input className="input" type="text" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="at least 6 characters" />
+                </div>
+                <div className="form-row">
+                  <label className="label">Role</label>
+                  <select className="input" value={newRole} onChange={(e) => setNewRole(e.target.value === 'master' ? 'master' : 'admin')}>
+                    <option value="admin">Admin — dashboard access</option>
+                    <option value="master">Master — can manage admins</option>
+                  </select>
+                </div>
+                <div className="form-row" style={{ justifyContent: 'flex-end' }}>
+                  <button className="btn btn-primary" onClick={addAdmin} disabled={accountsLoading} style={{ marginTop: 'auto' }}>
+                    Add admin
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+
+          <div className="form-grid" style={{ marginTop: 18 }}>
+            <div className="form-row">
+              <label className="label">Change my password</label>
+              <input className="input" type="text" value={myPassword} onChange={(e) => setMyPassword(e.target.value)} placeholder="new password (min 6 chars)" />
+            </div>
+            <div className="form-row" style={{ justifyContent: 'flex-end' }}>
+              <button className="btn btn-secondary" onClick={changeMyPassword} disabled={accountsLoading} style={{ marginTop: 'auto' }}>
+                Update password
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+            <button className="btn btn-secondary" onClick={loadAccounts} disabled={accountsLoading}>
+              Reload
+            </button>
+            <div className={`status ${accountsTone === 'default' ? '' : accountsTone}`}>{accountsStatus}</div>
+          </div>
         </section>
       </main>
     </div>

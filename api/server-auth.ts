@@ -1,4 +1,5 @@
-import { createHmac, timingSafeEqual } from 'crypto'
+import './_runtime.js'
+import { createHmac, timingSafeEqual, randomBytes, scryptSync } from 'crypto'
 import { createClient, type User } from '@supabase/supabase-js'
 import type { VercelRequest } from './vercel-types'
 
@@ -37,10 +38,12 @@ export const hasConfiguredAdmin = () => Boolean(ADMIN_USER && ADMIN_PASS && admi
 export const validateAdminCredentials = (username: string, password: string) =>
   hasConfiguredAdmin() && username === ADMIN_USER && password === ADMIN_PASS
 
-export const createAdminToken = () => {
+export const createAdminToken = (identity?: { email?: string; role?: string }) => {
   const payload = base64Url(
     JSON.stringify({
       sub: 'scmpedia-admin',
+      email: identity?.email || '',
+      role: identity?.role === 'master' ? 'master' : 'admin',
       exp: Date.now() + ADMIN_TOKEN_TTL_MS,
     }),
   )
@@ -65,6 +68,43 @@ export const getBearerToken = (header?: string | string[]) => {
 }
 
 export const hasAdminAccess = (req: VercelRequest) => verifyAdminToken(getBearerToken(req.headers.authorization))
+
+export const getAdminIdentity = (req: VercelRequest): { email: string; role: string } | null => {
+  const token = getBearerToken(req.headers.authorization)
+  if (!verifyAdminToken(token)) return null
+  try {
+    const [payload] = token.split('.')
+    const parsed = JSON.parse(decodeBase64Url(payload || ''))
+    return { email: String(parsed?.email || ''), role: parsed?.role === 'master' ? 'master' : 'admin' }
+  } catch {
+    return null
+  }
+}
+
+export const isMasterAdmin = (req: VercelRequest) => getAdminIdentity(req)?.role === 'master'
+
+// --- Password hashing (scrypt) for table-based admin accounts ---
+export const hashPassword = (password: string) => {
+  const salt = randomBytes(16).toString('hex')
+  const derived = scryptSync(password, salt, 64).toString('hex')
+  return `scrypt$${salt}$${derived}`
+}
+
+export const verifyPassword = (password: string, stored: string) => {
+  const parts = String(stored || '').split('$')
+  if (parts.length !== 3 || parts[0] !== 'scrypt') return false
+  const salt = parts[1] || ''
+  const derived = parts[2] || ''
+  if (!salt || !derived) return false
+  try {
+    const test = scryptSync(password, salt, 64).toString('hex')
+    const a = Buffer.from(test, 'hex')
+    const b = Buffer.from(derived, 'hex')
+    return a.length === b.length && timingSafeEqual(a, b)
+  } catch {
+    return false
+  }
+}
 
 export const getRequestUser = async (req: VercelRequest) => {
   const token = getBearerToken(req.headers.authorization)

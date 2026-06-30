@@ -1,12 +1,5 @@
+import './_runtime.js'
 import type { SupabaseClient } from '@supabase/supabase-js'
-
-// supabase-js builds a realtime client at construction, which needs a global WebSocket.
-// Node < 22 has none; we only ever use HTTP (.from()) queries, never realtime. A stub
-// keeps createClient() from throwing at construction (it is never instantiated). Every
-// pricing/payment endpoint imports this module, so the guard runs before their createClient.
-if (typeof (globalThis as { WebSocket?: unknown }).WebSocket === 'undefined') {
-  ;(globalThis as { WebSocket?: unknown }).WebSocket = class {}
-}
 
 export type PlanPeriod = 'monthly' | 'annual'
 export type PlanTier = 'student' | 'pro'

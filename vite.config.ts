@@ -2,7 +2,7 @@ import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
 import { createClient } from '@supabase/supabase-js'
-import { createHmac } from 'crypto'
+import { createHmac, scryptSync, randomBytes } from 'crypto'
 import { DEFAULT_PLANS, loadPlan, loadAllPlans } from './api/_plans'
 
 // Supabase's client builds a realtime client (needs a global WebSocket) at construction.
@@ -38,22 +38,54 @@ export default defineConfig(({ mode }) => {
       .replace(/\//g, '_')
   const signAdminPayload = (payload: string) =>
     adminSecret ? base64Url(createHmac('sha256', adminSecret).update(payload).digest()) : ''
-  const createAdminToken = () => {
-    const payload = base64Url(JSON.stringify({ sub: 'scmpedia-admin', exp: Date.now() + 12 * 60 * 60 * 1000 }))
+  const createAdminToken = (identity?: { email?: string; role?: string }) => {
+    const payload = base64Url(
+      JSON.stringify({
+        sub: 'scmpedia-admin',
+        email: identity?.email || '',
+        role: identity?.role === 'master' ? 'master' : 'admin',
+        exp: Date.now() + 12 * 60 * 60 * 1000,
+      }),
+    )
     return `${payload}.${signAdminPayload(payload)}`
+  }
+  const decodeAdminPayload = (token: string): any => {
+    const [payload] = token.split('.')
+    if (!payload) return null
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), '=')
+    return JSON.parse(Buffer.from(padded, 'base64').toString('utf8'))
   }
   const verifyAdminToken = (token: string) => {
     const [payload, signature] = token.split('.')
     if (!payload || !signature || !adminSecret || signature !== signAdminPayload(payload)) return false
     try {
-      const normalized = payload.replace(/-/g, '+').replace(/_/g, '/')
-      const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), '=')
-      const parsed = JSON.parse(Buffer.from(padded, 'base64').toString('utf8'))
+      const parsed = decodeAdminPayload(token)
       return parsed?.sub === 'scmpedia-admin' && Number(parsed?.exp || 0) > Date.now()
     } catch {
       return false
     }
   }
+  const adminIdentity = (req: any): { email: string; role: string } | null => {
+    const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '')
+    if (!verifyAdminToken(token)) return null
+    try {
+      const parsed = decodeAdminPayload(token)
+      return { email: String(parsed?.email || ''), role: parsed?.role === 'master' ? 'master' : 'admin' }
+    } catch {
+      return null
+    }
+  }
+  const hashPassword = (password: string) => {
+    const salt = randomBytes(16).toString('hex')
+    return `scrypt$${salt}$${scryptSync(password, salt, 64).toString('hex')}`
+  }
+  const verifyPassword = (password: string, stored: string) => {
+    const parts = String(stored || '').split('$')
+    if (parts.length !== 3 || parts[0] !== 'scrypt') return false
+    return scryptSync(password, parts[1], 64).toString('hex') === parts[2]
+  }
+  const isEmailValue = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
   return {
     envPrefix: ['VITE_', 'NEXT_PUBLIC_'],
     plugins: [
@@ -74,28 +106,135 @@ export default defineConfig(({ mode }) => {
               body += chunk
             })
 
-            req.on('end', () => {
+            req.on('end', async () => {
               try {
-                if (!adminUser || !adminPass || !adminSecret) {
+                if (!adminSecret) {
                   res.statusCode = 500
                   res.setHeader('Content-Type', 'application/json')
                   res.end(JSON.stringify({ error: 'Admin credentials are not configured on the server' }))
                   return
                 }
                 const parsed = JSON.parse(body || '{}')
-                if (String(parsed.username || '').trim() !== adminUser || String(parsed.password || '') !== adminPass) {
-                  res.statusCode = 401
+                const username = String(parsed.username || '').trim()
+                const password = String(parsed.password || '')
+                const sendToken = (email: string, role: string) => {
+                  res.statusCode = 200
                   res.setHeader('Content-Type', 'application/json')
-                  res.end(JSON.stringify({ error: 'Invalid credentials' }))
+                  res.end(JSON.stringify({ token: createAdminToken({ email, role }), email, role }))
+                }
+                // 1) Table-based admin accounts (by email)
+                if (supabaseUrl && supabaseServiceRoleKey) {
+                  try {
+                    const service = createClient(supabaseUrl, supabaseServiceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } })
+                    const { data, error } = await service.from('scmpedia_admins').select('email,password_hash,role').eq('email', username.toLowerCase()).maybeSingle()
+                    if (!error && data && verifyPassword(password, String(data.password_hash))) {
+                      sendToken(String(data.email), data.role === 'master' ? 'master' : 'admin')
+                      return
+                    }
+                  } catch {
+                    /* table missing → fall through to env admin */
+                  }
+                }
+                // 2) Env bootstrap admin (master)
+                if (adminUser && adminPass && username === adminUser && password === adminPass) {
+                  sendToken(username, 'master')
                   return
                 }
-                res.statusCode = 200
+                res.statusCode = 401
                 res.setHeader('Content-Type', 'application/json')
-                res.end(JSON.stringify({ token: createAdminToken() }))
+                res.end(JSON.stringify({ error: 'Invalid credentials' }))
               } catch (err: any) {
                 res.statusCode = 500
                 res.setHeader('Content-Type', 'application/json')
                 res.end(JSON.stringify({ error: err?.message || 'Admin login failed' }))
+              }
+            })
+          })
+
+          server.middlewares.use('/api/admin/accounts', (req, res) => {
+            const identity = adminIdentity(req)
+            if (!identity) {
+              res.statusCode = 401
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify({ error: 'Admin sign-in required' }))
+              return
+            }
+            if (!supabaseUrl || !supabaseServiceRoleKey) {
+              res.statusCode = 500
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify({ error: 'Missing server configuration' }))
+              return
+            }
+            const service = createClient(supabaseUrl, supabaseServiceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } })
+            const tableHelp = 'Has the scmpedia_admins table been created? Run supabase-admins.sql.'
+            const listAll = () => service.from('scmpedia_admins').select('id,email,role,created_at').order('created_at', { ascending: true })
+            const sendJson = (code: number, payload: any) => {
+              res.statusCode = code
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify(payload))
+            }
+
+            if (req.method === 'GET') {
+              listAll().then(({ data, error }) => {
+                if (error) sendJson(500, { error: `Could not load admins: ${error.message}. ${tableHelp}` })
+                else sendJson(200, { me: identity, admins: data || [] })
+              })
+              return
+            }
+
+            let body = ''
+            req.on('data', (chunk) => {
+              body += chunk
+            })
+            req.on('end', async () => {
+              try {
+                const parsed = JSON.parse(body || '{}')
+                if (req.method === 'POST') {
+                  if (identity.role !== 'master') return sendJson(403, { error: 'Only a master admin can add accounts' })
+                  const email = String(parsed.email || '').trim().toLowerCase()
+                  const pwd = String(parsed.password || '')
+                  const role = parsed.role === 'master' ? 'master' : 'admin'
+                  if (!isEmailValue(email)) return sendJson(400, { error: 'Enter a valid email address' })
+                  if (pwd.length < 6) return sendJson(400, { error: 'Password must be at least 6 characters' })
+                  const { error } = await service.from('scmpedia_admins').insert({ email, password_hash: hashPassword(pwd), role, updated_at: new Date().toISOString() })
+                  if (error) {
+                    if (String(error.code) === '23505') return sendJson(409, { error: 'An admin with that email already exists' })
+                    return sendJson(500, { error: `Could not add admin: ${error.message}. ${tableHelp}` })
+                  }
+                  const { data } = await listAll()
+                  return sendJson(200, { me: identity, admins: data || [] })
+                }
+                if (req.method === 'PATCH') {
+                  const targetEmail = String(parsed.email || identity.email || '').trim().toLowerCase()
+                  const pwd = String(parsed.password || '')
+                  if (pwd.length < 6) return sendJson(400, { error: 'Password must be at least 6 characters' })
+                  if (targetEmail !== identity.email.toLowerCase() && identity.role !== 'master') return sendJson(403, { error: "Only a master admin can change another account's password" })
+                  const { data: rows, error } = await service.from('scmpedia_admins').update({ password_hash: hashPassword(pwd), updated_at: new Date().toISOString() }).eq('email', targetEmail).select('id')
+                  if (error) return sendJson(500, { error: `Could not change password: ${error.message}. ${tableHelp}` })
+                  if (!rows || !rows.length) return sendJson(404, { error: "That account isn't in the database. The bootstrap admin/admin password is set in env vars, not here." })
+                  return sendJson(200, { ok: true })
+                }
+                if (req.method === 'DELETE') {
+                  if (identity.role !== 'master') return sendJson(403, { error: 'Only a master admin can delete accounts' })
+                  const id = String(parsed.id || '')
+                  const email = String(parsed.email || '').trim().toLowerCase()
+                  const { data: target } = id
+                    ? await service.from('scmpedia_admins').select('id,email,role').eq('id', id).maybeSingle()
+                    : await service.from('scmpedia_admins').select('id,email,role').eq('email', email).maybeSingle()
+                  if (!target) return sendJson(404, { error: 'Admin account not found' })
+                  if (String(target.email).toLowerCase() === identity.email.toLowerCase()) return sendJson(400, { error: 'You cannot delete your own account' })
+                  if (target.role === 'master') {
+                    const { count } = await service.from('scmpedia_admins').select('id', { count: 'exact', head: true }).eq('role', 'master')
+                    if ((count || 0) <= 1) return sendJson(400, { error: 'Cannot delete the last master admin' })
+                  }
+                  const { error } = await service.from('scmpedia_admins').delete().eq('id', target.id)
+                  if (error) return sendJson(500, { error: `Could not delete admin: ${error.message}` })
+                  const { data } = await listAll()
+                  return sendJson(200, { me: identity, admins: data || [] })
+                }
+                return sendJson(405, { error: 'Method not allowed' })
+              } catch (err: any) {
+                sendJson(500, { error: err?.message || 'Admin account request failed' })
               }
             })
           })
