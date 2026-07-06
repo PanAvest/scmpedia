@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { lazy, Suspense, useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { AppHeader } from './components/AppHeader'
 import { AppFooter } from './components/AppFooter'
@@ -10,7 +10,8 @@ import { AboutPage } from './pages/AboutPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { DictionaryModePage } from './pages/DictionaryModePage'
 import { TermPage } from './pages/TermPage'
-import { LegalPage, StaticInfoPage } from './pages/LegalPage'
+import { LegalPage } from './pages/LegalPage'
+import type { ResourcePageProps } from './pages/ResourcePages'
 import { useAuth } from './hooks/useAuth'
 import { useData } from './hooks/useData'
 import { useTTS } from './hooks/useTTS'
@@ -21,6 +22,39 @@ import { AUTO_READ_AI_KEY, DICTIONARY_MODE_KEY, THEME_KEY, recordDashboardSearch
 import type { SubscriptionPlan } from './types'
 import type { Entry } from './types'
 import './styles/globals.css'
+
+const ResourcePage = lazy(() => import('./pages/ResourcePages').then((module) => ({ default: module.ResourcePage })))
+
+const ResourcePageLoading = () => (
+  <div style={{ minHeight: '100vh', background: 'var(--bg)' }} aria-label="Loading resource page" aria-busy="true">
+    <section style={{ padding: '54px 24px 48px', background: 'var(--home-hero-bg)', borderBottom: '1px solid var(--border)' }}>
+      <div className="container">
+        <div className="skeleton" style={{ width: 130, height: 15, marginBottom: 18 }} />
+        <div className="skeleton" style={{ width: 'min(680px, 88%)', height: 42, marginBottom: 14 }} />
+        <div className="skeleton" style={{ width: 'min(740px, 100%)', height: 15, marginBottom: 8 }} />
+        <div className="skeleton" style={{ width: 'min(560px, 78%)', height: 15 }} />
+      </div>
+    </section>
+    <section style={{ padding: '48px 24px' }}>
+      <div className="container" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: 16 }}>
+        {Array.from({ length: 6 }, (_, index) => (
+          <div key={index} className="card" style={{ padding: 22, minHeight: 170 }}>
+            <div className="skeleton" style={{ width: 42, height: 42, marginBottom: 16 }} />
+            <div className="skeleton" style={{ width: '52%', height: 17, marginBottom: 12 }} />
+            <div className="skeleton" style={{ width: '100%', height: 12, marginBottom: 7 }} />
+            <div className="skeleton" style={{ width: '76%', height: 12 }} />
+          </div>
+        ))}
+      </div>
+    </section>
+  </div>
+)
+
+const ResourceRoute: React.FC<ResourcePageProps> = (props) => (
+  <Suspense fallback={<ResourcePageLoading />}>
+    <ResourcePage {...props} />
+  </Suspense>
+)
 
 function AppShell() {
   const navigate = useNavigate()
@@ -268,16 +302,16 @@ function AppShell() {
           <Route path="/about" element={<AboutPage isPremium={isPremium} />} />
           <Route path="/privacy" element={<LegalPage type="privacy" />} />
           <Route path="/terms" element={<LegalPage type="terms" />} />
-          <Route path="/categories" element={<StaticInfoPage title="Categories" description="Category browsing is being prepared for the production dictionary. Use search or Dictionary Mode to explore terms now." />} />
-          <Route path="/ai-features" element={<StaticInfoPage title="AI Features" description="SCMpedia uses AI to explain supply chain terms in practical professional language, with server-side limits for free accounts." />} />
-          <Route path="/release-notes" element={<StaticInfoPage title="Release Notes" description="Release notes will list shipped product updates, dictionary improvements, and subscription changes." />} />
-          <Route path="/blog" element={<StaticInfoPage title="Blog" description="SCMpedia articles and supply chain explainers will appear here." />} />
-          <Route path="/guides" element={<StaticInfoPage title="Guides" description="Guides will help students and professionals apply supply chain terms in real operational contexts." />} />
-          <Route path="/glossary" element={<StaticInfoPage title="Glossary" description="Use the main search or Dictionary Mode to browse the SCMpedia glossary." />} />
-          <Route path="/help" element={<StaticInfoPage title="Help Center" description="For support, account, and subscription questions, contact hello@scmpedia.com." />} />
-          <Route path="/careers" element={<StaticInfoPage title="Careers" description="There are no open roles listed right now." />} />
-          <Route path="/contact" element={<StaticInfoPage title="Contact" description="For support, partnerships, and enterprise access, email hello@scmpedia.com." />} />
-          <Route path="/resources" element={<StaticInfoPage title="Resources" description="Explore SCMpedia guides, glossary content, release notes, and learning resources." />} />
+          <Route path="/categories" element={<ResourceRoute kind="categories" />} />
+          <Route path="/ai-features" element={<ResourceRoute kind="ai-features" />} />
+          <Route path="/release-notes" element={<ResourceRoute kind="release-notes" />} />
+          <Route path="/blog" element={<ResourceRoute kind="blog" />} />
+          <Route path="/guides" element={<ResourceRoute kind="guides" />} />
+          <Route path="/glossary" element={<ResourceRoute kind="glossary" entries={dataHook.data} dataStatus={dataHook.status} />} />
+          <Route path="/help" element={<ResourceRoute kind="help" />} />
+          <Route path="/careers" element={<ResourceRoute kind="careers" />} />
+          <Route path="/contact" element={<ResourceRoute kind="contact" />} />
+          <Route path="/resources" element={<ResourceRoute kind="resources" />} />
 
           <Route
           path="/settings"

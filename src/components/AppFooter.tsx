@@ -252,7 +252,7 @@ export const AppFooter: React.FC<AppFooterProps> = ({ onOpenPricing, isPremium =
           margin-bottom: 42px;
           align-items: start;
         }
-        @media (max-width: 1024px) {
+        @media (max-width: 1360px) {
           .footer-grid {
             grid-template-columns: 1fr 1fr 1fr !important;
           }

@@ -71,14 +71,3 @@ export const LegalPage: React.FC<LegalPageProps> = ({ type }) => {
     </div>
   )
 }
-
-export const StaticInfoPage: React.FC<{ title: string; description: string }> = ({ title, description }) => (
-  <div style={{ background: 'var(--bg)', minHeight: '70vh', padding: '58px 24px' }}>
-    <section className="container-sm card" style={{ padding: '34px 30px', borderRadius: 12 }}>
-      <div className="badge badge-primary" style={{ marginBottom: 16 }}>SCMpedia</div>
-      <h1 style={{ fontSize: 'clamp(30px, 5vw, 42px)', color: 'var(--text-main)', marginBottom: 12 }}>{title}</h1>
-      <p style={{ color: 'var(--text-sub)', fontSize: 16, lineHeight: 1.7, marginBottom: 24 }}>{description}</p>
-      <Link to="/" className="btn btn-primary">Search the dictionary</Link>
-    </section>
-  </div>
-)
