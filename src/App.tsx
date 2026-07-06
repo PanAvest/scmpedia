@@ -78,7 +78,6 @@ function AppShell() {
   }
   const handleOpenPricing = () => {
     setPricingOpen(true)
-    navigate('/pricing')
   }
   const handleLogoClick = () => {
     setHomeResetNonce((value) => value + 1)
