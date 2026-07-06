@@ -31,6 +31,25 @@ type PlanRow = {
   active: boolean
 }
 
+type StudentRow = {
+  id: string
+  email: string
+  full_name: string
+  country: string
+  country_code: string
+  university: string
+  university_custom: boolean
+  index_number: string
+  programme: string
+  saved_at: string
+  plan: string
+  created_at: string
+}
+
+// 'GH' → 🇬🇭 (regional-indicator emoji); anything else → 🌍
+const flagFor = (code: string) =>
+  /^[A-Z]{2}$/.test(code) ? String.fromCodePoint(...[...code].map((c) => 127397 + c.charCodeAt(0))) : '🌍'
+
 const STYLES = `
 :root {
   --bg: #f7f5f2;
@@ -163,12 +182,26 @@ function AdminApp() {
   const [newPassword, setNewPassword] = useState('')
   const [newRole, setNewRole] = useState<'admin' | 'master'>('admin')
   const [myPassword, setMyPassword] = useState('')
+  const [students, setStudents] = useState<StudentRow[]>([])
+  const [customUnis, setCustomUnis] = useState<{ name: string; count: number }[]>([])
+  const [studentsLoading, setStudentsLoading] = useState(false)
+  const [studentsStatus, setStudentsStatus] = useState('')
+  const [studentsTone, setStudentsTone] = useState<'default' | 'success' | 'error'>('default')
+  const [studentSearch, setStudentSearch] = useState('')
   const papaRef = useRef<PapaParse | null>(null)
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     return entries.map((entry, index) => ({ entry, index })).filter(({ entry }) => !q || entry.term.toLowerCase().includes(q))
   }, [entries, query])
+
+  const filteredStudents = useMemo(() => {
+    const q = studentSearch.trim().toLowerCase()
+    if (!q) return students
+    return students.filter((s) =>
+      [s.email, s.full_name, s.university, s.index_number, s.programme, s.country].some((v) => v.toLowerCase().includes(q)),
+    )
+  }, [students, studentSearch])
 
   const showStatus = (message: string, tone: 'default' | 'success' | 'warn' | 'error' = 'default') => {
     setStatus(message)
@@ -424,6 +457,24 @@ function AdminApp() {
     }
   }
 
+  const loadStudents = async () => {
+    setStudentsLoading(true)
+    try {
+      const res = await fetch('/api/admin/students', { headers: { Authorization: `Bearer ${adminToken}` } })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body?.error || 'Could not load students')
+      setStudents(Array.isArray(body.students) ? body.students : [])
+      setCustomUnis(Array.isArray(body.customUniversities) ? body.customUniversities : [])
+      setStudentsStatus('')
+      setStudentsTone('default')
+    } catch (err) {
+      setStudentsStatus(err instanceof Error ? err.message : 'Could not load students')
+      setStudentsTone('error')
+    } finally {
+      setStudentsLoading(false)
+    }
+  }
+
   const addAdmin = async () => {
     if (!newEmail.trim() || newPassword.length < 6) {
       setAccountsStatus('Enter an email and a password of at least 6 characters.')
@@ -506,6 +557,7 @@ function AdminApp() {
       loadCsv()
       void loadPlans()
       void loadAccounts()
+      void loadStudents()
     }
   }, [authed])
 
@@ -913,6 +965,101 @@ function AdminApp() {
           ) : (
             <div className="helper">{plansLoading ? 'Loading plans…' : plansStatus || 'No plans loaded.'}</div>
           )}
+        </section>
+
+        <section className="panel" style={{ gridColumn: '1 / -1' }}>
+          <div className="panel-title-row">
+            <div className="panel-title">Students</div>
+            <span className="count-pill">{students.length}</span>
+            {studentsLoading && <span className="spinner" />}
+          </div>
+          <div className="helper" style={{ marginTop: 0, marginBottom: 14 }}>
+            Users who completed student verification before buying the Student plan — country, university, index number
+            and programme are saved to their account. Universities typed by hand are collected under "Custom
+            universities" below so they can be added to the app's list when legitimate.
+          </div>
+
+          <input
+            className="search-input"
+            placeholder="Search by email, name, university, index number or programme..."
+            value={studentSearch}
+            onChange={(e) => setStudentSearch(e.target.value)}
+          />
+          <div className="list" style={{ maxHeight: 420 }}>
+            {filteredStudents.map((s) => (
+              <div key={s.id} className="list-item" style={{ cursor: 'default' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                  <span style={{ fontWeight: 600 }}>
+                    {s.full_name || s.email}
+                    {s.plan && (
+                      <span
+                        className="count-pill"
+                        style={s.plan.startsWith('student') ? { marginLeft: 8, background: 'rgba(4,120,87,0.12)', color: '#047857' } : { marginLeft: 8 }}
+                      >
+                        {s.plan}
+                      </span>
+                    )}
+                  </span>
+                  <span style={{ fontSize: 12, color: 'var(--text-sub)' }}>
+                    {s.saved_at ? new Date(s.saved_at).toLocaleDateString() : ''}
+                  </span>
+                </div>
+                <div className="helper" style={{ marginTop: 4 }}>
+                  {s.email}
+                  {s.country ? ` · ${flagFor(s.country_code)} ${s.country}` : ''}
+                </div>
+                <div style={{ fontSize: 13, marginTop: 6 }}>
+                  {s.university || '—'}
+                  {s.university_custom && (
+                    <span className="count-pill" style={{ marginLeft: 8, background: 'rgba(180,83,9,0.12)', color: '#b45309' }}>
+                      custom
+                    </span>
+                  )}
+                </div>
+                <div className="helper" style={{ marginTop: 4 }}>
+                  Index: <strong>{s.index_number || '—'}</strong>
+                  {s.programme ? (
+                    <>
+                      {' '}· Programme: <strong>{s.programme}</strong>
+                    </>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+            {!filteredStudents.length && (
+              <div className="helper">
+                {studentsLoading
+                  ? 'Loading students…'
+                  : students.length
+                  ? 'No students match your search.'
+                  : 'No student verifications yet. They appear here after a user fills the pre-payment popup.'}
+              </div>
+            )}
+          </div>
+
+          <div className="panel-title" style={{ marginTop: 18, marginBottom: 0 }}>Custom universities (typed by students)</div>
+          <div className="list" style={{ maxHeight: 220 }}>
+            {customUnis.map((u) => (
+              <div
+                key={u.name}
+                className="list-item"
+                style={{ cursor: 'default', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}
+              >
+                <span>{u.name}</span>
+                <span className="count-pill">{u.count} student{u.count === 1 ? '' : 's'}</span>
+              </div>
+            ))}
+            {!customUnis.length && (
+              <div className="helper">No custom university names yet. When a student types a school that isn't in the list, it shows here.</div>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+            <button className="btn btn-secondary" onClick={loadStudents} disabled={studentsLoading}>
+              Reload
+            </button>
+            <div className={`status ${studentsTone === 'default' ? '' : studentsTone}`}>{studentsStatus}</div>
+          </div>
         </section>
 
         <section className="panel" style={{ gridColumn: '1 / -1' }}>

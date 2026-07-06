@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { Check, X, Crown, Zap, GraduationCap } from 'lucide-react'
+import { StudentVerifyModal } from '../components/StudentVerifyModal'
 
 interface PricingPageProps {
   isPremium: boolean
@@ -140,8 +141,16 @@ function FeatureCell({ value }: { value: boolean | string }) {
   )
 }
 
+// Students must have a university + index number on their account before checkout.
+const hasStudentInfo = (user: unknown) => {
+  const meta = (user as { user_metadata?: Record<string, unknown> } | null)?.user_metadata
+  return Boolean(meta && String(meta.student_university || '').trim() && String(meta.student_index_number || '').trim())
+}
+
 export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe, onSignIn, user, checkingOut = null, error = '' }) => {
   const [annual, setAnnual] = useState(true)
+  const [verifyOpen, setVerifyOpen] = useState(false)
+  const [pendingPlan, setPendingPlan] = useState<string | null>(null)
   // Live prices (in cedis) keyed by plan id, fetched from /api/plans so admin edits show up.
   const [livePrices, setLivePrices] = useState<Record<string, number>>({})
 
@@ -183,11 +192,33 @@ export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe
       return
     }
     if (!plan.tier) return
-    onSubscribe(`${plan.tier}-${annual ? 'annual' : 'monthly'}`)
+    const planId = `${plan.tier}-${annual ? 'annual' : 'monthly'}`
+    if (plan.tier === 'student' && !hasStudentInfo(user)) {
+      setPendingPlan(planId)
+      setVerifyOpen(true)
+      return
+    }
+    onSubscribe(planId)
   }
 
   return (
     <div className="pricing-page-v2" style={{ background: 'var(--pricing-page-bg)', minHeight: '100vh' }}>
+      {/* Student verification popup — collects school details before student checkout */}
+      <StudentVerifyModal
+        open={verifyOpen}
+        user={user}
+        onClose={() => {
+          setVerifyOpen(false)
+          setPendingPlan(null)
+        }}
+        onComplete={() => {
+          setVerifyOpen(false)
+          const plan = pendingPlan
+          setPendingPlan(null)
+          if (plan) onSubscribe(plan)
+        }}
+      />
+
       {/* Connecting-to-Paystack overlay */}
       {checkingOut && (
         <div className="pp-overlay" role="status" aria-live="polite">

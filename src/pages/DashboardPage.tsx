@@ -3,9 +3,10 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   Home, BookOpen, Star, Settings, Crown,
   TrendingUp, Search, Heart, Clock, ChevronRight,
-  Zap, Trash2
+  Zap, Trash2, PencilLine
 } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
+import { StudentVerifyModal } from '../components/StudentVerifyModal'
 import type { Entry } from '../types'
 import {
   formatRelativeTime,
@@ -24,6 +25,7 @@ interface DashboardPageProps {
   onToggleFavorite: (entry: Entry) => void
   onOpenPricing: () => void
   onSearch: (term: string) => void
+  onStudentDetailsUpdated?: () => void | Promise<void>
 }
 
 const NAV_ITEMS = [
@@ -137,15 +139,22 @@ function MobileDashboardNav() {
   )
 }
 
-function OverviewTab({ user, isPremium, favorites, favoritesLoading, history, onSearch }: {
+function OverviewTab({ user, isPremium, favorites, favoritesLoading, history, onSearch, onStudentDetailsUpdated }: {
   user: User | null
   isPremium: boolean
   favorites: Entry[]
   favoritesLoading: boolean
   history: DashboardHistoryItem[]
   onSearch: (term: string) => void
+  onStudentDetailsUpdated?: () => void | Promise<void>
 }) {
   const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'there'
+  const studentMeta = (user?.user_metadata || {}) as Record<string, unknown>
+  const studentUniversity = String(studentMeta.student_university || '')
+  const studentIndexNumber = String(studentMeta.student_index_number || '')
+  const studentProgramme = String(studentMeta.student_programme || '')
+  const hasStudentDetails = Boolean(studentUniversity || studentIndexNumber || studentProgramme)
+  const [studentEditOpen, setStudentEditOpen] = useState(false)
   const [favoriteSearch, setFavoriteSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState('All')
   const categories = useMemo(() => {
@@ -169,7 +178,18 @@ function OverviewTab({ user, isPremium, favorites, favoritesLoading, history, on
   ]
 
   return (
-    <div className="dashboard-layout">
+    <>
+      <StudentVerifyModal
+        open={studentEditOpen}
+        user={user}
+        submitLabel="Save student details"
+        onClose={() => setStudentEditOpen(false)}
+        onComplete={() => {
+          setStudentEditOpen(false)
+          void onStudentDetailsUpdated?.()
+        }}
+      />
+      <div className="dashboard-layout">
       <div style={{ minWidth: 0 }}>
         <div style={{ marginBottom: 24 }}>
           <h1 style={{ fontSize: 32, fontWeight: 900, color: 'var(--text-main)', marginBottom: 8 }}>
@@ -285,6 +305,24 @@ function OverviewTab({ user, isPremium, favorites, favoritesLoading, history, on
             <span>Member since<br /><strong style={{ color: 'var(--text-main)' }}>{user?.created_at ? new Date(user.created_at).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : 'Today'}</strong></span>
             <span>Plan<br /><strong style={{ color: 'var(--success-green)' }}>{isPremium ? 'Premium' : 'Free'}</strong></span>
           </div>
+          {hasStudentDetails ? (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, color: 'var(--text-sub)', fontSize: 13, borderTop: '1px solid var(--border)', paddingTop: 16, marginBottom: 16 }}>
+              {studentUniversity && <span style={{ gridColumn: '1 / -1' }}>University<br /><strong style={{ color: 'var(--text-main)' }}>{studentUniversity}</strong></span>}
+              {studentIndexNumber && <span>Index number<br /><strong style={{ color: 'var(--text-main)' }}>{studentIndexNumber}</strong></span>}
+              {studentProgramme && <span>Course<br /><strong style={{ color: 'var(--text-main)' }}>{studentProgramme}</strong></span>}
+            </div>
+          ) : (
+            <div style={{ color: 'var(--text-sub)', fontSize: 13, borderTop: '1px solid var(--border)', paddingTop: 16, marginBottom: 16, lineHeight: 1.5 }}>
+              Add your university, student index number, and programme/course to your account.
+            </div>
+          )}
+          <button
+            onClick={() => setStudentEditOpen(true)}
+            className="btn btn-outline"
+            style={{ width: '100%', marginBottom: 10 }}
+          >
+            <PencilLine size={15} /> {hasStudentDetails ? 'Edit student details' : 'Add student details'}
+          </button>
           <Link to="/settings" className="btn btn-outline" style={{ width: '100%' }}>Manage Account <ChevronRight size={15} /></Link>
         </div>
 
@@ -327,7 +365,8 @@ function OverviewTab({ user, isPremium, favorites, favoritesLoading, history, on
           )}
         </div>
       </aside>
-    </div>
+      </div>
+    </>
   )
 }
 
@@ -510,6 +549,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   onToggleFavorite,
   onOpenPricing,
   onSearch,
+  onStudentDetailsUpdated,
 }) => {
   const location = useLocation()
   const navigate = useNavigate()
@@ -575,6 +615,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             favoritesLoading={favoritesLoading}
             history={history}
             onSearch={runSearch}
+            onStudentDetailsUpdated={onStudentDetailsUpdated}
           />
         )}
         {tab === 'favorites' && (

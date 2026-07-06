@@ -4,6 +4,7 @@ import { resolve } from 'path'
 import { createClient } from '@supabase/supabase-js'
 import { createHmac, scryptSync, randomBytes } from 'crypto'
 import { DEFAULT_PLANS, loadPlan, loadAllPlans } from './api/_plans'
+import { collectStudents } from './api/_students'
 
 // Supabase's client builds a realtime client (needs a global WebSocket) at construction.
 // Node < 22 has none, and the dev middleware never opens a realtime channel, so a harmless
@@ -818,6 +819,21 @@ export default defineConfig(({ mode }) => {
                   return
                 }
 
+                // Student plans require the verification details collected by the pre-payment popup.
+                if (plan.tier === 'student') {
+                  const meta = ((userData.user as any).user_metadata || {}) as Record<string, unknown>
+                  if (!String(meta.student_university || '').trim() || !String(meta.student_index_number || '').trim()) {
+                    res.statusCode = 400
+                    res.setHeader('Content-Type', 'application/json')
+                    res.end(
+                      JSON.stringify({
+                        error: 'Please add your university and student index number before paying for the Student plan.',
+                      }),
+                    )
+                    return
+                  }
+                }
+
                 const response = await fetch('https://api.paystack.co/transaction/initialize', {
                   method: 'POST',
                   headers: {
@@ -1138,6 +1154,44 @@ export default defineConfig(({ mode }) => {
             res.statusCode = 405
             res.setHeader('Content-Type', 'application/json')
             res.end(JSON.stringify({ error: 'Method not allowed' }))
+          })
+
+          // Dev mirror of api/admin/students.ts — students who completed verification
+          // plus the custom university names they typed.
+          server.middlewares.use('/api/admin/students', (req, res) => {
+            if (req.method !== 'GET') {
+              res.statusCode = 405
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify({ error: 'Method not allowed' }))
+              return
+            }
+            const identity = adminIdentity(req)
+            if (!identity) {
+              res.statusCode = 401
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify({ error: 'Admin sign-in required' }))
+              return
+            }
+            if (!supabaseUrl || !supabaseServiceRoleKey) {
+              res.statusCode = 500
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify({ error: 'Missing server configuration' }))
+              return
+            }
+            const service = createClient(supabaseUrl, supabaseServiceRoleKey, {
+              auth: { persistSession: false, autoRefreshToken: false },
+            })
+            collectStudents(service)
+              .then(({ students, customUniversities }) => {
+                res.statusCode = 200
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ students, customUniversities }))
+              })
+              .catch((err: any) => {
+                res.statusCode = 500
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({ error: err?.message || 'Could not load students' }))
+              })
           })
 
           server.middlewares.use('/api/words', async (req, res) => {

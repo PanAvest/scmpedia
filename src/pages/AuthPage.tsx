@@ -52,6 +52,17 @@ function PasswordStrength({ password }: { password: string }) {
   )
 }
 
+function GoogleLogo() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" focusable="false">
+      <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z" />
+      <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.35 0-4.34-1.58-5.05-3.72H.94v2.33A9 9 0 0 0 9 18z" />
+      <path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 0 1 3.67 9c0-.59.1-1.16.28-1.7V4.97H.94A9 9 0 0 0 0 9c0 1.45.34 2.82.94 4.03l3.01-2.33z" />
+      <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.46 3.44 1.35l2.58-2.58A8.66 8.66 0 0 0 9 0 9 9 0 0 0 .94 4.97L3.95 7.3C4.66 5.16 6.65 3.58 9 3.58z" />
+    </svg>
+  )
+}
+
 export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
   const navigate = useNavigate()
   const [mode, setMode] = useState<AuthMode>('signin')
@@ -489,38 +500,17 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
                 <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
               </div>
 
-              {/* Social buttons */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
-                {[
-                  { label: 'Google', icon: 'G', enabled: true, onClick: handleGoogleAuth },
-                  { label: 'Microsoft', icon: 'M', enabled: false, onClick: undefined },
-                ].map((s) => (
-                  <button
-                    key={s.label}
-                    type="button"
-                    disabled={!s.enabled || oauthLoading === 'google'}
-                    onClick={s.onClick}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 8,
-                      padding: '10px 16px',
-                      borderRadius: 8,
-                      border: '1px solid var(--border)',
-                      background: 'var(--auth-social-bg)',
-                      color: 'var(--text-sub)',
-                      fontSize: 13,
-                      fontWeight: 600,
-                      cursor: s.enabled ? 'pointer' : 'not-allowed',
-                      opacity: s.enabled ? 1 : 0.6,
-                    }}
-                  >
-                    <span style={{ fontWeight: 900, fontSize: 15 }}>{s.icon}</span>
-                    {s.label === 'Google' && oauthLoading === 'google' ? 'Redirecting...' : s.label}
-                  </button>
-                ))}
-              </div>
+              {/* Social button */}
+              <button
+                type="button"
+                className="auth-google-btn"
+                disabled={oauthLoading === 'google'}
+                onClick={handleGoogleAuth}
+                aria-label={mode === 'signin' ? 'Sign in with Google' : 'Sign up with Google'}
+              >
+                <GoogleLogo />
+                <span>{oauthLoading === 'google' ? 'Redirecting...' : mode === 'signin' ? 'Sign in with Google' : 'Sign up with Google'}</span>
+              </button>
 
               <p style={{ fontSize: 12, color: 'var(--text-sub)', textAlign: 'center' }}>
                 By {mode === 'signin' ? 'signing in' : 'creating an account'}, you agree to our{' '}
@@ -605,7 +595,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
           --auth-input-bg: var(--card-bg);
           --auth-input-border: var(--border);
           --auth-placeholder: #8a918c;
-          --auth-social-bg: var(--surface);
+          --auth-google-bg: #fff;
+          --auth-google-border: #dadce0;
+          --auth-google-text: #3c4043;
+          --auth-google-hover: #f8fafd;
         }
 
         :root[data-theme="dark"] .auth-page {
@@ -617,7 +610,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
           --auth-input-bg: #171c19;
           --auth-input-border: #354039;
           --auth-placeholder: #8e998f;
-          --auth-social-bg: #151a17;
+          --auth-google-bg: #fff;
+          --auth-google-border: #dadce0;
+          --auth-google-text: #3c4043;
+          --auth-google-hover: #f8fafd;
         }
 
         .auth-page .auth-input {
@@ -632,6 +628,36 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
         .auth-page .auth-input:focus {
           border-color: var(--primary) !important;
           box-shadow: 0 0 0 3px var(--primary-bg);
+        }
+
+        .auth-page .auth-google-btn {
+          width: 100%;
+          min-height: 44px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          margin-bottom: 20px;
+          padding: 10px 16px;
+          border-radius: 8px;
+          border: 1px solid var(--auth-google-border);
+          background: var(--auth-google-bg);
+          color: var(--auth-google-text);
+          font: inherit;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+        }
+
+        .auth-page .auth-google-btn:hover:not(:disabled) {
+          background: var(--auth-google-hover);
+          box-shadow: 0 1px 2px rgba(60,64,67,0.18), 0 1px 3px rgba(60,64,67,0.12);
+        }
+
+        .auth-page .auth-google-btn:disabled {
+          cursor: wait;
+          opacity: 0.72;
         }
 
         .auth-page .auth-input:-webkit-autofill,

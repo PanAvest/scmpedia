@@ -54,6 +54,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
+  // Student plans require the verification details collected by the pre-payment popup.
+  if (plan.tier === 'student') {
+    const meta = (userData.user.user_metadata || {}) as Record<string, unknown>
+    if (!String(meta.student_university || '').trim() || !String(meta.student_index_number || '').trim()) {
+      res.status(400).json({ error: 'Please add your university and student index number before paying for the Student plan.' })
+      return
+    }
+  }
+
   const origin = String(req.headers.origin || `https://${req.headers.host}`)
   const response = await fetch('https://api.paystack.co/transaction/initialize', {
     method: 'POST',

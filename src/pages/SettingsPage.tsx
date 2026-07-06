@@ -184,6 +184,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const history = useMemo(() => readDashboardHistory(), [historyVersion])
   const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'SCMpedia user'
   const memberSince = user?.created_at ? new Date(user.created_at).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) : 'Not signed in'
+  const studentMeta = (user?.user_metadata || {}) as Record<string, unknown>
+  const studentCountry = String(studentMeta.student_country || '')
+  const studentUniversity = String(studentMeta.student_university || '')
+  const studentIndexNumber = String(studentMeta.student_index_number || '')
+  const studentProgramme = String(studentMeta.student_programme || '')
   const isTestingVoice = speakingId === 'settings-voice-test' || preparingId === 'settings-voice-test'
 
   const setUnitSystem = (next: UnitSystem) => {
@@ -408,6 +413,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               <div><span>Email</span><strong>{user.email}</strong></div>
               <div><span>Member since</span><strong>{memberSince}</strong></div>
               <div><span>User ID</span><strong>{user.id}</strong></div>
+              {studentCountry ? <div><span>Country</span><strong>{studentCountry}</strong></div> : null}
+              {studentUniversity ? <div><span>University</span><strong>{studentUniversity}</strong></div> : null}
+              {studentIndexNumber ? <div><span>Student index</span><strong>{studentIndexNumber}</strong></div> : null}
+              {studentProgramme ? <div><span>Programme</span><strong>{studentProgramme}</strong></div> : null}
             </div>
           ) : (
             <div>

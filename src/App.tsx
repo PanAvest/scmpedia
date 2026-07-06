@@ -230,6 +230,7 @@ function AppShell() {
               onToggleFavorite={(entry) => void favorites.toggleFavorite(entry)}
               onOpenPricing={handleOpenPricing}
               onSearch={handleSearch}
+              onStudentDetailsUpdated={() => void auth.refreshUser()}
             />
           }
           />
@@ -244,6 +245,7 @@ function AppShell() {
               onToggleFavorite={(entry) => void favorites.toggleFavorite(entry)}
               onOpenPricing={handleOpenPricing}
               onSearch={handleSearch}
+              onStudentDetailsUpdated={() => void auth.refreshUser()}
             />
           }
           />
@@ -258,6 +260,7 @@ function AppShell() {
               onToggleFavorite={(entry) => void favorites.toggleFavorite(entry)}
               onOpenPricing={handleOpenPricing}
               onSearch={handleSearch}
+              onStudentDetailsUpdated={() => void auth.refreshUser()}
             />
           }
           />
