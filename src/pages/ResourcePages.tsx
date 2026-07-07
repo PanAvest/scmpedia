@@ -450,6 +450,12 @@ function PageHero({ kind, locked = false, onOpenPricing }: { kind: ResourcePageK
   const meta = PAGE_META[kind]
   const Icon = meta.icon
   const previewCopy = PREMIUM_PREVIEW_COPY[kind]
+  const primaryAction = locked
+    ? { label: 'Upgrade to premium', to: '/pricing' }
+    : meta.primary
+  const secondaryAction = locked
+    ? { label: 'Back to home', to: '/' }
+    : meta.secondary
   return (
     <section className="resource-hero">
       <img src="/logo2.png" alt="" aria-hidden className="resource-hero-mark" />
@@ -458,8 +464,8 @@ function PageHero({ kind, locked = false, onOpenPricing }: { kind: ResourcePageK
         <h1>{meta.title}</h1>
         <p>{meta.description}</p>
         <div className="resource-actions">
-          <SmartLink to={meta.primary.to} className="btn btn-primary">{meta.primary.label}<ArrowRight size={15} /></SmartLink>
-          {meta.secondary && <SmartLink to={meta.secondary.to} className="btn btn-outline">{meta.secondary.label}</SmartLink>}
+          <SmartLink to={primaryAction.to} className="btn btn-primary">{primaryAction.label}<ArrowRight size={15} /></SmartLink>
+          {secondaryAction && <SmartLink to={secondaryAction.to} className="btn btn-outline">{secondaryAction.label}</SmartLink>}
         </div>
         {locked && previewCopy && (
           <div className="resource-preview-banner">
@@ -1079,7 +1085,7 @@ export const ResourcePage: React.FC<ResourcePageProps> = ({
   return (
     <div className="resource-page">
       <PageHero kind={kind} locked={locked} onOpenPricing={onOpenPricing} />
-      <ResourceNav active={kind} />
+      {!locked && <ResourceNav active={kind} />}
       {locked ? <PremiumPreviewGate kind={kind} onOpenPricing={onOpenPricing}>{previewContent}</PremiumPreviewGate> : pageContent}
       {!locked && <BottomCTA kind={kind} />}
       <style>{`
