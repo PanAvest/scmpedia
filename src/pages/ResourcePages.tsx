@@ -13,6 +13,7 @@ import {
   CircleHelp,
   ClipboardCheck,
   Clock3,
+  Crown,
   FileText,
   Globe2,
   GraduationCap,
@@ -54,6 +55,8 @@ export interface ResourcePageProps {
   kind: ResourcePageKind
   entries?: Entry[]
   dataStatus?: DataStatus
+  isPremium?: boolean
+  onOpenPricing?: () => void
 }
 
 type PageMeta = {
@@ -145,6 +148,86 @@ const PAGE_META: Record<ResourcePageKind, PageMeta> = {
     icon: MessageSquare,
     primary: { label: 'Email support', to: 'mailto:hello@scmpedia.com' },
     secondary: { label: 'Visit help center', to: '/help' },
+  },
+}
+
+const PREMIUM_RESOURCE_KINDS: ResourcePageKind[] = [
+  'resources',
+  'categories',
+  'ai-features',
+  'release-notes',
+  'blog',
+  'guides',
+  'glossary',
+]
+
+const PREMIUM_PREVIEW_COPY: Partial<Record<ResourcePageKind, {
+  title: string
+  description: string
+  bullets: string[]
+}>> = {
+  resources: {
+    title: 'Unlock the full SCMpedia resource center',
+    description: 'Premium members get the complete learning library instead of this preview strip.',
+    bullets: [
+      'Open every resource page without preview limits.',
+      'Move from articles to guides to glossary study in one flow.',
+      'See the full premium learning library on every visit.',
+    ],
+  },
+  categories: {
+    title: 'Unlock the full category library',
+    description: 'Upgrade to browse every supply chain discipline instead of a limited preview.',
+    bullets: [
+      'Search across all category cards and topic tags.',
+      'Move directly from categories into deeper study paths.',
+      'Use the full category map for structured learning.',
+    ],
+  },
+  'ai-features': {
+    title: 'Unlock the full AI features page',
+    description: 'Premium access shows the complete explanation, workflow, and learning support content.',
+    bullets: [
+      'See the full AI capability breakdown.',
+      'Review the complete responsible-use workflow.',
+      'Access the premium AI learning experience pages without limits.',
+    ],
+  },
+  'release-notes': {
+    title: 'Unlock the full product updates archive',
+    description: 'Premium members can review the full changelog instead of a short preview.',
+    bullets: [
+      'Read the full release log across product improvements.',
+      'Track new learning, subscription, and admin capabilities.',
+      'Keep up with every meaningful SCMpedia update.',
+    ],
+  },
+  blog: {
+    title: 'Unlock the full SCMpedia blog',
+    description: 'Premium members can read the full article library instead of a sample preview.',
+    bullets: [
+      'Browse the full professional article archive.',
+      'Filter by planning, procurement, inventory, logistics, and risk.',
+      'Open every article card and key-point section without limits.',
+    ],
+  },
+  guides: {
+    title: 'Unlock the full practical guide library',
+    description: 'Upgrade to open every step-by-step playbook instead of a short teaser.',
+    bullets: [
+      'Access all starter, intermediate, and professional guides.',
+      'Open the full step lists for each playbook.',
+      'Use the guides as a structured study and work toolkit.',
+    ],
+  },
+  glossary: {
+    title: 'Unlock the full glossary page',
+    description: 'Premium access gives you the complete A-Z glossary experience instead of a limited preview.',
+    bullets: [
+      'Search and filter the full glossary page without limits.',
+      'Browse the complete alphabetical term library.',
+      'Use glossary access together with premium AI and study tools.',
+    ],
   },
 }
 
@@ -363,9 +446,10 @@ function SmartLink({ to, className, children }: { to: string; className?: string
   )
 }
 
-function PageHero({ kind }: { kind: ResourcePageKind }) {
+function PageHero({ kind, locked = false, onOpenPricing }: { kind: ResourcePageKind; locked?: boolean; onOpenPricing?: () => void }) {
   const meta = PAGE_META[kind]
   const Icon = meta.icon
+  const previewCopy = PREMIUM_PREVIEW_COPY[kind]
   return (
     <section className="resource-hero">
       <img src="/logo2.png" alt="" aria-hidden className="resource-hero-mark" />
@@ -377,6 +461,18 @@ function PageHero({ kind }: { kind: ResourcePageKind }) {
           <SmartLink to={meta.primary.to} className="btn btn-primary">{meta.primary.label}<ArrowRight size={15} /></SmartLink>
           {meta.secondary && <SmartLink to={meta.secondary.to} className="btn btn-outline">{meta.secondary.label}</SmartLink>}
         </div>
+        {locked && previewCopy && (
+          <div className="resource-preview-banner">
+            <div className="resource-preview-banner-copy">
+              <div className="resource-preview-banner-badge"><Crown size={14} />Premium preview</div>
+              <strong>{previewCopy.title}</strong>
+              <p>{previewCopy.description}</p>
+            </div>
+            <button type="button" className="btn btn-primary" onClick={onOpenPricing}>
+              Unlock premium
+            </button>
+          </div>
+        )}
       </div>
     </section>
   )
@@ -402,6 +498,209 @@ function SectionHeading({ eyebrow, title, description }: { eyebrow?: string; tit
       {description && <p>{description}</p>}
     </div>
   )
+}
+
+function PremiumPreviewGate({
+  kind,
+  onOpenPricing,
+  children,
+}: {
+  kind: ResourcePageKind
+  onOpenPricing?: () => void
+  children: React.ReactNode
+}) {
+  const previewCopy = PREMIUM_PREVIEW_COPY[kind]
+  if (!previewCopy) return <>{children}</>
+
+  const previewHeight = kind === 'glossary' ? 640 : 560
+
+  return (
+    <div
+      className="resource-preview-shell"
+      style={{ ['--resource-preview-height' as string]: `${previewHeight}px` }}
+    >
+      <div className="resource-preview-inner">{children}</div>
+      <div className="resource-preview-fade" aria-hidden />
+      <div className="resource-preview-overlay">
+        <div className="resource-preview-card">
+          <div className="resource-preview-card-badge"><Crown size={14} />Premium access</div>
+          <h2>{previewCopy.title}</h2>
+          <p>{previewCopy.description}</p>
+          <ul>
+            {previewCopy.bullets.map((item) => (
+              <li key={item}>
+                <CheckCircle2 size={16} />
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="resource-preview-card-actions">
+            {onOpenPricing ? (
+              <button type="button" className="btn btn-primary" onClick={onOpenPricing}>
+                Upgrade to premium
+              </button>
+            ) : (
+              <Link to="/pricing" className="btn btn-primary">Upgrade to premium</Link>
+            )}
+            <Link to="/pricing" className="btn btn-outline">See plans</Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function PremiumSnippetPreview({
+  kind,
+  entries,
+  status,
+}: {
+  kind: ResourcePageKind
+  entries: Entry[]
+  status: DataStatus
+}) {
+  if (kind === 'resources') {
+    return (
+      <section className="resource-section">
+        <div className="container">
+          <div className="premium-snippet-grid">
+            {RESOURCE_LINKS.filter((item) => item.kind !== 'resources').slice(0, 4).map((item) => {
+              const Icon = item.icon
+              return (
+                <article key={item.kind} className="resource-card premium-snippet-card">
+                  <div className="resource-icon"><Icon size={20} /></div>
+                  <h3>{item.label}</h3>
+                  <p>{item.description}</p>
+                </article>
+              )
+            })}
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  if (kind === 'categories') {
+    return (
+      <section className="resource-section">
+        <div className="container">
+          <div className="premium-snippet-grid">
+            {CATEGORIES.slice(0, 3).map(({ title, description, topics, icon: Icon }) => (
+              <article key={title} className="resource-card premium-snippet-card">
+                <div className="resource-icon"><Icon size={20} /></div>
+                <h3>{title}</h3>
+                <p>{description}</p>
+                <div className="resource-tags">{topics.slice(0, 2).map((topic) => <span key={topic}>{topic}</span>)}</div>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  if (kind === 'ai-features') {
+    return (
+      <section className="resource-section">
+        <div className="container">
+          <div className="premium-snippet-grid">
+            {AI_FEATURES.slice(0, 3).map(({ title, description, icon: Icon, availability }) => (
+              <article key={title} className="resource-card premium-snippet-card">
+                <div className="resource-icon"><Icon size={20} /></div>
+                <div className="resource-small-label">{availability}</div>
+                <h3>{title}</h3>
+                <p>{description}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  if (kind === 'release-notes') {
+    return (
+      <section className="resource-section">
+        <div className="container resource-narrow">
+          <div className="release-list">
+            {RELEASES.slice(0, 2).map((release) => (
+              <article key={release.date} className="release-item">
+                <div className="release-date"><CalendarDays size={16} />{release.date}</div>
+                <div className="resource-card release-content premium-snippet-card">
+                  <div className="resource-small-label">{release.version}</div>
+                  <h2>{release.title}</h2>
+                  <p>{release.summary}</p>
+                  <ul>{release.items.slice(0, 2).map((item) => <li key={item}><CheckCircle2 size={16} />{item}</li>)}</ul>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  if (kind === 'blog') {
+    return (
+      <section className="resource-section">
+        <div className="container">
+          <div className="resource-two-grid">
+            {BLOG_POSTS.slice(0, 3).map((post) => (
+              <article key={post.title} className="resource-card blog-card premium-snippet-card">
+                <div className="blog-meta"><span>{post.category}</span><small><Clock3 size={13} />{post.readTime}</small></div>
+                <h2>{post.title}</h2>
+                <p>{post.summary}</p>
+                <ul>{post.points.slice(0, 1).map((point) => <li key={point}>{point}</li>)}</ul>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  if (kind === 'guides') {
+    return (
+      <section className="resource-section">
+        <div className="container">
+          <div className="resource-two-grid">
+            {GUIDES.slice(0, 3).map((guide) => (
+              <article key={guide.title} className="resource-card guide-card premium-snippet-card">
+                <div className="resource-small-label">{guide.level}</div>
+                <h2>{guide.title}</h2>
+                <p>{guide.outcome}</p>
+                <ol>{guide.steps.slice(0, 2).map((step) => <li key={step}>{step}</li>)}</ol>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  if (kind === 'glossary') {
+    const source = entries.length ? entries : FALLBACK_GLOSSARY
+    const letters = Array.from(new Set(source.map((entry) => entry.term[0]?.toUpperCase()).filter((value): value is string => Boolean(value)))).sort().slice(0, 6)
+    const terms = source.slice(0, status === 'loading' ? 6 : 8)
+    return (
+      <section className="resource-section">
+        <div className="container">
+          <div className="glossary-letters" aria-label="Glossary preview letters">
+            {['All', ...letters].map((item) => <button key={item} className={item === 'All' ? 'active' : ''} disabled>{item}</button>)}
+          </div>
+          <div className="glossary-grid premium-snippet-glossary">
+            {terms.map((entry) => (
+              <article key={entry.id || entry.term} className="glossary-item premium-snippet-card">
+                <div><strong>{entry.term}</strong><p>{entry.definition}</p></div><ChevronRight size={16} />
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  return null
 }
 
 function ResourceHub() {
@@ -753,11 +1052,16 @@ function BottomCTA({ kind }: { kind: ResourcePageKind }) {
   )
 }
 
-export const ResourcePage: React.FC<ResourcePageProps> = ({ kind, entries = [], dataStatus = 'ready' }) => {
-  return (
-    <div className="resource-page">
-      <PageHero kind={kind} />
-      <ResourceNav active={kind} />
+export const ResourcePage: React.FC<ResourcePageProps> = ({
+  kind,
+  entries = [],
+  dataStatus = 'ready',
+  isPremium = false,
+  onOpenPricing,
+}) => {
+  const locked = !isPremium && PREMIUM_RESOURCE_KINDS.includes(kind)
+  const pageContent = (
+    <>
       {kind === 'resources' && <ResourceHub />}
       {kind === 'categories' && <CategoriesPage />}
       {kind === 'ai-features' && <AIFeaturesPage />}
@@ -768,7 +1072,16 @@ export const ResourcePage: React.FC<ResourcePageProps> = ({ kind, entries = [], 
       {kind === 'help' && <HelpPage />}
       {kind === 'careers' && <CareersPage />}
       {kind === 'contact' && <ContactPage />}
-      <BottomCTA kind={kind} />
+    </>
+  )
+  const previewContent = <PremiumSnippetPreview kind={kind} entries={entries} status={dataStatus} />
+
+  return (
+    <div className="resource-page">
+      <PageHero kind={kind} locked={locked} onOpenPricing={onOpenPricing} />
+      <ResourceNav active={kind} />
+      {locked ? <PremiumPreviewGate kind={kind} onOpenPricing={onOpenPricing}>{previewContent}</PremiumPreviewGate> : pageContent}
+      {!locked && <BottomCTA kind={kind} />}
       <style>{`
         .resource-page { min-height: 100vh; background: var(--bg); color: var(--text-main); }
         .resource-hero { position: relative; overflow: hidden; padding: 54px 24px 48px; background: var(--home-hero-bg); border-bottom: 1px solid var(--border); }
@@ -778,11 +1091,34 @@ export const ResourcePage: React.FC<ResourcePageProps> = ({ kind, entries = [], 
         .resource-hero h1 { max-width: 760px; margin: 14px 0 14px; font-size: 42px; line-height: 1.08; font-weight: 900; letter-spacing: 0; }
         .resource-hero p { max-width: 740px; color: var(--text-sub); font-size: 16px; line-height: 1.7; }
         .resource-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 24px; }
+        .resource-preview-banner { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 22px; padding: 18px; border: 1px solid color-mix(in srgb, var(--success-green) 24%, var(--border)); border-radius: 14px; background: color-mix(in srgb, var(--card-bg) 88%, var(--success-green) 12%); box-shadow: var(--shadow-sm); }
+        .resource-preview-banner-copy { max-width: 560px; }
+        .resource-preview-banner-copy strong { display: block; margin: 0 0 6px; font-size: 18px; font-weight: 900; color: var(--text-main); }
+        .resource-preview-banner-copy p { margin: 0; max-width: none; font-size: 14px; }
+        .resource-preview-banner-badge, .resource-preview-card-badge { display: inline-flex; align-items: center; gap: 7px; margin-bottom: 10px; color: var(--success-green); font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 0; }
         .resource-nav { position: sticky; top: 72px; z-index: 40; border-bottom: 1px solid var(--border); background: color-mix(in srgb, var(--bg) 94%, transparent); backdrop-filter: blur(12px); }
         .resource-nav-inner { display: flex; gap: 4px; overflow-x: auto; padding-top: 10px; padding-bottom: 10px; scrollbar-width: none; }
         .resource-nav-inner::-webkit-scrollbar { display: none; }
         .resource-nav a { flex: 0 0 auto; padding: 8px 11px; border-radius: 8px; color: var(--text-sub); font-size: 12px; font-weight: 700; }
         .resource-nav a:hover, .resource-nav a.active { color: var(--primary); background: var(--primary-bg); }
+        .resource-preview-shell { position: relative; margin-bottom: 22px; }
+        .resource-preview-inner { max-height: var(--resource-preview-height, 980px); overflow: hidden; }
+        .resource-preview-fade { position: absolute; inset: auto 0 0 0; height: 220px; background: linear-gradient(180deg, rgba(255,255,255,0) 0%, var(--bg) 38%, var(--bg) 100%); pointer-events: none; }
+        .resource-preview-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; }
+        .resource-preview-card { width: min(720px, 100%); padding: 26px; border: 1px solid color-mix(in srgb, var(--success-green) 26%, var(--border)); border-radius: 18px; background: color-mix(in srgb, var(--card-bg) 94%, var(--success-green) 6%); box-shadow: 0 20px 50px rgba(0,0,0,0.16); }
+        .resource-preview-card h2 { margin: 0 0 8px; font-size: 28px; font-weight: 900; letter-spacing: 0; }
+        .resource-preview-card p { margin: 0 0 16px; color: var(--text-sub); font-size: 14px; line-height: 1.7; }
+        .resource-preview-card ul { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+        .resource-preview-card li { display: flex; gap: 10px; align-items: flex-start; color: var(--text-main); font-size: 13px; line-height: 1.55; }
+        .resource-preview-card li svg { flex: 0 0 auto; margin-top: 2px; color: var(--success-green); }
+        .resource-preview-card-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+        .premium-snippet-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+        .premium-snippet-card { pointer-events: none; user-select: none; }
+        .premium-snippet-card h2, .premium-snippet-card h3 { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+        .premium-snippet-card p { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+        .premium-snippet-card ul, .premium-snippet-card ol { display: grid; gap: 8px; margin: 14px 0 0; padding-left: 18px; color: var(--text-sub); font-size: 13px; line-height: 1.5; }
+        .premium-snippet-card li { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+        .premium-snippet-glossary .glossary-item { pointer-events: none; }
         .resource-section { padding: 54px 24px; scroll-margin-top: 130px; }
         .resource-muted-band { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
         .resource-section-heading { max-width: 720px; margin-bottom: 26px; }
@@ -886,7 +1222,7 @@ export const ResourcePage: React.FC<ResourcePageProps> = ({ kind, entries = [], 
         .resource-bottom-cta-inner { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 26px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
         .resource-bottom-cta p { max-width: 680px; }
         @media (max-width: 980px) {
-          .resource-card-grid, .resource-three-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .resource-card-grid, .resource-three-grid, .premium-snippet-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .resource-split, .contact-layout { grid-template-columns: 1fr; }
           .resource-nav { top: 72px; }
         }
@@ -895,11 +1231,19 @@ export const ResourcePage: React.FC<ResourcePageProps> = ({ kind, entries = [], 
           .resource-hero h1 { font-size: 32px; }
           .resource-hero p { font-size: 14px; }
           .resource-hero-mark { right: -24px; width: 130px; }
+          .resource-preview-banner { align-items: stretch; flex-direction: column; }
+          .resource-preview-banner .btn { width: 100%; justify-content: center; }
+          .resource-preview-fade { height: 280px; }
+          .resource-preview-overlay { padding: 18px; }
+          .resource-preview-card { padding: 22px; }
+          .resource-preview-card h2 { font-size: 24px; }
+          .resource-preview-card-actions { display: grid; }
+          .resource-preview-card-actions .btn { width: 100%; justify-content: center; }
           .resource-section { padding: 40px 18px; }
           .resource-nav-inner { padding-left: 18px; padding-right: 18px; }
           .resource-heading-row { align-items: stretch; flex-direction: column; }
           .resource-search { width: 100%; }
-          .resource-card-grid, .resource-two-grid, .resource-three-grid, .glossary-grid { grid-template-columns: 1fr; }
+          .resource-card-grid, .resource-two-grid, .resource-three-grid, .glossary-grid, .premium-snippet-grid { grid-template-columns: 1fr; }
           .release-item { grid-template-columns: 1fr; gap: 8px; }
           .release-date { padding-top: 0; }
           .resource-section-heading h2, .resource-bottom-cta h2 { font-size: 24px; }

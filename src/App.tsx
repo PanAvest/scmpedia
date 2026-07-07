@@ -302,16 +302,16 @@ function AppShell() {
           <Route path="/about" element={<AboutPage isPremium={isPremium} />} />
           <Route path="/privacy" element={<LegalPage type="privacy" />} />
           <Route path="/terms" element={<LegalPage type="terms" />} />
-          <Route path="/categories" element={<ResourceRoute kind="categories" />} />
-          <Route path="/ai-features" element={<ResourceRoute kind="ai-features" />} />
-          <Route path="/release-notes" element={<ResourceRoute kind="release-notes" />} />
-          <Route path="/blog" element={<ResourceRoute kind="blog" />} />
-          <Route path="/guides" element={<ResourceRoute kind="guides" />} />
-          <Route path="/glossary" element={<ResourceRoute kind="glossary" entries={dataHook.data} dataStatus={dataHook.status} />} />
-          <Route path="/help" element={<ResourceRoute kind="help" />} />
-          <Route path="/careers" element={<ResourceRoute kind="careers" />} />
-          <Route path="/contact" element={<ResourceRoute kind="contact" />} />
-          <Route path="/resources" element={<ResourceRoute kind="resources" />} />
+          <Route path="/categories" element={<ResourceRoute kind="categories" isPremium={isPremium} onOpenPricing={handleOpenPricing} />} />
+          <Route path="/ai-features" element={<ResourceRoute kind="ai-features" isPremium={isPremium} onOpenPricing={handleOpenPricing} />} />
+          <Route path="/release-notes" element={<ResourceRoute kind="release-notes" isPremium={isPremium} onOpenPricing={handleOpenPricing} />} />
+          <Route path="/blog" element={<ResourceRoute kind="blog" isPremium={isPremium} onOpenPricing={handleOpenPricing} />} />
+          <Route path="/guides" element={<ResourceRoute kind="guides" isPremium={isPremium} onOpenPricing={handleOpenPricing} />} />
+          <Route path="/glossary" element={<ResourceRoute kind="glossary" entries={dataHook.data} dataStatus={dataHook.status} isPremium={isPremium} onOpenPricing={handleOpenPricing} />} />
+          <Route path="/help" element={<ResourceRoute kind="help" isPremium={isPremium} onOpenPricing={handleOpenPricing} />} />
+          <Route path="/careers" element={<ResourceRoute kind="careers" isPremium={isPremium} onOpenPricing={handleOpenPricing} />} />
+          <Route path="/contact" element={<ResourceRoute kind="contact" isPremium={isPremium} onOpenPricing={handleOpenPricing} />} />
+          <Route path="/resources" element={<ResourceRoute kind="resources" isPremium={isPremium} onOpenPricing={handleOpenPricing} />} />
 
           <Route
           path="/settings"

@@ -56,11 +56,13 @@ const PLANS: Plan[] = [
     features: [
       '3 dictionary word searches per day',
       'Basic definitions & examples',
+      'Preview access to blog, guides, glossary, and AI resource pages',
       'Standard contextual images',
       'Voice search (limited)',
       'Favorites (up to 20)',
     ],
     missing: [
+      'Full resource library access',
       'Unlimited AI explanations',
       'Voice text-to-speech',
       'Dictionary mode (page-flip)',
@@ -82,6 +84,7 @@ const PLANS: Plan[] = [
     note: 'Valid student ID may be required.',
     features: [
       'Unlimited dictionary searches',
+      'Full access to blog, guides, glossary, AI pages, and release notes',
       'AI-powered explanations & insights',
       'Voice search & text-to-speech',
       'Dictionary mode (full access)',
@@ -106,6 +109,7 @@ const PLANS: Plan[] = [
     badge: 'Most Popular',
     features: [
       'Everything in Student',
+      'Full premium resource library access',
       'Unlimited AI explanations & insights',
       'Voice search (unlimited)',
       'Dictionary mode (full access)',
@@ -119,6 +123,7 @@ const PLANS: Plan[] = [
 
 const COMPARE_ROWS: { feature: string; free: boolean | string; student: boolean | string; pro: boolean | string }[] = [
   { feature: 'Dictionary searches', free: '3/day', student: 'Unlimited', pro: 'Unlimited' },
+  { feature: 'Resource library access', free: 'Preview only', student: true, pro: true },
   { feature: 'AI-powered explanations', free: 'Limited', student: true, pro: true },
   { feature: 'Voice search', free: 'Limited', student: 'Unlimited', pro: 'Unlimited' },
   { feature: 'Voice text-to-speech', free: false, student: true, pro: true },
