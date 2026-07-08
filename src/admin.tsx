@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import ReactDOM from 'react-dom/client'
+import { RaffleDrawMode } from './components/RaffleDrawMode'
 
 type Entry = {
   id?: string
@@ -188,6 +189,7 @@ function AdminApp() {
   const [studentsStatus, setStudentsStatus] = useState('')
   const [studentsTone, setStudentsTone] = useState<'default' | 'success' | 'error'>('default')
   const [studentSearch, setStudentSearch] = useState('')
+  const [raffleOpen, setRaffleOpen] = useState(false)
   const papaRef = useRef<PapaParse | null>(null)
 
   const filtered = useMemo(() => {
@@ -810,6 +812,35 @@ function AdminApp() {
       </header>
 
       <main className="admin-main">
+        <section
+          className="panel"
+          style={{
+            gridColumn: '1 / -1',
+            background: 'linear-gradient(120deg, #fbf3ee, #f4efe6)',
+            border: '1px solid rgba(182,84,55,.22)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 16,
+            flexWrap: 'wrap',
+          }}
+        >
+          <div>
+            <div className="panel-title" style={{ color: 'var(--primary)' }}>Launch Raffle · Grand Draw</div>
+            <div style={{ color: 'var(--text-sub)', fontSize: 14, maxWidth: '62ch', lineHeight: 1.5 }}>
+              Draw 30 winners from students who paid for the <b>Student Plan</b>. Pick a university (or all schools),
+              publish the commitment, then run a provably-fair live draw on the projector.
+            </div>
+          </div>
+          <button
+            className="btn btn-primary"
+            style={{ whiteSpace: 'nowrap', fontSize: 15, padding: '12px 22px' }}
+            onClick={() => setRaffleOpen(true)}
+          >
+            Launch Grand Draw
+          </button>
+        </section>
+
         <section className="panel">
           <div className="panel-title-row">
             <div className="panel-title">Entries</div>
@@ -1142,6 +1173,7 @@ function AdminApp() {
           </div>
         </section>
       </main>
+      {raffleOpen && <RaffleDrawMode token={adminToken} onClose={() => setRaffleOpen(false)} />}
     </div>
   )
 }

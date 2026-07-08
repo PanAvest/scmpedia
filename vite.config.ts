@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 import { createHmac, scryptSync, randomBytes } from 'crypto'
 import { DEFAULT_PLANS, loadPlan, loadAllPlans } from './api/_plans'
 import { collectStudents } from './api/_students'
+import { buildPool, poolResponse, drawResult } from './api/_raffle'
 
 // Supabase's client builds a realtime client (needs a global WebSocket) at construction.
 // Node < 22 has none, and the dev middleware never opens a realtime channel, so a harmless
@@ -1192,6 +1193,61 @@ export default defineConfig(({ mode }) => {
                 res.setHeader('Content-Type', 'application/json')
                 res.end(JSON.stringify({ error: err?.message || 'Could not load students' }))
               })
+          })
+
+          // Dev mirror of api/admin/raffle.ts — eligible pool + commit-reveal draw.
+          server.middlewares.use('/api/admin/raffle', (req, res) => {
+            const identity = adminIdentity(req)
+            if (!identity) {
+              res.statusCode = 401
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify({ error: 'Admin sign-in required' }))
+              return
+            }
+            if (!supabaseUrl || !supabaseServiceRoleKey) {
+              res.statusCode = 500
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify({ error: 'Missing server configuration' }))
+              return
+            }
+            const service = createClient(supabaseUrl, supabaseServiceRoleKey, {
+              auth: { persistSession: false, autoRefreshToken: false },
+            })
+            const send = (status: number, body: any) => {
+              res.statusCode = status
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify(body))
+            }
+
+            if (req.method === 'GET') {
+              const url = new URL(req.url || '', 'http://localhost')
+              const cutoffIso = url.searchParams.get('cutoff') || new Date().toISOString()
+              const university = url.searchParams.get('university') || ''
+              const drawSize = url.searchParams.get('drawSize') || undefined
+              buildPool(service, { cutoffIso, university })
+                .then((built) => send(200, poolResponse(built, cutoffIso, university, drawSize)))
+                .catch((err: any) => send(500, { error: err?.message || 'Could not load pool' }))
+              return
+            }
+
+            if (req.method === 'POST') {
+              let raw = ''
+              req.on('data', (chunk) => {
+                raw += chunk
+              })
+              req.on('end', async () => {
+                try {
+                  const parsed = JSON.parse(raw || '{}')
+                  const { status, body } = await drawResult(service, parsed, identity.email)
+                  send(status, body)
+                } catch (err: any) {
+                  send(500, { error: err?.message || 'Could not run the raffle' })
+                }
+              })
+              return
+            }
+
+            send(405, { error: 'Method not allowed' })
           })
 
           server.middlewares.use('/api/words', async (req, res) => {
