@@ -34,7 +34,7 @@ export const LegalPage: React.FC<LegalPageProps> = ({ type }) => {
         ) : (
           <div className="legal-copy">
             <h2>Using SCMpedia</h2>
-            <p>You may use SCMpedia for lawful learning, research, and professional reference. Free users are entitled to 2 word searches per day; premium users receive expanded access while their subscription is active.</p>
+            <p>You may use SCMpedia for lawful learning, research, and professional reference. Free users are entitled to 3 word searches per day; premium users receive expanded access while their subscription is active.</p>
             <h2>Content and AI</h2>
             <p>Definitions and AI explanations are educational references. Verify critical business, legal, financial, or operational decisions with qualified experts and primary sources.</p>
             <h2>Subscriptions</h2>

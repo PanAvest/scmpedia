@@ -22,14 +22,22 @@ type AuthLike = {
 }
 
 export function useSubscription(auth: AuthLike) {
-  const [state, setState] = useState<SubscriptionState>(() => getSubscriptionFromUser(auth.user))
+  // Derive subscription synchronously from the current user so premium status never
+  // lags auth by a render — otherwise gated pages (e.g. Full Page) briefly flash the
+  // upgrade wall for a subscriber on the frame auth settles but this state hasn't.
+  const derived = getSubscriptionFromUser(auth.user)
+  // Optimistic state applied right after a successful Paystack verification, before
+  // auth.user has refreshed to reflect it. Dropped once derived catches up (or logout).
+  const [override, setOverride] = useState<SubscriptionState | null>(null)
   const [checkingOut, setCheckingOut] = useState<SubscriptionPlan | null>(null)
   const [verifying, setVerifying] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    setState(getSubscriptionFromUser(auth.user))
-  }, [auth.user])
+    if (override && (!auth.user || derived.tier === 'premium')) setOverride(null)
+  }, [auth.user, derived.tier, override])
+
+  const state: SubscriptionState = override ?? derived
 
   const verifyReference = useCallback(async (reference: string) => {
     if (!auth.session?.access_token) return
@@ -47,7 +55,7 @@ export function useSubscription(auth: AuthLike) {
       const body = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(body?.error || 'Could not verify payment')
       await auth.refreshUser()
-      setState({ tier: 'premium', plan: body.plan, expiresAt: body.expiresAt })
+      setOverride({ tier: 'premium', plan: body.plan, expiresAt: body.expiresAt })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not verify payment')
     } finally {

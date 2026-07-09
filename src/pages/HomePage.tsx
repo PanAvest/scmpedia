@@ -379,14 +379,55 @@ export const HomePage: React.FC<HomePageProps> = ({
         <div className="home-hero-dotfield" style={{ right: '4%', top: 112 }} />
         <div className="home-hero-dotfield" style={{ left: '2.5%', bottom: 42, opacity: 0.32 }} />
         <div style={{ maxWidth: 850, margin: '0 auto', position: 'relative', zIndex: 1 }}>
+          {/* World-first claim — editorial hairline kicker above the headline */}
+          <style>{`
+            .home-kicker { display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 18px; }
+            .home-kicker-rule { height: 1px; width: 54px; flex-shrink: 0; }
+            .home-kicker-rule.left  { background: linear-gradient(90deg, transparent, var(--primary)); }
+            .home-kicker-rule.right { background: linear-gradient(90deg, var(--primary), transparent); }
+            .home-kicker-text {
+              font-size: 11.5px; font-weight: 700; letter-spacing: 0.28em;
+              text-transform: uppercase; color: var(--primary); white-space: nowrap;
+            }
+            @media (max-width: 520px) {
+              .home-kicker { gap: 11px; }
+              .home-kicker-rule { width: 26px; }
+              .home-kicker-text { font-size: 9.5px; letter-spacing: 0.16em; }
+            }
+            @media (max-width: 360px) {
+              .home-kicker-rule { display: none; }
+              .home-kicker-text { letter-spacing: 0.1em; }
+            }
+          `}</style>
+          <div className="home-kicker">
+            <span className="home-kicker-rule left" aria-hidden="true" />
+            <span className="home-kicker-text">First of its kind in the world</span>
+            <span className="home-kicker-rule right" aria-hidden="true" />
+          </div>
           <h1 style={{ fontSize: 'clamp(34px, 5.7vw, 68px)', fontWeight: 900, lineHeight: 1.03, color: 'var(--text-main)', marginBottom: 18, letterSpacing: 0 }}>
             The{' '}
             <span style={{ color: 'var(--primary)' }}>AI-Powered</span>{' '}
-            Dictionary for Supply Chain Professionals
+            Dictionary for Supply Chain Managers
           </h1>
-          <p style={{ fontSize: 18, color: 'var(--text-sub)', lineHeight: 1.55, maxWidth: 650, margin: '0 auto 28px' }}>
+          <p style={{ fontSize: 18, color: 'var(--text-sub)', lineHeight: 1.55, maxWidth: 650, margin: '0 auto 22px' }}>
             Instant definitions, real-world examples, and smart insights across the entire supply chain ecosystem.
           </p>
+
+          {/* Accreditation — official seal + endorsement line (not a generic badge) */}
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 30 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, textAlign: 'left' }}>
+              <AccreditationSeal />
+              <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.3, maxWidth: 300 }}>
+                <span style={{ fontSize: 8.5, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--success-green)', marginBottom: 2 }}>
+                  Officially Approved
+                </span>
+                <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--text-main)' }}>
+                  National Council for Curriculum and Assessment{' '}
+                  <span style={{ color: 'var(--text-sub)', fontWeight: 700 }}>(NaCCA)</span>
+                </span>
+              </span>
+            </div>
+          </div>
 
           {/* Search Bar */}
           <div style={{ maxWidth: 760, margin: '0 auto', position: 'relative', zIndex: 2 }}>
@@ -498,6 +539,8 @@ export const HomePage: React.FC<HomePageProps> = ({
                       onAuthRequired={() => onOpenAuth('signin')}
                       onToggleFavorite={toggleFavorite}
                       onOpenTermPage={onOpenTermPage}
+                      isPremium={subscription.isPremium}
+                      onOpenPricing={onOpenPricing}
                       authToken={authToken}
                     />
                   ) : null}
@@ -698,6 +741,22 @@ export const HomePage: React.FC<HomePageProps> = ({
     </div>
   )
 }
+
+// Scalloped edge for the NaCCA accreditation seal (computed once at module load)
+const SEAL_POINTS = Array.from({ length: 44 }, (_, i) => {
+  const a = (Math.PI / 22) * i
+  const r = i % 2 === 0 ? 31 : 25.5
+  return `${(32 + r * Math.cos(a)).toFixed(1)},${(32 + r * Math.sin(a)).toFixed(1)}`
+}).join(' ')
+
+// An official-looking stamp: scalloped ring + inner ring + endorsement check.
+const AccreditationSeal = () => (
+  <svg width="44" height="44" viewBox="0 0 64 64" role="img" aria-label="NaCCA accreditation seal" style={{ flexShrink: 0, display: 'block' }}>
+    <polygon points={SEAL_POINTS} fill="rgba(20,174,92,0.10)" stroke="var(--success-green)" strokeWidth="1.4" strokeLinejoin="round" />
+    <circle cx="32" cy="32" r="20.5" fill="none" stroke="var(--success-green)" strokeWidth="1" opacity="0.4" />
+    <path d="M22.6 32.6l6.4 6.4L42 25.2" fill="none" stroke="var(--success-green)" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
 
 const CountUpStat = ({
   end,

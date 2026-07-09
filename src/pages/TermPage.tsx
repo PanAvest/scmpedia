@@ -4,7 +4,7 @@ import {
   ArrowLeft, Volume2, Star, Copy, Share2, Sparkles,
   RefreshCw, BookOpen, ChevronRight, ThumbsUp, ThumbsDown,
   Building2, ChevronDown, Search, Users, FileText,
-  ShieldCheck, Package, Truck, BarChart2,
+  ShieldCheck, Package, Truck, BarChart2, Lock, Crown,
 } from 'lucide-react'
 import type { Entry } from '../types'
 import {
@@ -27,6 +27,7 @@ interface TermPageProps {
     toggleFavorite: (entry: Entry) => Promise<{ ok: boolean; needsAuth?: boolean }>
   }
   isPremium: boolean
+  authLoading?: boolean
   onOpenAuth: () => void
   onOpenPricing: () => void
   authToken?: string
@@ -72,7 +73,7 @@ const AccordionRow: React.FC<AccordionRowProps> = ({
 )
 
 export const TermPage: React.FC<TermPageProps> = ({
-  dataHook, tts, ai, user, favorites, onOpenAuth, authToken,
+  dataHook, tts, ai, user, favorites, isPremium, authLoading = false, onOpenAuth, onOpenPricing, authToken,
 }) => {
   const { slug } = useParams<{ slug: string }>()
   const navigate = useNavigate()
@@ -142,12 +143,13 @@ export const TermPage: React.FC<TermPageProps> = ({
   }
 
   useEffect(() => {
-    if (!entry) return
+    // Premium-only page: never hit /api/image for non-subscribers (they see the upgrade wall).
+    if (!entry || !isPremium) return
     setImageUrl(''); setImageAltUrl(''); setImageTitle(''); setImageSourceUrl('')
     setImageError(false); setImageLoaded(false)
     fetchImage()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entryId])
+  }, [entryId, isPremium])
 
   // --- AI Deep Dive ---
   const [aiText, setAiText] = useState('')
@@ -156,7 +158,8 @@ export const TermPage: React.FC<TermPageProps> = ({
   const aiSectionRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!entry) return
+    // Premium-only page: don't generate AI for non-subscribers.
+    if (!entry || !isPremium) return
     let cancelled = false
     setAiText('')
     setLoadingAi(true)
@@ -166,7 +169,7 @@ export const TermPage: React.FC<TermPageProps> = ({
       .finally(() => { if (!cancelled) setLoadingAi(false) })
     return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entryId, aiRegenKey])
+  }, [entryId, aiRegenKey, isPremium])
 
   // --- Industry Example ---
   const [selectedSector, setSelectedSector] = useState(SCMPEDIA_SECTORS[0] ?? 'healthcare')
@@ -174,7 +177,8 @@ export const TermPage: React.FC<TermPageProps> = ({
   const [loadingExample, setLoadingExample] = useState(false)
 
   useEffect(() => {
-    if (!entry) return
+    // Premium-only page: don't call the AI example endpoint for non-subscribers.
+    if (!entry || !isPremium) return
     let cancelled = false
     setIndustryExample(sectorExampleFallback(entry, selectedSector))
     setLoadingExample(true)
@@ -197,7 +201,7 @@ export const TermPage: React.FC<TermPageProps> = ({
       .finally(() => { if (!cancelled) setLoadingExample(false) })
     return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entryId, selectedSector])
+  }, [entryId, selectedSector, isPremium])
 
   // --- Related Terms ---
   const relatedTerms = useMemo(() => {
@@ -272,7 +276,8 @@ export const TermPage: React.FC<TermPageProps> = ({
   }
 
   // ---- Loading / Not Found ----
-  if (dataHook.status === 'loading' && !entry) {
+  // Wait for auth to settle too, so subscribers never flash the upgrade wall on a shared link.
+  if ((dataHook.status === 'loading' && !entry) || authLoading) {
     return (
       <div className="tp-page">
         <div className="tp-state-center">
@@ -305,23 +310,75 @@ export const TermPage: React.FC<TermPageProps> = ({
 
   const backLabel = fromSource === 'chat' ? 'Back to Chat' : fromSource === 'dictionary' ? 'Back to Dictionary' : 'Back'
 
+  const breadcrumb = (
+    <div className="tp-breadcrumb">
+      <button className="tp-back-btn" onClick={() => navigate(-1 as any)}>
+        <ArrowLeft size={14} /> {backLabel}
+      </button>
+      <nav className="tp-breadcrumb-nav" aria-label="breadcrumb">
+        <button onClick={() => navigate('/')}>Home</button>
+        <span>/</span>
+        {fromSource !== 'chat' && (
+          <><button onClick={() => navigate('/dictionary')}>Dictionary</button><span>/</span></>
+        )}
+        <span className="tp-breadcrumb-current">{entry.term}</span>
+      </nav>
+    </div>
+  )
+
+  // ── Premium gate: Full Page is a members-only experience ──
+  // Anyone can hold a /term/<slug> link, but only subscribers can open the full page.
+  if (!isPremium) {
+    return (
+      <div className="tp-page">
+        {breadcrumb}
+
+        <div className="tp-locked container">
+          <div className="tp-locked-card card">
+            <span className="tp-locked-badge"><Crown size={13} /> Premium Feature</span>
+            <h1 className="tp-locked-title">{entry.term}</h1>
+            <p className="tp-locked-teaser">
+              {entry.definition.length > 150 ? `${entry.definition.slice(0, 150).trim()}…` : entry.definition}
+            </p>
+
+            {/* Blurred preview of the locked full page */}
+            <div className="tp-locked-preview" aria-hidden="true">
+              <div className="tp-locked-line" style={{ width: '92%' }} />
+              <div className="tp-locked-line" style={{ width: '100%' }} />
+              <div className="tp-locked-line" style={{ width: '78%' }} />
+              <div className="tp-locked-line" style={{ width: '88%' }} />
+              <div className="tp-locked-lock"><Lock size={22} /></div>
+            </div>
+
+            <p className="tp-locked-note">
+              <Sparkles size={14} /> The full page — AI deep dive, real-world industry examples,
+              related terms and imagery — is available to SCMpedia Premium members.
+            </p>
+
+            <div className="tp-locked-actions">
+              <button className="btn btn-premium" onClick={() => onOpenPricing()}>
+                <Crown size={16} /> Go Premium
+              </button>
+              {!user && (
+                <button className="btn btn-outline" onClick={() => onOpenAuth()}>Sign In</button>
+              )}
+              <button className="btn btn-outline" onClick={() => navigate('/dictionary')}>
+                Browse Dictionary
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <style>{css}</style>
+      </div>
+    )
+  }
+
   return (
     <div className="tp-page">
 
       {/* ── Breadcrumb ── */}
-      <div className="tp-breadcrumb">
-        <button className="tp-back-btn" onClick={() => navigate(-1 as any)}>
-          <ArrowLeft size={14} /> {backLabel}
-        </button>
-        <nav className="tp-breadcrumb-nav" aria-label="breadcrumb">
-          <button onClick={() => navigate('/')}>Home</button>
-          <span>/</span>
-          {fromSource !== 'chat' && (
-            <><button onClick={() => navigate('/dictionary')}>Dictionary</button><span>/</span></>
-          )}
-          <span className="tp-breadcrumb-current">{entry.term}</span>
-        </nav>
-      </div>
+      {breadcrumb}
 
       {/* ── Two-column layout ── */}
       <div className="tp-layout container">
@@ -1430,5 +1487,121 @@ const css = `
 
   @media (max-width: 440px) {
     .tp-action-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ── Premium gate / upgrade wall ── */
+  .tp-locked {
+    display: flex;
+    justify-content: center;
+    padding: 48px 24px 64px;
+  }
+
+  .tp-locked-card {
+    background: var(--tp-panel-bg);
+    box-shadow: var(--tp-panel-shadow);
+    border-radius: 22px;
+    padding: 36px 40px;
+    max-width: 560px;
+    width: 100%;
+    text-align: center;
+  }
+
+  .tp-locked-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10.5px;
+    font-weight: 800;
+    background: var(--primary-bg);
+    color: var(--primary);
+    padding: 5px 13px;
+    border-radius: 99px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    border: 1px solid rgba(182,84,55,0.22);
+  }
+
+  .tp-locked-title {
+    font-size: clamp(26px, 4vw, 36px);
+    font-weight: 900;
+    color: var(--text-main);
+    margin: 16px 0 10px;
+    line-height: 1.1;
+  }
+
+  .tp-locked-teaser {
+    font-size: 15px;
+    line-height: 1.65;
+    color: var(--text-sub);
+    margin: 0 auto 22px;
+    max-width: 440px;
+  }
+
+  .tp-locked-preview {
+    position: relative;
+    display: grid;
+    gap: 12px;
+    padding: 26px 24px 34px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--surface);
+    overflow: hidden;
+    margin-bottom: 22px;
+  }
+
+  .tp-locked-line {
+    height: 12px;
+    border-radius: 99px;
+    background: linear-gradient(90deg, var(--border), var(--surface-hover), var(--border));
+    filter: blur(1.5px);
+    opacity: 0.85;
+  }
+
+  .tp-locked-lock {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: var(--primary);
+    background: linear-gradient(180deg, transparent, var(--tp-panel-bg) 92%);
+  }
+
+  .tp-locked-lock > * {
+    width: 46px;
+    height: 46px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--primary-bg);
+    border: 1px solid rgba(182,84,55,0.25);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+  }
+
+  .tp-locked-note {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 7px;
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: var(--text-sub);
+    margin: 0 auto 24px;
+    max-width: 460px;
+    text-align: left;
+  }
+
+  .tp-locked-note svg { color: var(--primary); flex-shrink: 0; margin-top: 2px; }
+
+  .tp-locked-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+  }
+
+  @media (max-width: 480px) {
+    .tp-locked-card { padding: 26px 20px; border-radius: 18px; }
+    .tp-locked-actions { flex-direction: column; }
+    .tp-locked-actions .btn { width: 100%; }
   }
 `

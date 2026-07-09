@@ -103,6 +103,13 @@ function AppShell() {
 
   const isPremium = subscription.isPremium
 
+  // Dark mode is a premium feature — force free users back to light once auth has settled
+  // (covers a persisted setting or a premium user who downgrades). Waiting on auth.loading
+  // avoids flipping a real subscriber to light for a frame while their session restores.
+  useEffect(() => {
+    if (!auth.loading && !isPremium && darkMode) setDarkMode(false)
+  }, [auth.loading, isPremium, darkMode])
+
   const handleOpenTermFromDict = (entry: Entry) => navigate(`/term/${termToSlug(entry.term)}`, { state: { from: 'dictionary' } })
   const handleOpenTermFromChat = (entry: Entry) => navigate(`/term/${termToSlug(entry.term)}`, { state: { from: 'chat' } })
   const handleSignIn = () => navigate('/auth')
@@ -196,6 +203,7 @@ function AppShell() {
           darkMode={darkMode}
           setDarkMode={setDarkMode}
           isPremium={isPremium}
+          authLoading={auth.loading}
           preferDictionaryMode={dictionaryMode}
           onLogoClick={handleLogoClick}
           onSignIn={handleSignIn}
@@ -319,6 +327,7 @@ function AppShell() {
             <SettingsPage
               user={auth.user}
               isPremium={isPremium}
+              authLoading={auth.loading}
               darkMode={darkMode}
               setDarkMode={setDarkMode}
               ttsProvider={tts.provider}
@@ -344,6 +353,7 @@ function AppShell() {
             <SettingsPage
               user={auth.user}
               isPremium={isPremium}
+              authLoading={auth.loading}
               darkMode={darkMode}
               setDarkMode={setDarkMode}
               ttsProvider={tts.provider}
@@ -403,6 +413,7 @@ function AppShell() {
               user={auth.user}
               favorites={favorites}
               isPremium={isPremium}
+              authLoading={auth.loading}
               onOpenAuth={handleSignIn}
               onOpenPricing={handleOpenPricing}
               authToken={auth.session?.access_token}

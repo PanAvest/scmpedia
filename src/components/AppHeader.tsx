@@ -9,6 +9,7 @@ interface AppHeaderProps {
   darkMode: boolean
   setDarkMode: (v: boolean) => void
   isPremium: boolean
+  authLoading?: boolean
   preferDictionaryMode?: boolean
   onLogoClick?: () => void
   onSignIn: () => void
@@ -38,12 +39,16 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   darkMode,
   setDarkMode,
   isPremium,
+  authLoading = false,
   preferDictionaryMode = false,
   onLogoClick,
   onSignIn,
   onSignOut,
   onOpenPricing,
 }) => {
+  // Dark mode is premium-gated, but don't show the locked state until auth has settled —
+  // otherwise a real subscriber flashes the crown/upsell for a frame while their session restores.
+  const darkLocked = !isPremium && !authLoading
   const location = useLocation()
   const navigate = useNavigate()
   const [scrolled, setScrolled] = useState(false)
@@ -192,11 +197,13 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
         {/* Right Controls */}
         <div className="app-header-actions hide-mobile">
-          {/* Theme toggle */}
+          {/* Theme toggle — dark mode is a premium feature */}
           <button
-            onClick={() => setDarkMode(!darkMode)}
-            aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+            onClick={() => { if (darkLocked) onOpenPricing(); else setDarkMode(!darkMode) }}
+            aria-label={darkLocked ? 'Dark mode is a premium feature' : darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={darkLocked ? 'Dark mode is a premium feature' : undefined}
             style={{
+              position: 'relative',
               width: 36,
               height: 36,
               display: 'flex',
@@ -211,6 +218,27 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             }}
           >
             {darkMode ? <Sun size={16} /> : <Moon size={16} />}
+            {darkLocked && (
+              <span
+                aria-hidden="true"
+                style={{
+                  position: 'absolute',
+                  top: -5,
+                  right: -5,
+                  width: 15,
+                  height: 15,
+                  borderRadius: '50%',
+                  background: 'var(--primary)',
+                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '1.5px solid var(--card-bg)',
+                }}
+              >
+                <Crown size={8} />
+              </span>
+            )}
           </button>
 
           {/* Notifications (placeholder) */}
@@ -414,6 +442,81 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               {link.label}
             </Link>
           ))}
+          <div style={{ height: 1, background: 'var(--border)', margin: '8px 0' }} />
+
+          {/* Theme toggle */}
+          <button
+            onClick={() => {
+              if (!darkLocked) { setDarkMode(!darkMode); return }
+              setMobileOpen(false)
+              onOpenPricing()
+            }}
+            aria-label={darkLocked ? 'Dark mode is a premium feature' : darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10,
+              padding: '10px 8px',
+              width: '100%',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--text-main)',
+              fontSize: 15,
+              fontWeight: 500,
+            }}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+              {darkMode ? 'Light Mode' : 'Dark Mode'}
+            </span>
+            {!darkLocked ? (
+              <span
+                aria-hidden="true"
+                style={{
+                  width: 40,
+                  height: 24,
+                  borderRadius: 99,
+                  background: darkMode ? 'var(--primary)' : 'var(--border)',
+                  position: 'relative',
+                  transition: 'background 0.18s ease',
+                  flexShrink: 0,
+                }}
+              >
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: 3,
+                    left: darkMode ? 19 : 3,
+                    width: 18,
+                    height: 18,
+                    borderRadius: '50%',
+                    background: '#fff',
+                    transition: 'left 0.18s ease',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
+                  }}
+                />
+              </span>
+            ) : (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  fontSize: 11,
+                  fontWeight: 800,
+                  color: 'var(--primary)',
+                  background: 'var(--primary-bg)',
+                  padding: '3px 9px',
+                  borderRadius: 99,
+                  flexShrink: 0,
+                }}
+              >
+                <Crown size={11} /> Premium
+              </span>
+            )}
+          </button>
           <div style={{ height: 1, background: 'var(--border)', margin: '8px 0' }} />
           <div style={{ display: 'flex', gap: 8 }}>
             {user ? (

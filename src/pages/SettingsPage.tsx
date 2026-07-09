@@ -45,6 +45,7 @@ type UnitSystem = 'metric' | 'imperial'
 interface SettingsPageProps {
   user: SupabaseUser | null
   isPremium: boolean
+  authLoading?: boolean
   darkMode: boolean
   setDarkMode: (v: boolean) => void
   ttsProvider: TTSProvider
@@ -156,6 +157,7 @@ function activeSectionFromParam(section?: string): SettingsSection {
 export const SettingsPage: React.FC<SettingsPageProps> = ({
   user,
   isPremium,
+  authLoading = false,
   darkMode,
   setDarkMode,
   ttsProvider,
@@ -174,6 +176,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   onOpenPricing,
 }) => {
   const params = useParams()
+  // Dark mode & read-aloud are premium — but don't show the locked state until auth settles,
+  // so a subscriber deep-linking to /settings never flashes the upgrade prompt.
+  const premiumLocked = !isPremium && !authLoading
   const activeSection = activeSectionFromParam(params.section)
   const activeMeta = SECTIONS.find((item) => item.slug === activeSection) ?? SECTIONS[0]!
   const [notice, setNotice] = useState('')
@@ -309,7 +314,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       <div className="settings-card-grid">
         <SettingsCard icon={Moon} title="Appearance" desc="Choose how SCMpedia looks on this device.">
           <PreferenceRow title="Dark mode" desc="Use a darker interface for lower-light reading.">
-            <ToggleSwitch checked={darkMode} onChange={setDarkMode} label="Toggle dark mode" />
+            {premiumLocked ? (
+              <button onClick={onOpenPricing} className="btn btn-premium btn-sm"><Crown size={13} /> Premium</button>
+            ) : (
+              <ToggleSwitch checked={darkMode} onChange={setDarkMode} label="Toggle dark mode" />
+            )}
           </PreferenceRow>
         </SettingsCard>
 
@@ -338,7 +347,18 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       </div>
     ),
 
-    voice: (
+    voice: premiumLocked ? (
+      <div className="settings-card-grid">
+        <SettingsCard icon={Volume2} title="Reading Voice" desc="Listen to definitions and AI explanations read aloud.">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'flex-start' }}>
+            <p style={{ fontSize: 14, color: 'var(--text-sub)', margin: 0, lineHeight: 1.6 }}>
+              Read-aloud narration is a premium feature. Upgrade to hear definitions and AI explanations in the Prof Douglas Boateng voice.
+            </p>
+            <button onClick={onOpenPricing} className="btn btn-premium btn-sm"><Crown size={14} /> Explore Premium</button>
+          </div>
+        </SettingsCard>
+      </div>
+    ) : (
       <div className="settings-card-grid">
         <SettingsCard icon={Volume2} title="Reading Voice" desc="Controls the voice used everywhere in SCMpedia — dictionary word buttons, dictionary mode reading, and AI explanations.">
           <div className="settings-choice-stack">

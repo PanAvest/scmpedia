@@ -12,7 +12,7 @@ export const SELECTED_VOICE_KEY = 'scmpedia-selected-voice-v1'
 export const SETTINGS_NOTIFICATIONS_KEY = 'scmpedia-notification-settings-v1'
 export const UNIT_SYSTEM_KEY = 'scmpedia-unit-system-v1'
 export const FREE_USAGE_KEY = 'scmpedia-free-usage-v1'
-export const FREE_DAILY_LIMIT = 2
+export const FREE_DAILY_LIMIT = 3
 export const SECTOR_HISTORY_KEY = 'scmpedia-sector-history-v1'
 export const DASHBOARD_HISTORY_KEY = 'scmpedia_recent_searches'
 

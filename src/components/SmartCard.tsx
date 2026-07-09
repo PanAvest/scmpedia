@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react'
 import type { User } from '@supabase/supabase-js'
 import type { Entry } from '../types'
 import { getEntryTags, fallbackExplanation, sanitizeHtml } from '../utils'
-import { Volume2, Star, Copy, MoreHorizontal, RefreshCw, Sparkles, ExternalLink, BookOpen } from 'lucide-react'
+import { Volume2, Star, Copy, MoreHorizontal, RefreshCw, Sparkles, ExternalLink, BookOpen, Lock } from 'lucide-react'
 
 const FadeImage: React.FC<React.ImgHTMLAttributes<HTMLImageElement> & { eager?: boolean }> = ({
   className, eager, ...props
@@ -32,6 +32,8 @@ interface SmartCardProps {
   onToggleFavorite: (entry: Entry) => Promise<void>
   onOpenRelated?: (entry: Entry) => void
   onOpenTermPage?: (entry: Entry) => void
+  isPremium?: boolean
+  onOpenPricing?: () => void
   authToken?: string
 }
 
@@ -47,6 +49,8 @@ export const SmartCard: React.FC<SmartCardProps> = ({
   onToggleFavorite,
   onOpenRelated,
   onOpenTermPage,
+  isPremium = false,
+  onOpenPricing,
   authToken,
 }) => {
   const [expanded, setExpanded] = useState<'details' | 'ai' | null>(null)
@@ -233,19 +237,25 @@ export const SmartCard: React.FC<SmartCardProps> = ({
 
       {/* Action Bar */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: expanded ? 16 : 0 }}>
-        {/* Read aloud */}
+        {/* Read aloud — premium only */}
         <ActionBtn
           active={isSpeakingDef}
-          onClick={() => tts.speak(`def-${entry.term}`, `${entry.term}. ${entry.definition}`)}
-          icon={<Volume2 size={15} />}
+          onClick={() => {
+            if (!isPremium) { onOpenPricing?.(); return }
+            tts.speak(`def-${entry.term}`, `${entry.term}. ${entry.definition}`)
+          }}
+          icon={isPremium ? <Volume2 size={15} /> : <Lock size={15} />}
           label={isPreparingDef ? 'Preparing…' : isSpeakingDef ? 'Stop' : 'Read Aloud'}
         />
 
-        {/* AI Explanation */}
+        {/* AI Explanation — premium only */}
         <ActionBtn
           active={expanded === 'ai'}
-          onClick={handleAi}
-          icon={<Sparkles size={15} />}
+          onClick={() => {
+            if (!isPremium) { onOpenPricing?.(); return }
+            handleAi()
+          }}
+          icon={isPremium ? <Sparkles size={15} /> : <Lock size={15} />}
           label={loadingAi ? 'Thinking…' : 'AI Explanation'}
           accent
         />
@@ -277,11 +287,14 @@ export const SmartCard: React.FC<SmartCardProps> = ({
           label="Details"
         />
 
-        {/* Full term page */}
+        {/* Full term page — premium only */}
         {onOpenTermPage && (
           <ActionBtn
-            onClick={() => onOpenTermPage(entry)}
-            icon={<BookOpen size={15} />}
+            onClick={() => {
+              if (isPremium) { onOpenTermPage(entry); return }
+              onOpenPricing?.()
+            }}
+            icon={isPremium ? <BookOpen size={15} /> : <Lock size={15} />}
             label="Full Page"
           />
         )}
