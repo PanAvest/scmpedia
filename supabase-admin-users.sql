@@ -89,6 +89,10 @@ create unique index if not exists scmpedia_universities_country_key
 alter table public.scmpedia_universities enable row level security;
 -- RLS on with NO policies: service role only. Public reads go through GET /api/universities.
 
+-- 4b) Only PUBLISHED raffle draws protect their winners from deletion. Historical/test
+--     draws default to false, so they stop over-blocking user deletion.
+alter table public.scmpedia_raffle_draws add column if not exists published boolean not null default false;
+
 -- 5) Premium grant/revoke audit (best-effort; the endpoint tolerates its absence).
 create table if not exists public.scmpedia_admin_grants (
   id         uuid primary key default gen_random_uuid(),
