@@ -18,12 +18,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
-  // 1) Table-based admin accounts (looked up by email).
+  // 1) Table-based admin accounts (looked up by email). Also tells us whether any
+  //    admin exists at all, which gates the env bootstrap below.
+  let adminTableReadable = false
+  let adminCount = 0
   if (SUPABASE_URL && SERVICE_ROLE_KEY) {
     try {
       const service = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
         auth: { persistSession: false, autoRefreshToken: false },
       })
+      const { count, error: countError } = await service
+        .from('scmpedia_admins')
+        .select('id', { count: 'exact', head: true })
+      if (!countError) {
+        adminTableReadable = true
+        adminCount = count || 0
+      }
+
       const { data, error } = await service
         .from('scmpedia_admins')
         .select('email,password_hash,role')
@@ -39,8 +50,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  // 2) Env bootstrap admin (always a master, used to set up the first accounts).
-  if (validateAdminCredentials(username, password)) {
+  // 2) Env bootstrap admin. It mints a MASTER token, so it is only allowed to
+  //    bootstrap the FIRST account — once any admin exists in the table, the
+  //    static SCMPEDIA_ADMIN_USER/PASS credential is dead. This stops a leaked or
+  //    guessed default (e.g. admin/admin) from being a permanent master backdoor.
+  const bootstrapAllowed = !adminTableReadable || adminCount === 0
+  if (bootstrapAllowed && validateAdminCredentials(username, password)) {
     res.status(200).json({ token: createAdminToken({ email: username, role: 'master' }), email: username, role: 'master' })
     return
   }

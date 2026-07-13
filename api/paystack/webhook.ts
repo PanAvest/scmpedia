@@ -58,11 +58,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
-  const expiresAt = addDays(plan.duration_days)
+  const paidExpiry = addDays(plan.duration_days)
+  const { data: userData } = await admin.auth.admin.getUserById(userId)
+  // Keep the later end date; preserve a lifetime admin comp as lifetime.
+  const existingSub = (userData.user?.app_metadata as Record<string, any> | undefined)?.scmpedia_subscription
+  const existingExpiry = typeof existingSub?.expires_at === 'string' ? existingSub.expires_at : ''
+  const existingActive = existingSub?.tier === 'premium' && (!existingExpiry || new Date(existingExpiry).getTime() > Date.now())
+  const expiresAt = existingActive && !existingExpiry
+    ? undefined
+    : existingActive && existingExpiry && new Date(existingExpiry).getTime() > new Date(paidExpiry).getTime()
+      ? existingExpiry
+      : paidExpiry
   await admin.from('scmpedia_payments').upsert(
     {
       reference,
       user_id: userId,
+      user_email: userData.user?.email || '',
       plan: planId,
       amount: Number(payment.amount),
       currency: String(payment.currency || 'GHS'),
@@ -73,7 +84,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     { onConflict: 'reference' },
   )
 
-  const { data: userData } = await admin.auth.admin.getUserById(userId)
   await admin.auth.admin.updateUserById(userId, {
     app_metadata: {
       ...(userData.user?.app_metadata || {}),
@@ -81,7 +91,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         tier: 'premium',
         plan: planId,
         paystack_reference: reference,
-        expires_at: expiresAt,
+        ...(expiresAt ? { expires_at: expiresAt } : {}),
         updated_at: new Date().toISOString(),
       },
     },

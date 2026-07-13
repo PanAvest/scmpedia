@@ -160,7 +160,8 @@ export async function buildPool(
       const sub = (u.app_metadata as Record<string, any> | undefined)?.scmpedia_subscription
       const subPlan = String(sub?.plan || '')
       const paidRow = paidByUser.get(u.id)
-      const paidViaSub = studentPlanIds.has(subPlan)
+      // Admin comps (source:'admin') never paid — keep them out of the paid raffle pool.
+      const paidViaSub = studentPlanIds.has(subPlan) && sub?.source !== 'admin'
       if (!paidRow && !paidViaSub) continue // didn't pay for a Student plan
 
       const md = (u.user_metadata || {}) as Record<string, any>
