@@ -20,21 +20,30 @@ interface AuthPageProps {
 // what keeps a localhost signup's confirmation link pointing back at localhost.
 export const CONFIRM_REDIRECT_PARAM = 'confirmed'
 const confirmRedirectUrl = () => `${window.location.origin}/auth`
+export const RESET_PATH = '/auth/reset'
+
+const isResetRoute = () =>
+  typeof window !== 'undefined' && window.location.pathname.replace(/\/+$/, '') === RESET_PATH
 
 // Read once, at module eval, off the landing URL — then scrub the token out of the address bar
 // immediately. A token_hash sitting in the query string (unlike the URL fragment it replaces) is
 // sent to servers in the Referer header and written to browser history and hosting access logs, so
 // it must not survive a single network call.
-const confirmCallback = (() => {
+const emailCallback = (() => {
   if (typeof window === 'undefined') return null
   const params = new URLSearchParams(window.location.search)
-  if (params.get(CONFIRM_REDIRECT_PARAM) !== '1') return null
+  const reset = isResetRoute()
+  if (!reset && params.get(CONFIRM_REDIRECT_PARAM) !== '1') return null
 
   const tokenHash = params.get('token_hash') || ''
-  const type = (params.get('type') || 'signup') as EmailOtpType
-  if (tokenHash) window.history.replaceState({}, '', `/auth?${CONFIRM_REDIRECT_PARAM}=1`)
-  return { tokenHash, type }
+  const type = (params.get('type') || (reset ? 'recovery' : 'signup')) as EmailOtpType
+  if (tokenHash) {
+    window.history.replaceState({}, '', reset ? RESET_PATH : `/auth?${CONFIRM_REDIRECT_PARAM}=1`)
+  }
+  return { tokenHash, type, reset }
 })()
+
+const confirmCallback = emailCallback?.reset ? null : emailCallback
 
 // Supabase splits its callback payload across the query string (?code=, ?error=) and the hash
 // (#access_token=, #error=) depending on the flow, so read both.
@@ -76,6 +85,29 @@ const settleConfirmation = async (): Promise<string> => {
   const confirmedEmail = data.session?.user?.email ?? ''
   if (data.session) await supabase.auth.signOut()
   return confirmedEmail
+}
+
+// The recovery link's token is what authorises updateUser({ password }) — verifyOtp mints a session
+// and that session IS the credential. So unlike the signup flow, we must NOT sign out here; we sign
+// out only after the new password has been saved.
+let recoverySettlement: Promise<string> | null = null
+
+const settleRecovery = async (): Promise<string> => {
+  if (!supabase) return ''
+
+  if (emailCallback?.tokenHash) {
+    const { data, error } = await supabase.auth.verifyOtp({
+      token_hash: emailCallback.tokenHash,
+      type: emailCallback.type,
+    })
+    if (error) throw error
+    return data.session?.user?.email ?? data.user?.email ?? ''
+  }
+
+  // Older recovery links arrive with the session in the URL fragment instead of a token_hash.
+  const { data } = await supabase.auth.getSession()
+  if (!data.session) throw new Error('This password reset link is no longer valid.')
+  return data.session.user?.email ?? ''
 }
 
 const friendlyAuthError = (params: URLSearchParams) => {
@@ -156,9 +188,23 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
   const [resending, setResending] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
   const [confirming, setConfirming] = useState(() => {
+    if (isResetRoute()) return false
     const params = readAuthParams()
     return params.get(CONFIRM_REDIRECT_PARAM) === '1' && !params.has('error') && !params.has('error_description')
   })
+
+  // Password-recovery landing (/auth/reset)
+  const [onResetRoute] = useState(isResetRoute)
+  const [recovering, setRecovering] = useState(() => {
+    if (!isResetRoute()) return false
+    const params = readAuthParams()
+    return !params.has('error') && !params.has('error_description')
+  })
+  const [recoveryReady, setRecoveryReady] = useState(false)
+  const [recoveryEmail, setRecoveryEmail] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordUpdated, setPasswordUpdated] = useState(false)
 
   const reset = () => {
     setError('')
@@ -267,6 +313,53 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
       setError(err instanceof Error ? err.message : 'Could not resend the email')
     } finally {
       setResending(false)
+    }
+  }
+
+  // Exchange the recovery token for the session that authorises the password change.
+  useEffect(() => {
+    if (!recovering) return
+    let cancelled = false
+
+    recoverySettlement = recoverySettlement ?? settleRecovery()
+    recoverySettlement
+      .then((email) => {
+        if (cancelled) return
+        setRecoveryEmail(email)
+        setRecoveryReady(true)
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return
+        const message = err instanceof Error ? err.message : ''
+        setError(/expired|invalid|not found|no longer valid/i.test(message)
+          ? 'This password reset link has expired or has already been used. Request a new one below.'
+          : message || 'We could not verify that reset link.')
+      })
+      .finally(() => {
+        if (!cancelled) setRecovering(false)
+      })
+
+    return () => { cancelled = true }
+  }, [recovering])
+
+  const handleSetNewPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!hasSupabaseConfig || !supabase) { setError('Auth not configured.'); return }
+    if (newPassword.length < 8) { setError('Password must be at least 8 characters'); return }
+    if (newPassword !== confirmPassword) { setError('Those passwords do not match'); return }
+
+    setLoading(true); reset()
+    try {
+      const { error: err } = await supabase.auth.updateUser({ password: newPassword })
+      if (err) throw err
+      // Sign the recovery session out so the new password has to be used to get back in — and so a
+      // recovery link that leaked (mail forward, shared inbox) does not leave a live session behind.
+      await supabase.auth.signOut()
+      setPasswordUpdated(true)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Could not update your password')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -437,7 +530,164 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
         </div>
 
         <div style={{ width: '100%', maxWidth: 420 }}>
-          {confirming ? (
+          {onResetRoute ? (
+            passwordUpdated ? (
+              <div>
+                <div className="auth-badge" aria-hidden="true">
+                  <ShieldCheck size={22} />
+                </div>
+                <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-main)', margin: '0 0 8px' }}>
+                  Password updated
+                </h2>
+                <p style={{ fontSize: 14, color: 'var(--text-sub)', lineHeight: 1.6, margin: '0 0 24px' }}>
+                  You've been signed out everywhere. Sign in with your new password to continue.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => navigate('/auth')}
+                  className="btn btn-primary"
+                  style={{ width: '100%', justifyContent: 'center', height: 44, fontSize: 15 }}
+                >
+                  Go to sign in
+                </button>
+              </div>
+            ) : recovering ? (
+              <div style={{ textAlign: 'center', padding: '32px 0' }}>
+                <div className="auth-badge auth-badge-spin" aria-hidden="true">
+                  <RefreshCw size={22} />
+                </div>
+                <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-main)', margin: '0 0 6px' }}>
+                  Checking your reset link…
+                </h2>
+                <p style={{ fontSize: 13, color: 'var(--text-sub)', margin: 0 }}>One moment.</p>
+              </div>
+            ) : recoveryReady ? (
+              <>
+                <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-main)', margin: '0 0 6px' }}>
+                  Choose a new password
+                </h2>
+                <p style={{ fontSize: 13, color: 'var(--text-sub)', margin: '0 0 24px' }}>
+                  {recoveryEmail
+                    ? <>Setting a new password for <strong style={{ color: 'var(--text-main)' }}>{recoveryEmail}</strong>.</>
+                    : 'Pick something you haven\'t used before.'}
+                </p>
+
+                <form onSubmit={handleSetNewPassword}>
+                  <div style={{ marginBottom: 16 }}>
+                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--text-main)', marginBottom: 6 }}>
+                      New Password
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <Lock size={15} color="var(--text-sub)" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
+                      <input
+                        className="auth-input"
+                        type={showPassword ? 'text' : 'password'}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Min. 8 characters"
+                        autoComplete="new-password"
+                        required
+                        style={{
+                          width: '100%',
+                          padding: '11px 40px 11px 36px',
+                          borderRadius: 8,
+                          border: '1px solid var(--auth-input-border)',
+                          background: 'var(--auth-input-bg)',
+                          color: 'var(--text-main)',
+                          fontSize: 14,
+                          outline: 'none',
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((v) => !v)}
+                        style={{
+                          position: 'absolute',
+                          right: 10,
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          color: 'var(--text-sub)',
+                          display: 'flex',
+                          padding: 4,
+                        }}
+                      >
+                        {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                      </button>
+                    </div>
+                    <PasswordStrength password={newPassword} />
+                  </div>
+
+                  <div style={{ marginBottom: 20 }}>
+                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--text-main)', marginBottom: 6 }}>
+                      Confirm New Password
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <Lock size={15} color="var(--text-sub)" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
+                      <input
+                        className="auth-input"
+                        type={showPassword ? 'text' : 'password'}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Re-enter your new password"
+                        autoComplete="new-password"
+                        required
+                        style={{
+                          width: '100%',
+                          padding: '11px 12px 11px 36px',
+                          borderRadius: 8,
+                          border: '1px solid var(--auth-input-border)',
+                          background: 'var(--auth-input-bg)',
+                          color: 'var(--text-main)',
+                          fontSize: 14,
+                          outline: 'none',
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {error && (
+                    <div style={{ padding: '10px 14px', background: 'rgba(220,38,38,0.10)', border: '1px solid rgba(220,38,38,0.25)', borderRadius: 8, fontSize: 13, color: 'var(--error)', marginBottom: 16 }}>
+                      {error}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="btn btn-primary"
+                    style={{ width: '100%', justifyContent: 'center', height: 44, fontSize: 15 }}
+                  >
+                    {loading ? 'Saving…' : 'Update password'}
+                  </button>
+                </form>
+              </>
+            ) : (
+              <div>
+                <div className="auth-badge" aria-hidden="true">
+                  <Clock size={22} />
+                </div>
+                <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-main)', margin: '0 0 8px' }}>
+                  This link is no longer valid
+                </h2>
+                <p style={{ fontSize: 14, color: 'var(--text-sub)', lineHeight: 1.6, margin: '0 0 20px' }}>
+                  {error || 'Password reset links expire after one hour and can only be used once.'}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => navigate('/auth')}
+                  className="btn btn-primary"
+                  style={{ width: '100%', justifyContent: 'center', height: 44, fontSize: 15 }}
+                >
+                  Back to sign in
+                </button>
+              </div>
+            )
+          ) : confirming ? (
             <div style={{ textAlign: 'center', padding: '32px 0' }}>
               <div className="auth-badge auth-badge-spin" aria-hidden="true">
                 <RefreshCw size={22} />
@@ -476,7 +726,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
                 }}
               >
                 <Clock size={14} style={{ flexShrink: 0 }} />
-                The link expires in 24 hours.
+                The link expires in 1 hour.
               </div>
 
               {error && (
