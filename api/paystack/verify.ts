@@ -71,11 +71,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
-  const expiresAt = addDays(plan.duration_days)
+  // Never let a late/small payment shorten a longer (or lifetime) admin comp: keep the
+  // later end date, and preserve a lifetime grant (no expires_at) as lifetime.
+  const paidExpiry = addDays(plan.duration_days)
+  const existingSub = (userData.user.app_metadata as Record<string, any> | undefined)?.scmpedia_subscription
+  const existingExpiry = typeof existingSub?.expires_at === 'string' ? existingSub.expires_at : ''
+  const existingActive = existingSub?.tier === 'premium' && (!existingExpiry || new Date(existingExpiry).getTime() > Date.now())
+  const expiresAt = existingActive && !existingExpiry
+    ? undefined
+    : existingActive && existingExpiry && new Date(existingExpiry).getTime() > new Date(paidExpiry).getTime()
+      ? existingExpiry
+      : paidExpiry
   await admin.from('scmpedia_payments').upsert(
     {
       reference,
       user_id: userData.user.id,
+      user_email: userData.user.email || '',
       plan: planId,
       amount: Number(payment.data.amount),
       currency: String(payment.data.currency || 'GHS'),
@@ -92,7 +103,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         tier: 'premium',
         plan: planId,
         paystack_reference: reference,
-        expires_at: expiresAt,
+        ...(expiresAt ? { expires_at: expiresAt } : {}),
         updated_at: new Date().toISOString(),
       },
     },
@@ -103,5 +114,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
-  res.status(200).json({ tier: 'premium', plan: planId, expiresAt })
+  res.status(200).json({ tier: 'premium', plan: planId, expiresAt: expiresAt ?? '' })
 }

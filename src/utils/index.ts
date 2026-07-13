@@ -218,6 +218,7 @@ export const formatSubscriptionDate = (value?: string) => {
 
 export const getPlanLabel = (plan?: string) => {
   if (!plan) return 'Free'
+  if (plan === 'comp') return 'Complimentary' // admin-granted premium
   const [tier, period] = plan.split('-')
   // Legacy ids stored only the billing period (e.g. 'monthly').
   if (!period) {

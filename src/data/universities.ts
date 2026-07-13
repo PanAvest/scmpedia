@@ -5,6 +5,22 @@ export type UniversityCountry = {
   universities: string[]
 }
 
+// Normalized dedupe key. MUST stay identical to normalizeUniversityName in
+// api/_universities.ts so admin-approved additions merge into the seed without duplicates.
+const UNIVERSITY_STOPWORDS = new Set(['the', 'of', 'and', 'at', 'for', 'in'])
+export function normalizeUniversityName(name: string): string {
+  return String(name || '')
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .split(' ')
+    .filter((w) => w && !UNIVERSITY_STOPWORDS.has(w))
+    .join(' ')
+    .trim()
+}
+
 // Ghana is listed first (with UMaT at the top by design), followed by other
 // African countries, then the rest of the world. Within each country the
 // first few entries are ordered by relevance for SCMpedia's audience.

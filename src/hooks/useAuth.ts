@@ -60,6 +60,31 @@ export function useAuth() {
     return () => { cancelled = true }
   }, [session?.access_token])
 
+  // getUser() is a live network read of app_metadata, so a subscription change made
+  // server-side (an admin grant/revoke, a Paystack webhook) shows up on the next fetch —
+  // but the JWT itself only rotates near expiry, so a tab left open would otherwise lag
+  // up to the token TTL. Re-sync on focus/visibility and every 2 minutes to close that.
+  useEffect(() => {
+    if (!supabase || !session?.access_token) return
+    let cancelled = false
+    const authClient = supabase
+    const sync = () => {
+      if (cancelled || document.visibilityState !== 'visible') return
+      void authClient.auth.getUser().then(({ data }) => {
+        if (!cancelled) setUser(data.user ?? null)
+      })
+    }
+    window.addEventListener('focus', sync)
+    document.addEventListener('visibilitychange', sync)
+    const timer = window.setInterval(sync, 120_000)
+    return () => {
+      cancelled = true
+      window.removeEventListener('focus', sync)
+      document.removeEventListener('visibilitychange', sync)
+      window.clearInterval(timer)
+    }
+  }, [session?.access_token])
+
   const signOut = async () => {
     if (!supabase) return
     await supabase.auth.signOut()

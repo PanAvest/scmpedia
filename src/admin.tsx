@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import ReactDOM from 'react-dom/client'
 import { RaffleDrawMode } from './components/RaffleDrawMode'
+import { UNIVERSITY_COUNTRIES } from './data/universities'
 
 type Entry = {
   id?: string
@@ -154,6 +155,21 @@ button.stat:hover { transform: translateY(-2px); box-shadow: 0 14px 30px rgba(20
 .dict-grid { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 16px; align-items: start; }
 .dict-grid .list { max-height: calc(100dvh - 330px); }
 
+/* ===== Users ===== */
+.user-row { display: grid; grid-template-columns: 24px 1fr auto; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); }
+.user-row + .user-row { margin-top: 8px; }
+.user-main { min-width: 0; }
+.user-name { font-weight: 600; font-size: 14px; }
+.user-sub { font-size: 12px; color: var(--text-sub); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.badge { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.03em; padding: 2px 6px; border-radius: 999px; margin-left: 6px; vertical-align: middle; }
+.badge-premium { background: rgba(20,174,92,0.14); color: #0f7a41; }
+.badge-comp { background: rgba(182,84,55,0.14); color: var(--primary-dark); }
+.badge-admin { background: rgba(20,12,80,0.10); color: #35357a; }
+.badge-pay { background: rgba(120,90,0,0.12); color: #7a5a00; }
+.badge-winner { background: rgba(80,20,120,0.12); color: #6a1e78; }
+.bulk-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 10px; background: var(--surface); border: 1px solid var(--border); margin-bottom: 14px; }
+.mini-select { border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font: inherit; font-size: 13px; background: #fff; }
+
 @keyframes pop-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes fade-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -178,7 +194,27 @@ button.stat:hover { transform: translateY(-2px); box-shadow: 0 14px 30px rgba(20
 }
 `
 
-type AdminView = 'overview' | 'dictionary' | 'pricing' | 'students' | 'raffle' | 'admins'
+type AdminView = 'overview' | 'dictionary' | 'users' | 'pricing' | 'students' | 'universities' | 'raffle' | 'admins'
+
+type UserRow = {
+  id: string
+  email: string
+  full_name: string
+  created_at: string
+  last_sign_in_at: string
+  university: string
+  index_number: string
+  is_student: boolean
+  premium: boolean
+  plan: string
+  expires_at: string
+  source: string
+  payments: number
+  raffle_winner: boolean
+  is_admin: boolean
+}
+
+type UniversityRow = { id: string; country_code: string; name: string; name_key: string; created_at: string }
 
 const VIEWS: { id: AdminView; label: string; title: string; sub: string; masterOnly?: boolean }[] = [
   {
@@ -194,6 +230,12 @@ const VIEWS: { id: AdminView; label: string; title: string; sub: string; masterO
     sub: 'Add, edit and remove terms. Changes save straight to the server — download the CSV when you want a backup.',
   },
   {
+    id: 'users',
+    label: 'Users',
+    title: 'Users',
+    sub: 'Every signed-up account. Grant or remove premium, and delete accounts. Deleting is master-only and archives the account first.',
+  },
+  {
     id: 'pricing',
     label: 'Pricing',
     title: 'Subscription pricing',
@@ -204,6 +246,12 @@ const VIEWS: { id: AdminView; label: string; title: string; sub: string; masterO
     label: 'Students',
     title: 'Verified students',
     sub: 'Users who completed student verification before buying the Student plan.',
+  },
+  {
+    id: 'universities',
+    label: 'Universities',
+    title: 'University list',
+    sub: 'Add a university under a country and it appears in the signup picker within a few minutes. The built-in list is never changed.',
   },
   {
     id: 'raffle',
@@ -269,6 +317,24 @@ function AdminApp() {
   const [raffleOpen, setRaffleOpen] = useState(false)
   const [view, setView] = useState<AdminView>('overview')
   const activeView = VIEWS.find((v) => v.id === view) ?? VIEWS[0]!
+
+  // Users tab
+  const [users, setUsers] = useState<UserRow[]>([])
+  const [usersLoading, setUsersLoading] = useState(false)
+  const [usersStatus, setUsersStatus] = useState('')
+  const [usersTone, setUsersTone] = useState<'default' | 'success' | 'error'>('default')
+  const [userSearch, setUserSearch] = useState('')
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set())
+  const [grantPlan, setGrantPlan] = useState('comp')
+  const [grantDays, setGrantDays] = useState('31')
+
+  // Universities tab
+  const [uniAdditions, setUniAdditions] = useState<UniversityRow[]>([])
+  const [uniCountry, setUniCountry] = useState('GH')
+  const [uniName, setUniName] = useState('')
+  const [uniBusy, setUniBusy] = useState(false)
+  const [uniStatus, setUniStatus] = useState('')
+  const [uniTone, setUniTone] = useState<'default' | 'success' | 'error'>('default')
 
   // Read the price off the plan rows rather than a hardcoded id. The ids are 'pro-monthly' /
   // 'pro-annual', not 'professional-*', and guessing them silently renders an em-dash.
@@ -563,6 +629,158 @@ function AdminApp() {
     }
   }
 
+  const loadUsers = async () => {
+    setUsersLoading(true)
+    try {
+      const res = await fetch('/api/admin/users', { headers: { Authorization: `Bearer ${adminToken}` } })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body?.error || 'Could not load users')
+      setUsers(Array.isArray(body.users) ? body.users : [])
+    } catch (err) {
+      setUsersStatus(err instanceof Error ? err.message : 'Could not load users')
+      setUsersTone('error')
+    } finally {
+      setUsersLoading(false)
+    }
+  }
+
+  const setPremium = async (
+    userIds: string[],
+    opts: { action: 'grant' | 'revoke'; plan?: string; days?: number | 'lifetime' },
+  ) => {
+    if (!userIds.length) return
+    setUsersLoading(true)
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+        body: JSON.stringify({ userIds, ...opts }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body?.error || 'Could not update premium')
+      const failed = (body.results || []).filter((r: { ok: boolean }) => !r.ok)
+      await loadUsers()
+      setSelectedUserIds(new Set())
+      setUsersTone(failed.length ? 'error' : 'success')
+      setUsersStatus(
+        failed.length
+          ? `Updated ${body.results.length - failed.length}/${body.results.length}. Failed: ${failed.map((f: { email: string; id: string }) => f.email || f.id).join(', ')}`
+          : `Premium ${opts.action === 'grant' ? 'granted' : 'removed'} for ${userIds.length} user${userIds.length === 1 ? '' : 's'}. API access changes immediately; their UI updates on next page load.`,
+      )
+    } catch (err) {
+      setUsersStatus(err instanceof Error ? err.message : 'Could not update premium')
+      setUsersTone('error')
+    } finally {
+      setUsersLoading(false)
+    }
+  }
+
+  const deleteUsers = async (ids: string[], force: string[] = []) => {
+    if (!ids.length) return
+    if (!force.length && !window.confirm(`Permanently delete ${ids.length} account${ids.length === 1 ? '' : 's'}? This cannot be undone.`)) return
+    if (!force.length) {
+      const typed = window.prompt('Type DELETE to confirm.')
+      if (typed !== 'DELETE') {
+        setUsersStatus('Deletion cancelled.')
+        setUsersTone('default')
+        return
+      }
+    }
+    setUsersLoading(true)
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+        body: JSON.stringify({ ids, confirm: 'DELETE', force }),
+      })
+      const body = await res.json().catch(() => ({}))
+
+      if (res.status === 409 && Array.isArray(body.blocked)) {
+        const detail = body.blocked.map((b: { email: string; reason: string }) => `• ${b.email} — ${b.reason}`).join('\n')
+        if (window.confirm(`These accounts are protected:\n\n${detail}\n\nDelete them anyway?`)) {
+          await deleteUsers(ids, ids) // acknowledge every id and retry
+        } else {
+          setUsersStatus('Deletion cancelled — protected accounts kept.')
+          setUsersTone('default')
+        }
+        return
+      }
+      if (!res.ok && res.status !== 207) throw new Error(body?.error || 'Could not delete users')
+
+      setSelectedUserIds(new Set())
+      await loadUsers()
+      await loadStudents()
+      setUsersTone(body.failed?.length ? 'error' : 'success')
+      setUsersStatus(
+        body.failed?.length
+          ? `${body.message} Failed: ${body.failed.map((f: { email: string }) => f.email).join(', ')}`
+          : body.message,
+      )
+    } catch (err) {
+      setUsersStatus(err instanceof Error ? err.message : 'Could not delete users')
+      setUsersTone('error')
+    } finally {
+      setUsersLoading(false)
+    }
+  }
+
+  const loadUniversities = async () => {
+    try {
+      const res = await fetch('/api/admin/universities', { headers: { Authorization: `Bearer ${adminToken}` } })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body?.error || 'Could not load universities')
+      setUniAdditions(Array.isArray(body.universities) ? body.universities : [])
+    } catch (err) {
+      setUniStatus(err instanceof Error ? err.message : 'Could not load universities')
+      setUniTone('error')
+    }
+  }
+
+  const addUniversity = async () => {
+    if (!uniName.trim()) {
+      setUniStatus('Enter the university name.')
+      setUniTone('error')
+      return
+    }
+    setUniBusy(true)
+    try {
+      const res = await fetch('/api/admin/universities', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+        body: JSON.stringify({ country_code: uniCountry, name: uniName.trim() }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body?.error || 'Could not add university')
+      setUniAdditions(Array.isArray(body.universities) ? body.universities : uniAdditions)
+      setUniName('')
+      setUniStatus(body.message || 'Added.')
+      setUniTone('success')
+    } catch (err) {
+      setUniStatus(err instanceof Error ? err.message : 'Could not add university')
+      setUniTone('error')
+    } finally {
+      setUniBusy(false)
+    }
+  }
+
+  const removeUniversity = async (id: string) => {
+    setUniBusy(true)
+    try {
+      const res = await fetch(`/api/admin/universities?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${adminToken}` },
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body?.error || 'Could not remove university')
+      setUniAdditions(Array.isArray(body.universities) ? body.universities : uniAdditions.filter((u) => u.id !== id))
+    } catch (err) {
+      setUniStatus(err instanceof Error ? err.message : 'Could not remove university')
+      setUniTone('error')
+    } finally {
+      setUniBusy(false)
+    }
+  }
+
   const addAdmin = async () => {
     if (!newEmail.trim() || newPassword.length < 6) {
       setAccountsStatus('Enter an email and a password of at least 6 characters.')
@@ -648,6 +866,14 @@ function AdminApp() {
       void loadStudents()
     }
   }, [authed])
+
+  // Load the heavier user list and the university additions on demand — only when their
+  // tab is first opened — rather than on every login.
+  useEffect(() => {
+    if (!authed) return
+    if (view === 'users' && !users.length && !usersLoading) void loadUsers()
+    if (view === 'universities' && !uniAdditions.length) void loadUniversities()
+  }, [authed, view])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -886,7 +1112,9 @@ function AdminApp() {
             >
               {v.label}
               {v.id === 'dictionary' && <span className="nav-badge">{(totalCount ?? entries.length).toLocaleString()}</span>}
+              {v.id === 'users' && users.length > 0 && <span className="nav-badge">{users.length}</span>}
               {v.id === 'students' && <span className="nav-badge">{students.length}</span>}
+              {v.id === 'universities' && uniAdditions.length > 0 && <span className="nav-badge">{uniAdditions.length}</span>}
               {v.id === 'admins' && <span className="nav-badge">{admins.length}</span>}
             </button>
           ))}
@@ -999,6 +1227,198 @@ function AdminApp() {
               >
                 Launch Grand Draw
               </button>
+            </section>
+          )}
+
+          {view === 'users' && (() => {
+            const q = userSearch.trim().toLowerCase()
+            const filtered = users.filter(
+              (u) => !q || u.email.toLowerCase().includes(q) || u.full_name.toLowerCase().includes(q) || u.university.toLowerCase().includes(q),
+            )
+            const selected = [...selectedUserIds]
+            const toggle = (id: string) =>
+              setSelectedUserIds((prev) => {
+                const next = new Set(prev)
+                if (next.has(id)) next.delete(id); else next.add(id)
+                return next
+              })
+            return (
+              <section className="panel">
+                <div className="panel-title-row">
+                  <div className="panel-title">Users</div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    {usersLoading && <span className="spinner" />}
+                    <span className="count-pill">{users.length}</span>
+                    <button className="btn btn-secondary" onClick={() => void loadUsers()} disabled={usersLoading}>Reload</button>
+                  </div>
+                </div>
+
+                {usersStatus && (
+                  <div className={`status ${usersTone === 'success' ? 'success' : usersTone === 'error' ? 'error' : ''}`} style={{ marginBottom: 12 }}>
+                    {usersStatus}
+                  </div>
+                )}
+
+                <input
+                  className="search-input"
+                  placeholder="Search by email, name or university…"
+                  value={userSearch}
+                  onChange={(e) => setUserSearch(e.target.value)}
+                  style={{ marginBottom: 12 }}
+                />
+
+                {selected.length > 0 && (
+                  <div className="bulk-bar">
+                    <strong style={{ fontSize: 13 }}>{selected.length} selected</strong>
+                    <select className="mini-select" value={grantPlan} onChange={(e) => setGrantPlan(e.target.value)}>
+                      <option value="comp">Complimentary</option>
+                      <option value="student-monthly">Student · Monthly</option>
+                      <option value="student-annual">Student · Annual</option>
+                      <option value="pro-monthly">Professional · Monthly</option>
+                      <option value="pro-annual">Professional · Annual</option>
+                    </select>
+                    <input
+                      className="mini-select"
+                      style={{ width: 74 }}
+                      value={grantDays}
+                      onChange={(e) => setGrantDays(e.target.value)}
+                      placeholder="days"
+                      aria-label="Days"
+                    />
+                    <button className="btn btn-primary" disabled={usersLoading} onClick={() => void setPremium(selected, { action: 'grant', plan: grantPlan, days: Number(grantDays) || 31 })}>
+                      Grant premium
+                    </button>
+                    {adminRole === 'master' && (
+                      <button className="btn btn-secondary" disabled={usersLoading} onClick={() => void setPremium(selected, { action: 'grant', plan: 'comp', days: 'lifetime' })}>
+                        Grant lifetime
+                      </button>
+                    )}
+                    <button className="btn btn-secondary" disabled={usersLoading} onClick={() => void setPremium(selected, { action: 'revoke' })}>
+                      Remove premium
+                    </button>
+                    {adminRole === 'master' && (
+                      <button className="btn btn-danger" disabled={usersLoading} onClick={() => void deleteUsers(selected)}>
+                        Delete
+                      </button>
+                    )}
+                    <button className="btn btn-secondary" onClick={() => setSelectedUserIds(new Set())}>Clear</button>
+                  </div>
+                )}
+
+                <div className="list" style={{ maxHeight: 'calc(100dvh - 360px)', marginTop: 0 }}>
+                  {filtered.map((u) => (
+                    <div key={u.id} className="user-row">
+                      <input
+                        type="checkbox"
+                        checked={selectedUserIds.has(u.id)}
+                        onChange={() => toggle(u.id)}
+                        aria-label={`Select ${u.email}`}
+                      />
+                      <div className="user-main">
+                        <div className="user-name">
+                          {u.full_name || u.email || '(no name)'}
+                          {u.premium && <span className={`badge ${u.source === 'admin' && u.plan === 'comp' ? 'badge-comp' : 'badge-premium'}`}>{u.plan === 'comp' ? 'COMP' : 'PREMIUM'}</span>}
+                          {u.is_admin && <span className="badge badge-admin">ADMIN</span>}
+                          {u.payments > 0 && <span className="badge badge-pay">PAID {u.payments}</span>}
+                          {u.raffle_winner && <span className="badge badge-winner">RAFFLE</span>}
+                        </div>
+                        <div className="user-sub">
+                          {u.email}
+                          {u.university ? ` · ${u.university}` : ''}
+                          {u.expires_at ? ` · until ${new Date(u.expires_at).toLocaleDateString()}` : u.premium ? ' · no end date' : ''}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        {u.premium ? (
+                          <button className="btn btn-secondary" disabled={usersLoading} onClick={() => void setPremium([u.id], { action: 'revoke' })}>Remove</button>
+                        ) : (
+                          <button className="btn btn-secondary" disabled={usersLoading} onClick={() => void setPremium([u.id], { action: 'grant', plan: 'comp', days: 31 })}>+30d comp</button>
+                        )}
+                        {adminRole === 'master' && (
+                          <button className="btn btn-danger" disabled={usersLoading} onClick={() => void deleteUsers([u.id])}>Delete</button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {!filtered.length && !usersLoading && <div className="helper">No matching users.</div>}
+                </div>
+                {adminRole !== 'master' && (
+                  <div className="helper" style={{ marginTop: 12 }}>Only a master admin can delete accounts. You can grant or remove premium.</div>
+                )}
+              </section>
+            )
+          })()}
+
+          {view === 'universities' && (
+            <section className="panel">
+              <div className="panel-title-row">
+                <div className="panel-title">Add a university</div>
+                <span className="count-pill">{uniAdditions.length} added</span>
+              </div>
+
+              {uniStatus && (
+                <div className={`status ${uniTone === 'success' ? 'success' : uniTone === 'error' ? 'error' : ''}`} style={{ marginBottom: 12 }}>
+                  {uniStatus}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 18 }}>
+                <select className="mini-select" value={uniCountry} onChange={(e) => setUniCountry(e.target.value)} disabled={uniBusy}>
+                  {UNIVERSITY_COUNTRIES.map((c) => (
+                    <option key={c.code} value={c.code}>{c.flag} {c.name}</option>
+                  ))}
+                </select>
+                <input
+                  className="search-input"
+                  style={{ flex: 1, minWidth: 260 }}
+                  value={uniName}
+                  onChange={(e) => setUniName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') void addUniversity() }}
+                  placeholder="Official name, e.g. Kwame Nkrumah University of Science and Technology (KNUST)"
+                  disabled={uniBusy}
+                />
+                <button className="btn btn-primary" onClick={() => void addUniversity()} disabled={uniBusy || !uniName.trim()}>
+                  Add to list
+                </button>
+              </div>
+
+              {uniAdditions.length > 0 && (
+                <>
+                  <div className="panel-title" style={{ marginBottom: 8 }}>Added by admins</div>
+                  <div className="list" style={{ maxHeight: 240, marginTop: 0 }}>
+                    {uniAdditions.map((row) => (
+                      <div key={row.id} className="list-item" style={{ display: 'flex', justifyContent: 'space-between', gap: 10, cursor: 'default', alignItems: 'center' }}>
+                        <span>{flagFor(row.country_code)} {row.name}</span>
+                        <button className="btn btn-secondary" disabled={uniBusy} onClick={() => void removeUniversity(row.id)}>Remove</button>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {customUnis.length > 0 && (
+                <>
+                  <div className="panel-title" style={{ marginTop: 18, marginBottom: 8 }}>
+                    Typed by students — click to fill the box above
+                  </div>
+                  <div className="helper" style={{ marginTop: 0, marginBottom: 8 }}>
+                    These are names students free-typed during signup. Review each one, pick the right country, and add the correct official spelling.
+                  </div>
+                  <div className="list" style={{ maxHeight: 200, marginTop: 0 }}>
+                    {customUnis.map((c) => (
+                      <button
+                        key={c.name}
+                        className="list-item"
+                        style={{ display: 'flex', justifyContent: 'space-between', gap: 10, textAlign: 'left', border: 'none', width: '100%' }}
+                        onClick={() => { setUniName(c.name); setUniStatus(''); setUniTone('default') }}
+                      >
+                        <span>{c.name}</span>
+                        <span className="count-pill">{c.count} student{c.count === 1 ? '' : 's'}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </section>
           )}
 

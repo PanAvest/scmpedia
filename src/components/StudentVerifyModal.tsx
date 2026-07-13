@@ -2,7 +2,7 @@ import React, { useEffect, useLayoutEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ArrowLeft, ChevronRight, GraduationCap, PencilLine, Search } from 'lucide-react'
 import { supabase } from '../supabase'
-import { UNIVERSITY_COUNTRIES } from '../data/universities'
+import { useUniversityCountries } from '../data/useUniversityCountries'
 
 type Step = 'country' | 'university' | 'details'
 
@@ -72,6 +72,10 @@ export const StudentVerifyModal: React.FC<StudentVerifyModalProps> = ({ open, us
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  // Seed list merged with admin-approved additions. Called before any early return so
+  // the hook order is stable.
+  const countries = useUniversityCountries(open)
+
   // Reset the flow and prefill from previously saved account info on each open.
   useEffect(() => {
     if (!open) return
@@ -129,10 +133,10 @@ export const StudentVerifyModal: React.FC<StudentVerifyModalProps> = ({ open, us
 
   if (!open) return null
 
-  const country = UNIVERSITY_COUNTRIES.find((c) => c.code === countryCode) || null
+  const country = countries.find((c) => c.code === countryCode) || null
   const chosenUniversity = (customMode ? customUniversity : university).trim()
 
-  const filteredCountries = UNIVERSITY_COUNTRIES.filter(
+  const filteredCountries = countries.filter(
     (c) => !countryQuery.trim() || c.name.toLowerCase().includes(countryQuery.trim().toLowerCase()),
   )
   const filteredUnis = (country?.universities || []).filter(
@@ -140,7 +144,7 @@ export const StudentVerifyModal: React.FC<StudentVerifyModalProps> = ({ open, us
   )
 
   const pickCountry = (code: string) => {
-    const next = UNIVERSITY_COUNTRIES.find((c) => c.code === code)
+    const next = countries.find((c) => c.code === code)
     setCountryCode(code)
     setUniQuery('')
     setError('')

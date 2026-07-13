@@ -6,6 +6,8 @@ import { createHmac, scryptSync, randomBytes } from 'crypto'
 import { DEFAULT_PLANS, loadPlan, loadAllPlans } from './api/_plans'
 import { collectStudents } from './api/_students'
 import { buildPool, poolResponse, drawResult } from './api/_raffle'
+import { listUsersReport, deleteUsers as deleteUsersCore, setPremium as setPremiumCore } from './api/_users'
+import { loadUniversityAdditions, addUniversity as addUniversityCore, deleteUniversity as deleteUniversityCore } from './api/_universities'
 
 // Supabase's client builds a realtime client (needs a global WebSocket) at construction.
 // Node < 22 has none, and the dev middleware never opens a realtime channel, so a harmless
@@ -124,10 +126,15 @@ export default defineConfig(({ mode }) => {
                   res.setHeader('Content-Type', 'application/json')
                   res.end(JSON.stringify({ token: createAdminToken({ email, role }), email, role }))
                 }
-                // 1) Table-based admin accounts (by email)
+                // 1) Table-based admin accounts (by email). Also count admins to gate the
+                //    env bootstrap below (kept in sync with api/admin/login.ts).
+                let adminTableReadable = false
+                let adminCount = 0
                 if (supabaseUrl && supabaseServiceRoleKey) {
                   try {
                     const service = createClient(supabaseUrl, supabaseServiceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } })
+                    const { count, error: countError } = await service.from('scmpedia_admins').select('id', { count: 'exact', head: true })
+                    if (!countError) { adminTableReadable = true; adminCount = count || 0 }
                     const { data, error } = await service.from('scmpedia_admins').select('email,password_hash,role').eq('email', username.toLowerCase()).maybeSingle()
                     if (!error && data && verifyPassword(password, String(data.password_hash))) {
                       sendToken(String(data.email), data.role === 'master' ? 'master' : 'admin')
@@ -137,8 +144,9 @@ export default defineConfig(({ mode }) => {
                     /* table missing → fall through to env admin */
                   }
                 }
-                // 2) Env bootstrap admin (master)
-                if (adminUser && adminPass && username === adminUser && password === adminPass) {
+                // 2) Env bootstrap admin (master) — only until the first table admin exists.
+                const bootstrapAllowed = !adminTableReadable || adminCount === 0
+                if (bootstrapAllowed && adminUser && adminPass && username === adminUser && password === adminPass) {
                   sendToken(username, 'master')
                   return
                 }
@@ -1193,6 +1201,100 @@ export default defineConfig(({ mode }) => {
                 res.setHeader('Content-Type', 'application/json')
                 res.end(JSON.stringify({ error: err?.message || 'Could not load students' }))
               })
+          })
+
+          // Dev mirror of api/admin/users.ts — delegates to the SAME shared module as
+          // prod (api/_users.ts), so delete/premium semantics can never drift in dev.
+          server.middlewares.use('/api/admin/users', (req, res) => {
+            const identity = adminIdentity(req)
+            const send = (status: number, body: any) => {
+              res.statusCode = status
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify(body))
+            }
+            if (!identity) return send(401, { error: 'Admin sign-in required' })
+            if (!supabaseUrl || !supabaseServiceRoleKey) return send(500, { error: 'Missing server configuration' })
+            const service = createClient(supabaseUrl, supabaseServiceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } })
+
+            if (req.method === 'GET') {
+              listUsersReport(service)
+                .then((report) => send(200, { me: identity, ...report }))
+                .catch((err: any) => send(500, { error: err?.message || 'Could not load users' }))
+              return
+            }
+            if (req.method === 'PATCH' || req.method === 'POST' || req.method === 'DELETE') {
+              let raw = ''
+              req.on('data', (chunk) => { raw += chunk })
+              req.on('end', async () => {
+                try {
+                  const parsed = JSON.parse(raw || '{}')
+                  const out = req.method === 'DELETE'
+                    ? await deleteUsersCore(service, identity, parsed)
+                    : await setPremiumCore(service, identity, parsed)
+                  send(out.status, out.body)
+                } catch (err: any) {
+                  send(500, { error: err?.message || 'Could not complete the request' })
+                }
+              })
+              return
+            }
+            send(405, { error: 'Method not allowed' })
+          })
+
+          // Dev mirror of api/admin/universities.ts.
+          server.middlewares.use('/api/admin/universities', (req, res) => {
+            const identity = adminIdentity(req)
+            const send = (status: number, body: any) => {
+              res.statusCode = status
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify(body))
+            }
+            if (!identity) return send(401, { error: 'Admin sign-in required' })
+            if (!supabaseUrl || !supabaseServiceRoleKey) return send(500, { error: 'Missing server configuration' })
+            const service = createClient(supabaseUrl, supabaseServiceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } })
+
+            if (req.method === 'GET') {
+              loadUniversityAdditions(service)
+                .then((universities) => send(200, { universities }))
+                .catch((err: any) => send(500, { error: err?.message || 'Could not load universities' }))
+              return
+            }
+            if (req.method === 'DELETE') {
+              const id = new URL(req.url || '', 'http://localhost').searchParams.get('id') || ''
+              deleteUniversityCore(service, id)
+                .then((out) => send(out.status, out.body))
+                .catch((err: any) => send(500, { error: err?.message || 'Could not remove university' }))
+              return
+            }
+            if (req.method === 'POST') {
+              let raw = ''
+              req.on('data', (chunk) => { raw += chunk })
+              req.on('end', async () => {
+                try {
+                  const out = await addUniversityCore(service, identity, JSON.parse(raw || '{}'))
+                  send(out.status, out.body)
+                } catch (err: any) {
+                  send(500, { error: err?.message || 'Could not add university' })
+                }
+              })
+              return
+            }
+            send(405, { error: 'Method not allowed' })
+          })
+
+          // Dev mirror of api/universities.ts — public read.
+          server.middlewares.use('/api/universities', (req, res) => {
+            const send = (status: number, body: any) => {
+              res.statusCode = status
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify(body))
+            }
+            if (req.method !== 'GET') return send(405, { error: 'Method not allowed' })
+            if (!supabaseUrl || !supabaseServiceRoleKey) return send(200, { additions: [] })
+            const service = createClient(supabaseUrl, supabaseServiceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } })
+            loadUniversityAdditions(service)
+              .then((rows) => send(200, { additions: rows.map((u) => ({ country_code: u.country_code, name: u.name })) }))
+              .catch(() => send(200, { additions: [] }))
           })
 
           // Dev mirror of api/admin/raffle.ts — eligible pool + commit-reveal draw.
