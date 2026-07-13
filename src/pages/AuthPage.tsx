@@ -267,6 +267,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
     e.preventDefault()
     if (!hasSupabaseConfig || !supabase) { setError('Auth not configured.'); return }
     if (password.length < 8) { setError('Password must be at least 8 characters'); return }
+    if (password !== confirmPassword) { setError('Those passwords do not match'); return }
     setLoading(true); reset()
     try {
       const { data, error: err } = await supabase.auth.signUp({
@@ -583,7 +584,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
                         className="auth-input"
                         type={showPassword ? 'text' : 'password'}
                         value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
+                        onChange={(e) => { setNewPassword(e.target.value); if (error) setError('') }}
                         placeholder="Min. 8 characters"
                         autoComplete="new-password"
                         required
@@ -631,7 +632,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
                         className="auth-input"
                         type={showPassword ? 'text' : 'password'}
                         value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        onChange={(e) => { setConfirmPassword(e.target.value); if (error) setError('') }}
                         placeholder="Re-enter your new password"
                         autoComplete="new-password"
                         required
@@ -811,7 +812,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
                 {(['signin', 'signup'] as const).map((m) => (
                   <button
                     key={m}
-                    onClick={() => { setMode(m); reset() }}
+                    onClick={() => { setMode(m); setConfirmPassword(''); reset() }}
                     style={{
                       flex: 1,
                       padding: '9px 0',
@@ -909,8 +910,9 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
                       className="auth-input"
                       type={showPassword ? 'text' : 'password'}
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={(e) => { setPassword(e.target.value); if (error) setError('') }}
                       placeholder={mode === 'signup' ? 'Min. 8 characters' : 'Your password'}
+                      autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
                       required
                       style={{
                         width: '100%',
@@ -945,6 +947,49 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
                   </div>
                   {mode === 'signup' && <PasswordStrength password={password} />}
                 </div>
+
+                {mode === 'signup' && (
+                  <div style={{ marginBottom: 16 }}>
+                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--text-main)', marginBottom: 6 }}>
+                      Confirm Password
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <Lock size={15} color="var(--text-sub)" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
+                      <input
+                        className="auth-input"
+                        type={showPassword ? 'text' : 'password'}
+                        value={confirmPassword}
+                        onChange={(e) => { setConfirmPassword(e.target.value); if (error) setError('') }}
+                        placeholder="Re-enter your password"
+                        autoComplete="new-password"
+                        required
+                        aria-invalid={Boolean(confirmPassword) && confirmPassword !== password}
+                        style={{
+                          width: '100%',
+                          padding: '11px 12px 11px 36px',
+                          borderRadius: 8,
+                          border: `1px solid ${confirmPassword && confirmPassword !== password ? 'var(--error)' : 'var(--auth-input-border)'}`,
+                          background: 'var(--auth-input-bg)',
+                          color: 'var(--text-main)',
+                          fontSize: 14,
+                          outline: 'none',
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                    </div>
+                    {confirmPassword && confirmPassword !== password && (
+                      <span style={{ display: 'block', marginTop: 6, fontSize: 11, color: 'var(--error)' }}>
+                        Passwords don't match
+                      </span>
+                    )}
+                    {confirmPassword && confirmPassword === password && (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 6, fontSize: 11, color: 'var(--success-green)' }}>
+                        <Check size={11} strokeWidth={3} />
+                        Passwords match
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 {mode === 'signin' && (
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
