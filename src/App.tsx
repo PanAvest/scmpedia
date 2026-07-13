@@ -12,6 +12,7 @@ import { DictionaryModePage } from './pages/DictionaryModePage'
 import { TermPage } from './pages/TermPage'
 import { LegalPage } from './pages/LegalPage'
 import type { ResourcePageProps } from './pages/ResourcePages'
+import { isEmailConfirmCallback } from './supabase'
 import { useAuth } from './hooks/useAuth'
 import { useData } from './hooks/useData'
 import { useTTS } from './hooks/useTTS'
@@ -76,6 +77,10 @@ function AppShell() {
     return localStorage.getItem(AUTO_READ_AI_KEY) === 'true'
   })
   const [dictionaryMode, setDictionaryMode] = useState(() => localStorage.getItem(DICTIONARY_MODE_KEY) === 'true')
+  // Clicking the link in the confirmation email also signs the user in, so the /auth guard below
+  // would bounce them straight to the homepage — the exact thing the confirmation is meant to avoid.
+  // Seeded once from the landing URL, before any auth state exists, so it cannot lose that race.
+  const [confirmingEmail] = useState(isEmailConfirmCallback)
   const [pricingOpen, setPricingOpen] = useState(false)
   const [pendingSearch, setPendingSearch] = useState('')
   const [homeChatMode, setHomeChatMode] = useState(false)
@@ -240,7 +245,7 @@ function AppShell() {
           <Route
             path="/auth"
             element={
-              auth.user
+              auth.user && !confirmingEmail
                 ? <Navigate to="/" replace />
                 : <AuthPage onSuccess={() => navigate('/')} />
             }

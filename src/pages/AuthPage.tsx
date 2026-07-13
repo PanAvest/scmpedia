@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, ArrowLeft, Mail, Lock, User, Check, BriefcaseBusiness, ShieldCheck, Sparkles, TrendingUp } from 'lucide-react'
+import { Eye, EyeOff, ArrowLeft, Mail, Lock, User, Check, BriefcaseBusiness, ShieldCheck, Sparkles, TrendingUp, MailCheck, RefreshCw, Clock } from 'lucide-react'
+import type { EmailOtpType } from '@supabase/supabase-js'
 import { supabase, hasSupabaseConfig } from '../supabase'
 import { Logo } from '../components/Logo'
 
@@ -8,6 +9,82 @@ type AuthMode = 'signin' | 'signup' | 'forgot'
 
 interface AuthPageProps {
   onSuccess?: () => void
+}
+
+// Where Supabase drops the user after they click the link in the confirmation email. It has to be
+// on the Redirect URLs allow-list in the Supabase dashboard or Supabase silently falls back to the
+// Site URL (the homepage), which is exactly what we're trying to avoid.
+//
+// No query string: the email template appends its own (`{{ .RedirectTo }}?token_hash=…`), and two
+// `?` in one URL would break the link. Using .RedirectTo rather than a hardcoded {{ .SiteURL }} is
+// what keeps a localhost signup's confirmation link pointing back at localhost.
+export const CONFIRM_REDIRECT_PARAM = 'confirmed'
+const confirmRedirectUrl = () => `${window.location.origin}/auth`
+
+// Read once, at module eval, off the landing URL — then scrub the token out of the address bar
+// immediately. A token_hash sitting in the query string (unlike the URL fragment it replaces) is
+// sent to servers in the Referer header and written to browser history and hosting access logs, so
+// it must not survive a single network call.
+const confirmCallback = (() => {
+  if (typeof window === 'undefined') return null
+  const params = new URLSearchParams(window.location.search)
+  if (params.get(CONFIRM_REDIRECT_PARAM) !== '1') return null
+
+  const tokenHash = params.get('token_hash') || ''
+  const type = (params.get('type') || 'signup') as EmailOtpType
+  if (tokenHash) window.history.replaceState({}, '', `/auth?${CONFIRM_REDIRECT_PARAM}=1`)
+  return { tokenHash, type }
+})()
+
+// Supabase splits its callback payload across the query string (?code=, ?error=) and the hash
+// (#access_token=, #error=) depending on the flow, so read both.
+const readAuthParams = () => {
+  const params = new URLSearchParams(window.location.search)
+  new URLSearchParams(window.location.hash.replace(/^#/, '')).forEach((value, key) => params.set(key, value))
+  return params
+}
+
+// Verifying the address also mints a session and drops the tokens in the URL. We take the address
+// off that session and then sign it out: the tokens are revoked rather than left live in browser
+// history, and the sign-in form we land them on is real rather than decorative.
+//
+// Module-scoped so React 18 StrictMode's double-invoked effect reuses the same promise instead of
+// firing a second /logout — a component ref is recreated on the StrictMode remount and would not.
+let confirmSettlement: Promise<string> | null = null
+
+const settleConfirmation = async (): Promise<string> => {
+  if (!supabase) return ''
+
+  // The email links here directly with a token_hash instead of bouncing through Supabase's
+  // /auth/v1/verify. That endpoint is a GET that burns the single-use token server-side, so any mail
+  // scanner that follows links (Outlook Safe Links does) consumed the token before the user ever
+  // clicked. Verifying from JS means a scanner fetching the page can't spend it.
+  if (confirmCallback?.tokenHash) {
+    const { data, error } = await supabase.auth.verifyOtp({
+      token_hash: confirmCallback.tokenHash,
+      type: confirmCallback.type,
+    })
+    if (error) throw error
+    const confirmedEmail = data.session?.user?.email ?? data.user?.email ?? ''
+    if (data.session) await supabase.auth.signOut()
+    return confirmedEmail
+  }
+
+  // Fallback: the older {{ .ConfirmationURL }} flow, which arrives with tokens in the URL fragment.
+  // getSession() resolves only once auth-js has finished reading them out of the URL.
+  const { data } = await supabase.auth.getSession()
+  const confirmedEmail = data.session?.user?.email ?? ''
+  if (data.session) await supabase.auth.signOut()
+  return confirmedEmail
+}
+
+const friendlyAuthError = (params: URLSearchParams) => {
+  const code = params.get('error_code')
+  const description = params.get('error_description') || params.get('error') || ''
+  if (code === 'otp_expired' || /expired/i.test(description)) {
+    return 'That confirmation link has expired. Enter your email below and we\'ll send you a fresh one.'
+  }
+  return description.replace(/\+/g, ' ')
 }
 
 const VALUE_POINTS = [
@@ -75,6 +152,13 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [oauthLoading, setOauthLoading] = useState<'google' | null>(null)
+  const [sentTo, setSentTo] = useState('')
+  const [resending, setResending] = useState(false)
+  const [confirmed, setConfirmed] = useState(false)
+  const [confirming, setConfirming] = useState(() => {
+    const params = readAuthParams()
+    return params.get(CONFIRM_REDIRECT_PARAM) === '1' && !params.has('error') && !params.has('error_description')
+  })
 
   const reset = () => {
     setError('')
@@ -82,10 +166,40 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
   }
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search || window.location.hash.replace(/^#/, '?'))
-    const authError = params.get('error_description') || params.get('error')
-    if (authError) setError(authError)
+    const params = readAuthParams()
+    if (params.has('error') || params.has('error_description')) setError(friendlyAuthError(params))
   }, [])
+
+  // Landing back from the confirmation email.
+  useEffect(() => {
+    if (!confirming) return
+    let cancelled = false
+
+    confirmSettlement = confirmSettlement ?? settleConfirmation()
+    confirmSettlement
+      .then((confirmedEmail) => {
+        if (cancelled) return
+        if (confirmedEmail) setEmail(confirmedEmail)
+        setConfirmed(true)
+      })
+      .catch((err: unknown) => {
+        // An expired or already-spent link lands here. Say so, and leave them somewhere they can act.
+        if (cancelled) return
+        const message = err instanceof Error ? err.message : ''
+        setError(/expired|invalid|not found/i.test(message)
+          ? 'That confirmation link has expired or has already been used. Sign in, or sign up again to get a fresh one.'
+          : message || 'We could not confirm that link.')
+      })
+      .finally(() => {
+        if (cancelled) return
+        setMode('signin')
+        setConfirming(false)
+        // Drop ?confirmed=1 so a refresh is an ordinary visit to the sign-in page.
+        window.history.replaceState({}, '', '/auth')
+      })
+
+    return () => { cancelled = true }
+  }, [confirming])
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -109,17 +223,50 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
     if (password.length < 8) { setError('Password must be at least 8 characters'); return }
     setLoading(true); reset()
     try {
-      const { error: err } = await supabase.auth.signUp({
+      const { data, error: err } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { full_name: fullName } },
+        options: { data: { full_name: fullName }, emailRedirectTo: confirmRedirectUrl() },
       })
       if (err) throw err
-      setSuccess('Check your email to confirm your account.')
+
+      // "Confirm email" is off in the Supabase dashboard: no email is sent and they are already in.
+      if (data.session) {
+        onSuccess?.()
+        navigate('/')
+        return
+      }
+
+      // Supabase returns an obfuscated user with no identities when the address is already taken,
+      // rather than leaking that the account exists. Don't promise an email that isn't coming.
+      if (data.user && data.user.identities?.length === 0) {
+        setError('That email is already registered. Sign in instead, or reset your password.')
+        return
+      }
+
+      setSentTo(email)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Sign up failed')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleResend = async () => {
+    if (!hasSupabaseConfig || !supabase || !sentTo) return
+    setResending(true); reset()
+    try {
+      const { error: err } = await supabase.auth.resend({
+        type: 'signup',
+        email: sentTo,
+        options: { emailRedirectTo: confirmRedirectUrl() },
+      })
+      if (err) throw err
+      setSuccess('Sent again — give it a minute, then check your spam folder too.')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Could not resend the email')
+    } finally {
+      setResending(false)
     }
   }
 
@@ -290,8 +437,117 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
         </div>
 
         <div style={{ width: '100%', maxWidth: 420 }}>
-          {mode !== 'forgot' ? (
+          {confirming ? (
+            <div style={{ textAlign: 'center', padding: '32px 0' }}>
+              <div className="auth-badge auth-badge-spin" aria-hidden="true">
+                <RefreshCw size={22} />
+              </div>
+              <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-main)', margin: '0 0 6px' }}>
+                Confirming your email…
+              </h2>
+              <p style={{ fontSize: 13, color: 'var(--text-sub)', margin: 0 }}>One moment.</p>
+            </div>
+          ) : sentTo ? (
+            <div>
+              <div className="auth-badge" aria-hidden="true">
+                <MailCheck size={22} />
+              </div>
+
+              <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-main)', margin: '0 0 8px' }}>
+                Check your inbox
+              </h2>
+              <p style={{ fontSize: 14, color: 'var(--text-sub)', lineHeight: 1.6, margin: '0 0 20px' }}>
+                We sent a confirmation link to <strong style={{ color: 'var(--text-main)' }}>{sentTo}</strong>.
+                Click it to verify your address — you'll land back here to sign in.
+              </p>
+
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '10px 14px',
+                  borderRadius: 8,
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  fontSize: 12.5,
+                  color: 'var(--text-sub)',
+                  marginBottom: 20,
+                }}
+              >
+                <Clock size={14} style={{ flexShrink: 0 }} />
+                The link expires in 24 hours.
+              </div>
+
+              {error && (
+                <div style={{ padding: '10px 14px', background: 'rgba(220,38,38,0.10)', border: '1px solid rgba(220,38,38,0.25)', borderRadius: 8, fontSize: 13, color: 'var(--error)', marginBottom: 16 }}>
+                  {error}
+                </div>
+              )}
+              {success && (
+                <div style={{ padding: '10px 14px', background: 'rgba(20,174,92,0.10)', border: '1px solid rgba(20,174,92,0.25)', borderRadius: 8, fontSize: 13, color: 'var(--success-green)', marginBottom: 16 }}>
+                  {success}
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={resending}
+                className="btn btn-outline"
+                style={{ width: '100%', justifyContent: 'center', gap: 8, height: 44, fontSize: 14, marginBottom: 14 }}
+              >
+                <RefreshCw size={15} />
+                {resending ? 'Sending…' : 'Resend confirmation email'}
+              </button>
+
+              <p style={{ fontSize: 13, color: 'var(--text-sub)', textAlign: 'center', margin: 0 }}>
+                Wrong address?{' '}
+                <button
+                  type="button"
+                  onClick={() => { setSentTo(''); setMode('signup'); reset() }}
+                  style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 13, color: 'var(--primary)', fontWeight: 600 }}
+                >
+                  Start over
+                </button>
+              </p>
+            </div>
+          ) : mode !== 'forgot' ? (
             <>
+              {confirmed && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '12px 14px',
+                    borderRadius: 10,
+                    background: 'rgba(20,174,92,0.10)',
+                    border: '1px solid rgba(20,174,92,0.25)',
+                    marginBottom: 20,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: '50%',
+                      background: 'var(--success-green)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Check size={13} color="#fff" strokeWidth={3} />
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--text-main)', lineHeight: 1.5 }}>
+                    <strong style={{ fontWeight: 700 }}>Email confirmed.</strong>{' '}
+                    <span style={{ color: 'var(--text-sub)' }}>Sign in to get started.</span>
+                  </div>
+                </div>
+              )}
+
               {/* Tabs */}
               <div
                 style={{
@@ -614,6 +870,37 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
           --auth-google-border: #dadce0;
           --auth-google-text: #3c4043;
           --auth-google-hover: #f8fafd;
+        }
+
+        .auth-page .auth-badge {
+          width: 48px;
+          height: 48px;
+          border-radius: 14px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          margin-bottom: 20px;
+          color: var(--pricing-green);
+          background: var(--pricing-green-soft);
+          border: 1px solid rgba(0, 79, 70, 0.14);
+        }
+
+        :root[data-theme="dark"] .auth-page .auth-badge {
+          color: #62c7ba;
+          background: rgba(98, 199, 186, 0.12);
+          border-color: rgba(98, 199, 186, 0.22);
+        }
+
+        .auth-page .auth-badge-spin svg {
+          animation: auth-badge-spin 900ms linear infinite;
+        }
+
+        @keyframes auth-badge-spin {
+          to { transform: rotate(360deg); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .auth-page .auth-badge-spin svg { animation: none; }
         }
 
         .auth-page .auth-input {

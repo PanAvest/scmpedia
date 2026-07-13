@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<meta name="format-detection" content="telephone=no,date=no,address=no,email=no">
+<title>Confirm your SCMpedia account</title>
+<style>
+  body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+  table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+  table { border-spacing: 0; }
+  img { -ms-interpolation-mode: bicubic; border: 0; outline: none; text-decoration: none; }
+  #outlook a { padding: 0; }
+  .ExternalClass { width: 100%; }
+  .ExternalClass, .ExternalClass p, .ExternalClass td, .ExternalClass div { line-height: 100%; }
+  div[style*="margin: 16px 0"] { margin: 0 !important; }
+  a[x-apple-data-detectors] { color: inherit !important; text-decoration: none !important; font-size: inherit !important; font-weight: inherit !important; line-height: inherit !important; }
+
+  @media only screen and (max-width: 620px) {
+    .sm-full { width: 100% !important; max-width: 100% !important; }
+    .sm-pad { padding-left: 24px !important; padding-right: 24px !important; }
+    .sm-hero { padding: 32px 24px !important; }
+    .sm-h1 { font-size: 24px !important; line-height: 32px !important; }
+    .sm-btn { display: block !important; width: 100% !important; }
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .dk-canvas { background-color: #0f1411 !important; }
+    .dk-card { background-color: #171c19 !important; border-color: #2b332d !important; }
+    .dk-title { color: #f4f7f2 !important; }
+    .dk-body { color: #b8c0b8 !important; }
+    .dk-strong { color: #f4f7f2 !important; }
+    .dk-note { background-color: #121a16 !important; border-color: #2b332d !important; }
+    .dk-muted { color: #8e998f !important; }
+    .dk-rule { border-color: #2b332d !important; }
+  }
+  [data-ogsc] .dk-canvas { background-color: #0f1411 !important; }
+  [data-ogsc] .dk-card { background-color: #171c19 !important; border-color: #2b332d !important; }
+  [data-ogsc] .dk-title { color: #f4f7f2 !important; }
+  [data-ogsc] .dk-body { color: #b8c0b8 !important; }
+  [data-ogsc] .dk-strong { color: #f4f7f2 !important; }
+  [data-ogsc] .dk-note { background-color: #121a16 !important; border-color: #2b332d !important; }
+  [data-ogsc] .dk-muted { color: #8e998f !important; }
+  [data-ogsc] .dk-rule { border-color: #2b332d !important; }
+</style>
+</head>
+
+<body class="dk-canvas" style="margin:0; padding:0; width:100%; background-color:#fbf8f1; font-family:'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif; mso-line-height-rule:exactly;">
+
+<div style="display:none; font-size:1px; line-height:1px; max-height:0; max-width:0; opacity:0; overflow:hidden; mso-hide:all;">
+  The link expires in 24 hours. Once confirmed, you can sign in and start searching.
+</div>
+
+<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" bgcolor="#fbf8f1" class="dk-canvas" style="background-color:#fbf8f1; width:100%;">
+  <tr>
+    <td align="center" style="padding:32px 12px 40px 12px;">
+
+      <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="600" class="sm-full" style="width:600px; max-width:600px;">
+
+        <tr>
+          <td bgcolor="#063f3a" class="sm-hero" style="background-color:#063f3a; border-radius:16px 16px 0 0; padding:40px 32px 40px 32px;">
+            <img src="{{ .SiteURL }}/white-logo.png" width="168" alt="SCMpedia" style="display:block; width:168px; max-width:168px; height:auto; margin:0 0 28px 0; border:0;">
+            <p class="sm-h1" style="margin:0 0 12px 0; font-family:'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif; font-size:28px; line-height:36px; font-weight:700; color:#ffffff; mso-line-height-rule:exactly;">
+              Confirm your email address
+            </p>
+            <p style="margin:0; font-family:'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif; font-size:15px; line-height:24px; color:#a9c2be; mso-line-height-rule:exactly;">
+              One step left before you can sign in.
+            </p>
+          </td>
+        </tr>
+
+        <tr>
+          <td bgcolor="#ffffff" class="dk-card sm-pad" style="background-color:#ffffff; border:1px solid #e3e3e3; border-top:0; border-radius:0 0 16px 16px; padding:36px 32px 32px 32px;">
+
+            <p class="dk-body" style="margin:0 0 24px 0; font-family:'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif; font-size:15px; line-height:26px; color:#444746; mso-line-height-rule:exactly;">
+              Welcome to SCMpedia. Confirm that <strong class="dk-strong" style="color:#1f1f1f; font-weight:600;">{{ .Email }}</strong> is your address and we'll take you to the sign-in page to finish setting up your account.
+            </p>
+
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin:0 0 24px 0;">
+              <tr>
+                <td align="center" bgcolor="#b65437" style="background-color:#b65437; border-radius:10px;">
+                  <a class="sm-btn" href="{{ if .RedirectTo }}{{ .RedirectTo }}{{ else }}{{ .SiteURL }}/auth{{ end }}?token_hash={{ .TokenHash }}&type=signup&confirmed=1" style="display:inline-block; padding:15px 32px; font-family:'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif; font-size:15px; line-height:20px; font-weight:700; color:#ffffff; text-decoration:none; border-radius:10px; mso-line-height-rule:exactly;">
+                    Confirm email address
+                  </a>
+                </td>
+              </tr>
+            </table>
+
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="width:100%; margin:0 0 24px 0;">
+              <tr>
+                <td class="dk-note" bgcolor="#f7f5f0" style="background-color:#f7f5f0; border:1px solid #e9e4da; border-radius:8px; padding:12px 16px; font-family:'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif; font-size:13px; line-height:20px; color:#5f6660; mso-line-height-rule:exactly;">
+                  This link expires in 24 hours and can only be used once.
+                </td>
+              </tr>
+            </table>
+
+            <p class="dk-muted" style="margin:0 0 8px 0; font-family:'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif; font-size:13px; line-height:20px; color:#5f6660; mso-line-height-rule:exactly;">
+              Or copy and paste this link into your browser:
+            </p>
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="width:100%; margin:0 0 28px 0;">
+              <tr>
+                <td class="dk-muted" width="534" style="width:534px; max-width:534px; font-family:'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif; font-size:12px; line-height:18px; color:#5f6660; word-break:break-all; overflow-wrap:break-word; mso-line-height-rule:exactly;">
+                  {{ if .RedirectTo }}{{ .RedirectTo }}{{ else }}{{ .SiteURL }}/auth{{ end }}?token_hash={{ .TokenHash }}&type=signup&confirmed=1
+                </td>
+              </tr>
+            </table>
+
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="width:100%;">
+              <tr>
+                <td class="dk-rule" style="border-top:1px solid #e3e3e3; padding:20px 0 0 0; font-family:'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif; font-size:13px; line-height:20px; color:#5f6660; mso-line-height-rule:exactly;">
+                  <span class="dk-muted" style="color:#5f6660;">Didn't sign up for SCMpedia? You can ignore this email — no account will be activated.</span>
+                </td>
+              </tr>
+            </table>
+
+          </td>
+        </tr>
+
+        <tr>
+          <td class="sm-pad" style="padding:28px 32px 0 32px;" align="center">
+            <p class="dk-muted" style="margin:0 0 10px 0; font-family:'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif; font-size:13px; line-height:20px; font-weight:600; color:#5f6660; mso-line-height-rule:exactly;">
+              SCMpedia
+            </p>
+            <p class="dk-muted" style="margin:0 0 14px 0; font-family:'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif; font-size:12px; line-height:20px; color:#767d76; mso-line-height-rule:exactly;">
+              Questions? Just reply to this email.
+            </p>
+            <p class="dk-muted" style="margin:0 0 14px 0; font-family:'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif; font-size:12px; line-height:20px; color:#767d76; mso-line-height-rule:exactly;">
+              <a href="{{ .SiteURL }}/help" style="color:#5f6660; text-decoration:underline;">Help Center</a>
+              &nbsp;&nbsp;
+              <a href="{{ .SiteURL }}/privacy" style="color:#5f6660; text-decoration:underline;">Privacy Policy</a>
+              &nbsp;&nbsp;
+              <a href="{{ .SiteURL }}/terms" style="color:#5f6660; text-decoration:underline;">Terms of Service</a>
+            </p>
+            <p class="dk-muted" style="margin:0; font-family:'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif; font-size:12px; line-height:20px; color:#767d76; mso-line-height-rule:exactly;">
+              You're receiving this because {{ .Email }} was used to create an SCMpedia account.
+            </p>
+          </td>
+        </tr>
+
+      </table>
+
+    </td>
+  </tr>
+</table>
+
+</body>
+</html>
