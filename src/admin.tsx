@@ -125,6 +125,35 @@ body { margin: 0; font-family: "Google Sans", "Segoe UI", Roboto, Helvetica, Ari
 
 .fade-in { animation: fade-in 0.35s ease; }
 
+/* ===== Shell: sidebar + content ===== */
+.admin-body { flex: 1; display: grid; grid-template-columns: 236px minmax(0, 1fr); align-items: stretch; }
+.sidebar { border-right: 1px solid var(--border); background: var(--surface); padding: 16px 12px; display: flex; flex-direction: column; gap: 2px; position: sticky; top: 65px; height: calc(100dvh - 65px); }
+.nav-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; text-align: left; border: none; background: transparent; color: var(--text-sub); font: inherit; font-size: 14px; font-weight: 600; padding: 10px 12px; border-radius: 10px; cursor: pointer; transition: background 0.15s ease, color 0.15s ease; }
+.nav-item:hover { background: var(--surface-2); color: var(--text-main); }
+.nav-item.active { background: rgba(182, 84, 55, 0.12); color: var(--primary-dark); }
+.nav-badge { font-size: 11px; font-weight: 700; color: var(--text-sub); background: var(--surface-2); border-radius: 999px; padding: 2px 7px; }
+.nav-item.active .nav-badge { background: rgba(182, 84, 55, 0.16); color: var(--primary-dark); }
+.sidebar-foot { margin-top: auto; padding: 12px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-sub); line-height: 1.5; }
+
+.admin-content { padding: 22px 24px 32px; min-width: 0; display: flex; flex-direction: column; gap: 18px; }
+.view-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.view-title { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; margin: 0; }
+.view-sub { font-size: 13px; color: var(--text-sub); margin: 5px 0 0; max-width: 74ch; line-height: 1.55; }
+.view-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* ===== Overview ===== */
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; }
+.stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; text-align: left; }
+button.stat { cursor: pointer; font: inherit; transition: transform 0.15s ease, box-shadow 0.15s ease; }
+button.stat:hover { transform: translateY(-2px); box-shadow: 0 14px 30px rgba(20, 12, 4, 0.12); }
+.stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; color: var(--text-sub); }
+.stat-value { font-size: 26px; font-weight: 700; margin-top: 6px; letter-spacing: -0.01em; color: var(--text-main); }
+.stat-note { font-size: 12px; color: var(--text-sub); margin-top: 4px; }
+
+/* ===== Dictionary ===== */
+.dict-grid { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 16px; align-items: start; }
+.dict-grid .list { max-height: calc(100dvh - 330px); }
+
 @keyframes pop-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes fade-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -135,12 +164,60 @@ body { margin: 0; font-family: "Google Sans", "Segoe UI", Roboto, Helvetica, Ari
   .list { max-height: 260px; }
   .form-grid { grid-template-columns: 1fr; }
   .skeleton-form { grid-template-columns: 1fr; }
+  .admin-body { grid-template-columns: 1fr; }
+  .sidebar { position: static; height: auto; flex-direction: row; overflow-x: auto; gap: 6px; border-right: 0; border-bottom: 1px solid var(--border); }
+  .sidebar .nav-item { width: auto; white-space: nowrap; }
+  .sidebar-foot { display: none; }
+  .admin-content { padding: 16px; }
+  .dict-grid { grid-template-columns: 1fr; }
+  .dict-grid .list { max-height: 280px; }
 }
 @media (max-width: 600px) {
   .admin-header { flex-direction: column; align-items: flex-start; gap: 12px; }
   .header-actions { flex-wrap: wrap; }
 }
 `
+
+type AdminView = 'overview' | 'dictionary' | 'pricing' | 'students' | 'raffle' | 'admins'
+
+const VIEWS: { id: AdminView; label: string; title: string; sub: string; masterOnly?: boolean }[] = [
+  {
+    id: 'overview',
+    label: 'Overview',
+    title: 'Overview',
+    sub: 'Everything at a glance. Jump into a section from the sidebar.',
+  },
+  {
+    id: 'dictionary',
+    label: 'Dictionary',
+    title: 'Dictionary',
+    sub: 'Add, edit and remove terms. Changes save straight to the server — download the CSV when you want a backup.',
+  },
+  {
+    id: 'pricing',
+    label: 'Pricing',
+    title: 'Subscription pricing',
+    sub: 'Prices are in Ghana Cedis and apply to new checkouts immediately. The server validates every payment against these amounts.',
+  },
+  {
+    id: 'students',
+    label: 'Students',
+    title: 'Verified students',
+    sub: 'Users who completed student verification before buying the Student plan.',
+  },
+  {
+    id: 'raffle',
+    label: 'Raffle',
+    title: 'Launch raffle',
+    sub: 'Draw winners from students who paid for the Student plan, with a published commitment and a provably-fair live draw.',
+  },
+  {
+    id: 'admins',
+    label: 'Admins',
+    title: 'Admins & roles',
+    sub: 'Who can get into this dashboard, and what they are allowed to do.',
+  },
+]
 
 const defaultEntry: Entry = {
   term: '',
@@ -190,6 +267,15 @@ function AdminApp() {
   const [studentsTone, setStudentsTone] = useState<'default' | 'success' | 'error'>('default')
   const [studentSearch, setStudentSearch] = useState('')
   const [raffleOpen, setRaffleOpen] = useState(false)
+  const [view, setView] = useState<AdminView>('overview')
+  const activeView = VIEWS.find((v) => v.id === view) ?? VIEWS[0]!
+
+  // Read the price off the plan rows rather than a hardcoded id. The ids are 'pro-monthly' /
+  // 'pro-annual', not 'professional-*', and guessing them silently renders an em-dash.
+  const priceFor = (tier: string, period: string) => {
+    const plan = plans.find((p) => p.tier === tier && p.period === period)
+    return plan ? priceDrafts[plan.id] ?? String(plan.amount / 100) : '—'
+  }
   const papaRef = useRef<PapaParse | null>(null)
 
   const filtered = useMemo(() => {
@@ -780,67 +866,144 @@ function AdminApp() {
           <span>scmpedia</span> Admin
         </div>
         <div className="header-actions">
-          <button className="btn btn-secondary" onClick={loadCsv} disabled={loading}>
-            Reload CSV
-          </button>
+          <span className="helper" style={{ margin: 0, alignSelf: 'center' }}>
+            {adminEmail || 'admin'} · {adminRole === 'master' ? 'master' : 'admin'}
+          </span>
           <button className="btn btn-secondary" onClick={handleLogout} disabled={loading}>
             Sign Out
-          </button>
-          <label
-            className="btn btn-secondary"
-            style={{
-              margin: 0,
-              opacity: loading ? 0.5 : 1,
-              pointerEvents: loading ? 'none' : 'auto',
-            }}
-          >
-            Upload CSV
-            <input
-              type="file"
-              accept=".csv"
-              hidden
-              onChange={(e) => {
-                handleUpload(e.target.files?.[0])
-                e.currentTarget.value = ''
-              }}
-            />
-          </label>
-          <button className="btn btn-primary" onClick={handleDownload} disabled={!entries.length}>
-            Download CSV
           </button>
         </div>
       </header>
 
-      <main className="admin-main">
-        <section
-          className="panel"
-          style={{
-            gridColumn: '1 / -1',
-            background: 'linear-gradient(120deg, #fbf3ee, #f4efe6)',
-            border: '1px solid rgba(182,84,55,.22)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 16,
-            flexWrap: 'wrap',
-          }}
-        >
-          <div>
-            <div className="panel-title" style={{ color: 'var(--primary)' }}>Launch Raffle · Grand Draw</div>
-            <div style={{ color: 'var(--text-sub)', fontSize: 14, maxWidth: '62ch', lineHeight: 1.5 }}>
-              Draw 30 winners from students who paid for the <b>Student Plan</b>. Pick a university (or all schools),
-              publish the commitment, then run a provably-fair live draw on the projector.
-            </div>
+      <div className="admin-body">
+        <aside className="sidebar">
+          {VIEWS.map((v) => (
+            <button
+              key={v.id}
+              className={`nav-item ${view === v.id ? 'active' : ''}`}
+              onClick={() => setView(v.id)}
+              aria-current={view === v.id ? 'page' : undefined}
+            >
+              {v.label}
+              {v.id === 'dictionary' && <span className="nav-badge">{(totalCount ?? entries.length).toLocaleString()}</span>}
+              {v.id === 'students' && <span className="nav-badge">{students.length}</span>}
+              {v.id === 'admins' && <span className="nav-badge">{admins.length}</span>}
+            </button>
+          ))}
+          <div className="sidebar-foot">
+            Signed in as <strong>{adminEmail || 'admin'}</strong>
+            <br />
+            {adminRole === 'master' ? 'Master admin' : 'Admin'}
           </div>
-          <button
-            className="btn btn-primary"
-            style={{ whiteSpace: 'nowrap', fontSize: 15, padding: '12px 22px' }}
-            onClick={() => setRaffleOpen(true)}
-          >
-            Launch Grand Draw
-          </button>
-        </section>
+        </aside>
 
+        <main className="admin-content">
+          <div className="view-head">
+            <div>
+              <h1 className="view-title">{activeView.title}</h1>
+              <p className="view-sub">{activeView.sub}</p>
+            </div>
+            {view === 'dictionary' && (
+              <div className="view-actions">
+                <button className="btn btn-secondary" onClick={loadCsv} disabled={loading}>
+                  Reload
+                </button>
+                <label
+                  className="btn btn-secondary"
+                  style={{ margin: 0, opacity: loading ? 0.5 : 1, pointerEvents: loading ? 'none' : 'auto' }}
+                >
+                  Upload CSV
+                  <input
+                    type="file"
+                    accept=".csv"
+                    hidden
+                    onChange={(e) => {
+                      handleUpload(e.target.files?.[0])
+                      e.currentTarget.value = ''
+                    }}
+                  />
+                </label>
+                <button className="btn btn-primary" onClick={handleDownload} disabled={!entries.length}>
+                  Download CSV
+                </button>
+              </div>
+            )}
+          </div>
+
+          {view === 'overview' && (
+            <>
+              <div className="stat-grid">
+                <button className="stat" onClick={() => setView('dictionary')}>
+                  <div className="stat-label">Dictionary terms</div>
+                  <div className="stat-value">{(totalCount ?? entries.length).toLocaleString()}</div>
+                  <div className="stat-note">
+                    {backgroundLoading ? `${entries.length.toLocaleString()} loaded so far…` : 'Loaded and searchable'}
+                  </div>
+                </button>
+                <button className="stat" onClick={() => setView('students')}>
+                  <div className="stat-label">Verified students</div>
+                  <div className="stat-value">{students.length}</div>
+                  <div className="stat-note">
+                    {customUnis.length
+                      ? `${customUnis.length} custom ${customUnis.length === 1 ? 'university' : 'universities'} to review`
+                      : 'No custom universities pending'}
+                  </div>
+                </button>
+                <button className="stat" onClick={() => setView('pricing')}>
+                  <div className="stat-label">Student · monthly</div>
+                  <div className="stat-value">GH₵ {priceFor('student', 'monthly')}</div>
+                  <div className="stat-note">Annual GH₵ {priceFor('student', 'annual')}</div>
+                </button>
+                <button className="stat" onClick={() => setView('pricing')}>
+                  <div className="stat-label">Professional · monthly</div>
+                  <div className="stat-value">GH₵ {priceFor('pro', 'monthly')}</div>
+                  <div className="stat-note">Annual GH₵ {priceFor('pro', 'annual')}</div>
+                </button>
+                <button className="stat" onClick={() => setView('admins')}>
+                  <div className="stat-label">Admin accounts</div>
+                  <div className="stat-value">{admins.length}</div>
+                  <div className="stat-note">{adminRole === 'master' ? 'You can add and remove' : 'Master admin required to change'}</div>
+                </button>
+              </div>
+
+              <section className="panel">
+                <div className="panel-title-row">
+                  <div className="panel-title">Latest verified students</div>
+                  <button className="btn btn-secondary" onClick={() => setView('students')}>View all</button>
+                </div>
+                {students.slice(0, 5).map((s) => (
+                  <div key={s.id} className="list-item" style={{ cursor: 'default', marginBottom: 8 }}>
+                    <strong>{s.full_name || s.email}</strong>
+                    <div className="helper" style={{ marginTop: 2 }}>
+                      {s.email}
+                      {s.university ? ` · ${s.university}` : ''}
+                    </div>
+                  </div>
+                ))}
+                {!students.length && <div className="helper">No verified students yet.</div>}
+              </section>
+            </>
+          )}
+
+          {view === 'raffle' && (
+            <section className="panel">
+              <div className="panel-title" style={{ color: 'var(--primary)' }}>Grand Draw</div>
+              <div style={{ color: 'var(--text-sub)', fontSize: 14, maxWidth: '62ch', lineHeight: 1.5, marginBottom: 16 }}>
+                Draw 30 winners from students who paid for the <b>Student Plan</b>. Pick a university (or all schools),
+                publish the commitment, then run a provably-fair live draw on the projector.
+              </div>
+              <button
+                className="btn btn-primary"
+                style={{ fontSize: 15, padding: '12px 22px' }}
+                onClick={() => setRaffleOpen(true)}
+              >
+                Launch Grand Draw
+              </button>
+            </section>
+          )}
+
+          {view === 'dictionary' && (
+          <div className="dict-grid">
         <section className="panel">
           <div className="panel-title-row">
             <div className="panel-title">Entries</div>
@@ -953,8 +1116,11 @@ function AdminApp() {
           </div>
           <div className="helper">Admin changes save directly to the server. Download the UTF-8 CSV when you want a backup copy.</div>
         </section>
+          </div>
+          )}
 
-        <section className="panel" style={{ gridColumn: '1 / -1' }}>
+          {view === 'pricing' && (
+        <section className="panel">
           <div className="panel-title-row">
             <div className="panel-title">Subscription Pricing</div>
             {plansLoading && <span className="spinner" />}
@@ -997,8 +1163,10 @@ function AdminApp() {
             <div className="helper">{plansLoading ? 'Loading plans…' : plansStatus || 'No plans loaded.'}</div>
           )}
         </section>
+          )}
 
-        <section className="panel" style={{ gridColumn: '1 / -1' }}>
+          {view === 'students' && (
+        <section className="panel">
           <div className="panel-title-row">
             <div className="panel-title">Students</div>
             <span className="count-pill">{students.length}</span>
@@ -1092,8 +1260,10 @@ function AdminApp() {
             <div className={`status ${studentsTone === 'default' ? '' : studentsTone}`}>{studentsStatus}</div>
           </div>
         </section>
+          )}
 
-        <section className="panel" style={{ gridColumn: '1 / -1' }}>
+          {view === 'admins' && (
+        <section className="panel">
           <div className="panel-title-row">
             <div className="panel-title">Admins &amp; Roles</div>
             {accountsLoading && <span className="spinner" />}
@@ -1172,7 +1342,9 @@ function AdminApp() {
             <div className={`status ${accountsTone === 'default' ? '' : accountsTone}`}>{accountsStatus}</div>
           </div>
         </section>
-      </main>
+          )}
+        </main>
+      </div>
       {raffleOpen && <RaffleDrawMode token={adminToken} onClose={() => setRaffleOpen(false)} />}
     </div>
   )
