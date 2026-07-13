@@ -269,6 +269,9 @@ export async function drawResult(
       draw_size: drawCount,
       winners,
       drawn_by: drawnBy || 'admin',
+      // A recorded draw is a published, provably-fair commitment — its winners become
+      // protected from deletion. (Historical test draws default to false via migration.)
+      published: true,
     })
   } catch {
     /* audit table optional */

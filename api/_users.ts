@@ -81,16 +81,18 @@ async function listAllUsers(service: SupabaseClient): Promise<User[]> {
   return users
 }
 
-// Users appearing in any recorded draw. Deleting one means the commitment
-// (sha256 over the live pool) can never be recomputed — the fairness proof breaks.
+// Users appearing in a PUBLISHED draw. Deleting one means the commitment (sha256 over
+// the live pool) can never be recomputed — the fairness proof breaks. Test/preview draws
+// (published=false) do not protect anyone.
 async function loadRaffleWinnerIds(service: SupabaseClient): Promise<Set<string>> {
   const ids = new Set<string>()
-  const { data, error } = await service.from('scmpedia_raffle_draws').select('winners')
+  const { data, error } = await service.from('scmpedia_raffle_draws').select('winners,published')
   if (error) {
     if (isMissingTable(error)) return ids
     throw new Error(`Could not read raffle draws: ${error.message}`)
   }
   for (const draw of data || []) {
+    if ((draw as { published?: unknown }).published !== true) continue
     for (const winner of ((draw as { winners?: unknown }).winners || []) as { user_id?: unknown }[]) {
       const id = String(winner?.user_id || '')
       if (id) ids.add(id)
