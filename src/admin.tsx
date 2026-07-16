@@ -281,6 +281,11 @@ const VIEWS: { id: AdminView; label: string; title: string; sub: string; masterO
   },
 ]
 
+// Vercel caps the serverless request body ~4.5MB; base64 inflates ~33%, so keep the summed
+// encoded attachment size under this. Mirrors MAX_ATTACHMENT_BYTES in api/admin/email.ts.
+const MAX_ATTACH_ENCODED = 3_500_000
+const fmtMB = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`
+
 // Lightweight client preview of the branded email (server owns the real render in api/_email.ts).
 const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 const previewEmailHtml = (m: { heading: string; subheading: string; body: string; ctaLabel: string; ctaUrl: string }) => {
@@ -713,7 +718,28 @@ function AdminApp() {
       })
     try {
       const added = await Promise.all(Array.from(files).map(read))
-      setMailFiles((prev) => [...prev, ...added])
+      const accepted: typeof added = []
+      const rejected: string[] = []
+      let running = mailFiles.reduce((s, f) => s + f.content.length, 0)
+      for (const f of added) {
+        if (running + f.content.length > MAX_ATTACH_ENCODED) {
+          rejected.push(`${f.filename} (${fmtMB(f.size)})`)
+        } else {
+          running += f.content.length
+          accepted.push(f)
+        }
+      }
+      if (accepted.length) setMailFiles((prev) => [...prev, ...accepted])
+      if (rejected.length) {
+        setMailStatus(
+          `Too large to attach: ${rejected.join(', ')}. Email attachments must total under ${fmtMB(MAX_ATTACH_ENCODED)}. ` +
+          `For a flyer, export it as a JPG or PNG (usually well under 1 MB) rather than a PSD.`,
+        )
+        setMailTone('error')
+      } else {
+        setMailStatus('')
+        setMailTone('default')
+      }
     } catch (err) {
       setMailStatus(err instanceof Error ? err.message : 'Could not attach a file')
       setMailTone('error')
@@ -725,6 +751,11 @@ function AdminApp() {
     if (!recipients.length) { setMailStatus('Add at least one recipient.'); setMailTone('error'); return }
     if (!mailSubject.trim() || !mailHeading.trim() || !mailBody.trim()) {
       setMailStatus('Subject, heading and message are all required.'); setMailTone('error'); return
+    }
+    const attachTotal = mailFiles.reduce((s, f) => s + f.content.length, 0)
+    if (attachTotal > MAX_ATTACH_ENCODED) {
+      setMailStatus(`Attachments total ${fmtMB(attachTotal)}, over the ${fmtMB(MAX_ATTACH_ENCODED)} limit. Remove or shrink a file before sending.`)
+      setMailTone('error'); return
     }
     if (!window.confirm(`Send this email to ${recipients.length} recipient${recipients.length === 1 ? '' : 's'} from noreply@scmpedia.org?`)) return
     setMailBusy(true); setMailStatus(''); setMailTone('default')
@@ -1737,11 +1768,15 @@ function AdminApp() {
                     </span>
                   ))}
                 </div>
-                {mailFiles.length > 0 && (
-                  <div className="helper">
-                    Total: {(mailFiles.reduce((s, f) => s + f.content.length, 0) / 1024 / 1024).toFixed(2)} MB encoded
-                  </div>
-                )}
+                {mailFiles.length > 0 && (() => {
+                  const total = mailFiles.reduce((s, f) => s + f.content.length, 0)
+                  const over = total > MAX_ATTACH_ENCODED
+                  return (
+                    <div className="helper" style={over ? { color: 'var(--error, #b91c1c)', fontWeight: 600 } : undefined}>
+                      Total: {(total / 1024 / 1024).toFixed(2)} MB{over ? ` — over the ${fmtMB(MAX_ATTACH_ENCODED)} limit` : ''}
+                    </div>
+                  )
+                })()}
 
                 {mailStatus && (
                   <div className={`status ${mailTone === 'success' ? 'success' : mailTone === 'error' ? 'error' : ''}`} style={{ marginTop: 14 }}>
@@ -1750,7 +1785,11 @@ function AdminApp() {
                 )}
 
                 <div style={{ marginTop: 16 }}>
-                  <button className="btn btn-primary" onClick={() => void sendEmail()} disabled={mailBusy}>
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => void sendEmail()}
+                    disabled={mailBusy || mailFiles.reduce((s, f) => s + f.content.length, 0) > MAX_ATTACH_ENCODED}
+                  >
                     {mailBusy ? 'Sending…' : 'Send email'}
                   </button>
                 </div>
