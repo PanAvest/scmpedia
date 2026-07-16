@@ -8,6 +8,7 @@ import { collectStudents } from './api/_students'
 import { buildPool, poolResponse, drawResult } from './api/_raffle'
 import { listUsersReport, deleteUsers as deleteUsersCore, setPremium as setPremiumCore } from './api/_users'
 import { loadUniversityAdditions, addUniversity as addUniversityCore, deleteUniversity as deleteUniversityCore } from './api/_universities'
+import { hasEmailConfig, sendComposed } from './api/_email'
 
 // Supabase's client builds a realtime client (needs a global WebSocket) at construction.
 // Node < 22 has none, and the dev middleware never opens a realtime channel, so a harmless
@@ -1165,6 +1166,52 @@ export default defineConfig(({ mode }) => {
             res.end(JSON.stringify({ error: 'Method not allowed' }))
           })
 
+          // Dev mirror of api/admin/email.ts — send a branded email via Resend.
+          server.middlewares.use('/api/admin/email', (req, res) => {
+            const sendJson = (code: number, payload: any) => {
+              res.statusCode = code
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify(payload))
+            }
+            const identity = adminIdentity(req)
+            if (!identity) return sendJson(401, { error: 'Admin sign-in required' })
+            if (req.method !== 'POST') return sendJson(405, { error: 'Method not allowed' })
+            if (!hasEmailConfig()) return sendJson(503, { error: 'Email is not configured (RESEND_API_KEY missing).' })
+            let raw = ''
+            req.on('data', (c: any) => { raw += c })
+            req.on('end', async () => {
+              try {
+                const body = JSON.parse(raw || '{}')
+                const recipients = [...new Set(
+                  (Array.isArray(body.to) ? body.to : String(body.to || '').split(/[,\n;]+/))
+                    .map((s: any) => String(s || '').trim().toLowerCase()).filter(Boolean),
+                )] as string[]
+                if (!recipients.length) return sendJson(400, { error: 'Add at least one recipient.' })
+                if (recipients.length > 50) return sendJson(400, { error: 'Send to at most 50 recipients at a time.' })
+                const subject = String(body.subject || '').trim()
+                const heading = String(body.heading || '').trim()
+                const content = String(body.body || '').trim()
+                if (!subject || !heading || !content) return sendJson(400, { error: 'Subject, heading and body are all required.' })
+                const attachments = (Array.isArray(body.attachments) ? body.attachments : [])
+                  .filter((a: any) => a?.filename && a?.content)
+                  .map((a: any) => ({ filename: String(a.filename), content: String(a.content) }))
+                const cta = body.cta && String(body.cta.label || '').trim() && String(body.cta.url || '').trim()
+                  ? { label: String(body.cta.label).trim(), url: String(body.cta.url).trim() } : null
+                const results = await sendComposed(
+                  { subject, heading, subheading: String(body.subheading || '').trim() || undefined, body: content, cta },
+                  recipients, attachments,
+                )
+                const failed = results.filter((r) => !r.ok)
+                sendJson(failed.length ? 207 : 200, {
+                  sent: results.length - failed.length, total: results.length, results,
+                  message: failed.length ? `Sent ${results.length - failed.length} of ${results.length}. Failed: ${failed.map((f) => f.to).join(', ')}` : `Sent to ${results.length} recipient${results.length === 1 ? '' : 's'}.`,
+                })
+              } catch (err: any) {
+                sendJson(500, { error: err?.message || 'Could not send the email' })
+              }
+            })
+          })
+
           // Dev mirror of api/admin/students.ts — students who completed verification
           // plus the custom university names they typed.
           server.middlewares.use('/api/admin/students', (req, res) => {
@@ -1191,10 +1238,10 @@ export default defineConfig(({ mode }) => {
               auth: { persistSession: false, autoRefreshToken: false },
             })
             collectStudents(service)
-              .then(({ students, customUniversities }) => {
+              .then(({ students, customUniversities, stats }) => {
                 res.statusCode = 200
                 res.setHeader('Content-Type', 'application/json')
-                res.end(JSON.stringify({ students, customUniversities }))
+                res.end(JSON.stringify({ students, customUniversities, stats }))
               })
               .catch((err: any) => {
                 res.statusCode = 500
