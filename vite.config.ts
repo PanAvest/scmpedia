@@ -9,6 +9,7 @@ import { buildPool, poolResponse, drawResult } from './api/_raffle'
 import { listUsersReport, deleteUsers as deleteUsersCore, setPremium as setPremiumCore } from './api/_users'
 import { loadUniversityAdditions, addUniversity as addUniversityCore, deleteUniversity as deleteUniversityCore } from './api/_universities'
 import { hasEmailConfig, sendComposed } from './api/_email'
+import { collectPaystackFinance, hasPaystackConfig } from './api/_finance'
 
 // Supabase's client builds a realtime client (needs a global WebSocket) at construction.
 // Node < 22 has none, and the dev middleware never opens a realtime channel, so a harmless
@@ -1164,6 +1165,22 @@ export default defineConfig(({ mode }) => {
             res.statusCode = 405
             res.setHeader('Content-Type', 'application/json')
             res.end(JSON.stringify({ error: 'Method not allowed' }))
+          })
+
+          // Dev mirror of api/admin/finance.ts — Paystack revenue reconciliation.
+          server.middlewares.use('/api/admin/finance', (req, res) => {
+            const sendJson = (code: number, payload: any) => {
+              res.statusCode = code
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify(payload))
+            }
+            const identity = adminIdentity(req)
+            if (!identity) return sendJson(401, { error: 'Admin sign-in required' })
+            if (req.method !== 'GET') return sendJson(405, { error: 'Method not allowed' })
+            if (!hasPaystackConfig(paystackSecretKey)) return sendJson(503, { error: 'Paystack is not configured.' })
+            collectPaystackFinance(paystackSecretKey as string)
+              .then((finance) => sendJson(200, { finance }))
+              .catch((err: any) => sendJson(502, { error: err?.message || 'Could not reach Paystack' }))
           })
 
           // Dev mirror of api/admin/email.ts — send a branded email via Resend.
