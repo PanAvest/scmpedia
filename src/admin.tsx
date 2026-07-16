@@ -151,6 +151,29 @@ button.stat:hover { transform: translateY(-2px); box-shadow: 0 14px 30px rgba(20
 .stat-value { font-size: 26px; font-weight: 700; margin-top: 6px; letter-spacing: -0.01em; color: var(--text-main); }
 .stat-note { font-size: 12px; color: var(--text-sub); margin-top: 4px; }
 
+/* ===== Overview: income + summary ===== */
+.income-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+.income-card { border-radius: var(--radius); padding: 18px; border: 1px solid var(--border); }
+.income-card.total { background: linear-gradient(135deg, #063f3a, #0a5850); border-color: #063f3a; color: #fff; }
+.income-card.total .income-label { color: rgba(255,255,255,0.7); }
+.income-card.total .income-sub { color: rgba(255,255,255,0.6); }
+.income-card.student { background: var(--surface); }
+.income-card.pro { background: var(--surface); }
+.income-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; color: var(--text-sub); }
+.income-value { font-size: 28px; font-weight: 800; margin-top: 6px; letter-spacing: -0.02em; }
+.income-sub { font-size: 12px; color: var(--text-sub); margin-top: 5px; }
+.section-label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; color: var(--text-sub); margin: 26px 0 12px; }
+.summary-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.summary-table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-sub); font-weight: 700; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+.summary-table td { padding: 9px 10px; border-bottom: 1px solid var(--border); }
+.summary-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.summary-table tr:last-child td { border-bottom: 0; }
+.summary-table tfoot td { font-weight: 700; border-top: 2px solid var(--border); border-bottom: 0; }
+.mini-stat { display: flex; align-items: baseline; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.mini-stat:last-child { border-bottom: 0; }
+.mini-stat .k { font-size: 13px; color: var(--text-sub); }
+.mini-stat .val { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
 /* ===== Dictionary ===== */
 .dict-grid { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 16px; align-items: start; }
 .dict-grid .list { max-height: calc(100dvh - 330px); }
@@ -281,6 +304,34 @@ const VIEWS: { id: AdminView; label: string; title: string; sub: string; masterO
   },
 ]
 
+type SubscriberStats = {
+  totalUsers: number
+  premiumTotal: number
+  paidPremiumTotal: number
+  compTotal: number
+  premiumStudents: number
+  premiumPros: number
+  studentPremiumTotal: number
+  verifiedStudents: number
+  revenue: {
+    total: number
+    student: number
+    pro: number
+    paymentCount: number
+    byPlan: Record<string, { count: number; amount: number }>
+  }
+}
+
+const cedis = (n: number) =>
+  `GH₵ ${n.toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+const PLAN_LABELS: Record<string, string> = {
+  'student-monthly': 'Student · Monthly',
+  'student-annual': 'Student · Annual',
+  'pro-monthly': 'Professional · Monthly',
+  'pro-annual': 'Professional · Annual',
+}
+
 // Vercel caps the serverless request body ~4.5MB; base64 inflates ~33%, so keep the summed
 // encoded attachment size under this. Mirrors MAX_ATTACHMENT_BYTES in api/admin/email.ts.
 const MAX_ATTACH_ENCODED = 3_500_000
@@ -353,7 +404,7 @@ function AdminApp() {
   const [newRole, setNewRole] = useState<'admin' | 'master'>('admin')
   const [myPassword, setMyPassword] = useState('')
   const [students, setStudents] = useState<StudentRow[]>([])
-  const [subStats, setSubStats] = useState<{ totalUsers: number; premiumTotal: number; studentPremiumTotal: number; compTotal: number } | null>(null)
+  const [subStats, setSubStats] = useState<SubscriberStats | null>(null)
   const [customUnis, setCustomUnis] = useState<{ name: string; count: number }[]>([])
   const [studentsLoading, setStudentsLoading] = useState(false)
   const [studentsStatus, setStudentsStatus] = useState('')
@@ -1305,38 +1356,107 @@ function AdminApp() {
 
           {view === 'overview' && (
             <>
-              <div className="stat-grid">
-                <button className="stat" onClick={() => setView('dictionary')}>
-                  <div className="stat-label">Dictionary terms</div>
-                  <div className="stat-value">{(totalCount ?? entries.length).toLocaleString()}</div>
-                  <div className="stat-note">
-                    {backgroundLoading ? `${entries.length.toLocaleString()} loaded so far…` : 'Loaded and searchable'}
+              {/* ---- Income ---- */}
+              <div className="section-label" style={{ marginTop: 0 }}>Total income{studentsLoading ? ' · refreshing…' : ''}</div>
+              <div className="income-grid">
+                <div className="income-card total">
+                  <div className="income-label">Total income</div>
+                  <div className="income-value">{subStats ? cedis(subStats.revenue.total) : '—'}</div>
+                  <div className="income-sub">{subStats ? `${subStats.revenue.paymentCount} successful payment${subStats.revenue.paymentCount === 1 ? '' : 's'}` : 'Loading…'}</div>
+                </div>
+                <div className="income-card student">
+                  <div className="income-label">Student plans</div>
+                  <div className="income-value">{subStats ? cedis(subStats.revenue.student) : '—'}</div>
+                  <div className="income-sub">
+                    {subStats && subStats.revenue.total > 0
+                      ? `${Math.round((subStats.revenue.student / subStats.revenue.total) * 100)}% of income`
+                      : '—'}
                   </div>
-                </button>
+                </div>
+                <div className="income-card pro">
+                  <div className="income-label">Professional plans</div>
+                  <div className="income-value">{subStats ? cedis(subStats.revenue.pro) : '—'}</div>
+                  <div className="income-sub">
+                    {subStats && subStats.revenue.total > 0
+                      ? `${Math.round((subStats.revenue.pro / subStats.revenue.total) * 100)}% of income`
+                      : '—'}
+                  </div>
+                </div>
+              </div>
+
+              {/* ---- Income by plan ---- */}
+              {subStats && Object.keys(subStats.revenue.byPlan).length > 0 && (
+                <section className="panel" style={{ marginTop: 16 }}>
+                  <div className="panel-title">Income by plan</div>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table className="summary-table">
+                      <thead>
+                        <tr><th>Plan</th><th style={{ textAlign: 'right' }}>Payments</th><th style={{ textAlign: 'right' }}>Income</th></tr>
+                      </thead>
+                      <tbody>
+                        {Object.entries(subStats.revenue.byPlan)
+                          .sort((a, b) => b[1].amount - a[1].amount)
+                          .map(([plan, v]) => (
+                            <tr key={plan}>
+                              <td>{PLAN_LABELS[plan] || plan}</td>
+                              <td className="num">{v.count}</td>
+                              <td className="num">{cedis(v.amount)}</td>
+                            </tr>
+                          ))}
+                      </tbody>
+                      <tfoot>
+                        <tr>
+                          <td>Total</td>
+                          <td className="num">{subStats.revenue.paymentCount}</td>
+                          <td className="num">{cedis(subStats.revenue.total)}</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </section>
+              )}
+
+              {/* ---- Subscribers ---- */}
+              <div className="section-label">Subscribers</div>
+              <div className="stat-grid">
                 <button className="stat" onClick={() => setView('users')}>
                   <div className="stat-label">Premium subscribers</div>
                   <div className="stat-value">{subStats ? subStats.premiumTotal : '—'}</div>
-                  <div className="stat-note">
-                    {subStats
-                      ? `${subStats.premiumTotal - subStats.compTotal} paid · ${subStats.compTotal} comp`
-                      : 'Loading…'}
-                  </div>
+                  <div className="stat-note">{subStats ? `${subStats.paidPremiumTotal} paid · ${subStats.compTotal} comp` : 'Loading…'}</div>
                 </button>
-                <button className="stat" onClick={() => setView('students')}>
-                  <div className="stat-label">Student premium</div>
-                  <div className="stat-value">{subStats ? subStats.studentPremiumTotal : '—'}</div>
-                  <div className="stat-note">
-                    {students.length} verified student{students.length === 1 ? '' : 's'}
-                  </div>
+                <button className="stat" onClick={() => setView('users')}>
+                  <div className="stat-label">Premium students</div>
+                  <div className="stat-value">{subStats ? subStats.premiumStudents : '—'}</div>
+                  <div className="stat-note">on a Student plan</div>
+                </button>
+                <button className="stat" onClick={() => setView('users')}>
+                  <div className="stat-label">Premium professionals</div>
+                  <div className="stat-value">{subStats ? subStats.premiumPros : '—'}</div>
+                  <div className="stat-note">on a Professional plan</div>
                 </button>
                 <button className="stat" onClick={() => setView('students')}>
                   <div className="stat-label">Verified students</div>
-                  <div className="stat-value">{students.length}</div>
+                  <div className="stat-value">{subStats ? subStats.verifiedStudents : students.length}</div>
                   <div className="stat-note">
                     {customUnis.length
                       ? `${customUnis.length} custom ${customUnis.length === 1 ? 'university' : 'universities'} to review`
                       : 'No custom universities pending'}
                   </div>
+                </button>
+                <button className="stat" onClick={() => setView('users')}>
+                  <div className="stat-label">Total accounts</div>
+                  <div className="stat-value">{subStats ? subStats.totalUsers : '—'}</div>
+                  <div className="stat-note">{subStats ? `${subStats.premiumTotal} premium · ${subStats.totalUsers - subStats.premiumTotal} free` : ''}</div>
+                </button>
+              </div>
+
+              {/* ---- Catalogue & pricing ---- */}
+              <div className="section-label">Catalogue &amp; pricing</div>
+              <div className="stat-grid">
+                <button className="stat" onClick={() => setView('dictionary')}>
+                  <div className="stat-label">Dictionary terms</div>
+                  <div className="stat-value">{(totalCount ?? entries.length).toLocaleString()}</div>
+                  <div className="stat-note">{backgroundLoading ? `${entries.length.toLocaleString()} loaded so far…` : 'Loaded and searchable'}</div>
                 </button>
                 <button className="stat" onClick={() => setView('pricing')}>
                   <div className="stat-label">Student · monthly</div>
@@ -1355,7 +1475,7 @@ function AdminApp() {
                 </button>
               </div>
 
-              <section className="panel">
+              <section className="panel" style={{ marginTop: 22 }}>
                 <div className="panel-title-row">
                   <div className="panel-title">Latest verified students</div>
                   <button className="btn btn-secondary" onClick={() => setView('students')}>View all</button>
