@@ -169,6 +169,14 @@ button.stat:hover { transform: translateY(-2px); box-shadow: 0 14px 30px rgba(20
 .badge-winner { background: rgba(80,20,120,0.12); color: #6a1e78; }
 .bulk-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 10px; background: var(--surface); border: 1px solid var(--border); margin-bottom: 14px; }
 .mini-select { border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font: inherit; font-size: 13px; background: #fff; }
+.compose-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 1000px) { .compose-grid { grid-template-columns: 1fr; } }
+.field-label { font-size: 12px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; letter-spacing: 0.05em; margin: 14px 0 6px; }
+.field-label:first-child { margin-top: 0; }
+.mail-preview { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: #fbf8f1; position: sticky; top: 84px; }
+.mail-preview iframe { width: 100%; height: 620px; border: 0; display: block; background: #fbf8f1; }
+.chip { display: inline-flex; align-items: center; gap: 6px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 5px 10px; font-size: 12px; margin: 4px 6px 0 0; }
+.chip button { border: none; background: none; cursor: pointer; color: var(--text-sub); font-size: 14px; line-height: 1; padding: 0; }
 
 @keyframes pop-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes fade-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
@@ -194,7 +202,7 @@ button.stat:hover { transform: translateY(-2px); box-shadow: 0 14px 30px rgba(20
 }
 `
 
-type AdminView = 'overview' | 'dictionary' | 'users' | 'pricing' | 'students' | 'universities' | 'raffle' | 'admins'
+type AdminView = 'overview' | 'dictionary' | 'users' | 'email' | 'pricing' | 'students' | 'universities' | 'raffle' | 'admins'
 
 type UserRow = {
   id: string
@@ -236,6 +244,12 @@ const VIEWS: { id: AdminView; label: string; title: string; sub: string; masterO
     sub: 'Every signed-up account. Grant or remove premium, and delete accounts. Deleting is master-only and archives the account first.',
   },
   {
+    id: 'email',
+    label: 'Email',
+    title: 'Compose email',
+    sub: 'Send a branded email from noreply@scmpedia.org — the same design as our system emails. Attach images or documents, preview it, then send.',
+  },
+  {
     id: 'pricing',
     label: 'Pricing',
     title: 'Subscription pricing',
@@ -266,6 +280,31 @@ const VIEWS: { id: AdminView; label: string; title: string; sub: string; masterO
     sub: 'Who can get into this dashboard, and what they are allowed to do.',
   },
 ]
+
+// Lightweight client preview of the branded email (server owns the real render in api/_email.ts).
+const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+const previewEmailHtml = (m: { heading: string; subheading: string; body: string; ctaLabel: string; ctaUrl: string }) => {
+  const paras = m.body.replace(/\r\n/g, '\n').split(/\n{2,}/).map((p) => p.trim()).filter(Boolean)
+    .map((p) => `<p style="margin:0 0 18px;font-size:15px;line-height:26px;color:#444746;">${escapeHtml(p).replace(/\*\*([^*]+)\*\*/g, '<strong style="color:#1f1f1f">$1</strong>').replace(/\n/g, '<br>')}</p>`)
+    .join('')
+  const cta = m.ctaLabel.trim() && m.ctaUrl.trim()
+    ? `<table cellpadding="0" cellspacing="0" style="margin:6px 0 4px"><tr><td bgcolor="#b65437" style="border-radius:10px"><a href="${escapeHtml(m.ctaUrl)}" style="display:inline-block;padding:14px 30px;color:#fff;font-weight:700;font-size:15px;text-decoration:none;border-radius:10px">${escapeHtml(m.ctaLabel)}</a></td></tr></table>` : ''
+  return `<!doctype html><html><body style="margin:0;background:#fbf8f1;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
+    <table cellpadding="0" cellspacing="0" width="100%" style="background:#fbf8f1"><tr><td align="center" style="padding:24px 12px">
+      <table cellpadding="0" cellspacing="0" width="560" style="width:560px;max-width:560px">
+        <tr><td style="background:#063f3a;border-radius:16px 16px 0 0;padding:34px 30px">
+          <img src="/white-logo.png" width="160" alt="SCMpedia" style="display:block;margin:0 0 22px">
+          <p style="margin:0 0 ${m.subheading ? '10px' : '0'};font-size:26px;line-height:34px;font-weight:700;color:#fff">${escapeHtml(m.heading || 'Heading goes here')}</p>
+          ${m.subheading ? `<p style="margin:0;font-size:15px;line-height:24px;color:#a9c2be">${escapeHtml(m.subheading)}</p>` : ''}
+        </td></tr>
+        <tr><td style="background:#fff;border:1px solid #e3e3e3;border-top:0;border-radius:0 0 16px 16px;padding:32px 30px">
+          ${paras || '<p style="margin:0;color:#9aa39a;font-size:15px">Your message will appear here…</p>'}
+          ${cta}
+        </td></tr>
+        <tr><td align="center" style="padding:22px 30px 0"><p style="margin:0 0 6px;font-size:13px;font-weight:600;color:#5f6660">SCMpedia</p>
+          <p style="margin:0;font-size:12px;color:#767d76">The AI-powered dictionary and learning platform for supply chain professionals.</p></td></tr>
+      </table></td></tr></table></body></html>`
+}
 
 const defaultEntry: Entry = {
   term: '',
@@ -309,6 +348,7 @@ function AdminApp() {
   const [newRole, setNewRole] = useState<'admin' | 'master'>('admin')
   const [myPassword, setMyPassword] = useState('')
   const [students, setStudents] = useState<StudentRow[]>([])
+  const [subStats, setSubStats] = useState<{ totalUsers: number; premiumTotal: number; studentPremiumTotal: number; compTotal: number } | null>(null)
   const [customUnis, setCustomUnis] = useState<{ name: string; count: number }[]>([])
   const [studentsLoading, setStudentsLoading] = useState(false)
   const [studentsStatus, setStudentsStatus] = useState('')
@@ -327,6 +367,19 @@ function AdminApp() {
   const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set())
   const [grantPlan, setGrantPlan] = useState('comp')
   const [grantDays, setGrantDays] = useState('31')
+
+  // Compose email tab
+  const [mailTo, setMailTo] = useState('')
+  const [mailSubject, setMailSubject] = useState('')
+  const [mailHeading, setMailHeading] = useState('')
+  const [mailSubheading, setMailSubheading] = useState('')
+  const [mailBody, setMailBody] = useState('')
+  const [mailCtaLabel, setMailCtaLabel] = useState('')
+  const [mailCtaUrl, setMailCtaUrl] = useState('')
+  const [mailFiles, setMailFiles] = useState<{ filename: string; content: string; size: number }[]>([])
+  const [mailBusy, setMailBusy] = useState(false)
+  const [mailStatus, setMailStatus] = useState('')
+  const [mailTone, setMailTone] = useState<'default' | 'success' | 'error'>('default')
 
   // Universities tab
   const [uniAdditions, setUniAdditions] = useState<UniversityRow[]>([])
@@ -619,6 +672,7 @@ function AdminApp() {
       if (!res.ok) throw new Error(body?.error || 'Could not load students')
       setStudents(Array.isArray(body.students) ? body.students : [])
       setCustomUnis(Array.isArray(body.customUniversities) ? body.customUniversities : [])
+      setSubStats(body.stats || null)
       setStudentsStatus('')
       setStudentsTone('default')
     } catch (err) {
@@ -641,6 +695,66 @@ function AdminApp() {
       setUsersTone('error')
     } finally {
       setUsersLoading(false)
+    }
+  }
+
+  const attachMailFiles = async (files: FileList | null) => {
+    if (!files?.length) return
+    const read = (file: File) =>
+      new Promise<{ filename: string; content: string; size: number }>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => {
+          const result = String(reader.result || '')
+          const base64 = result.includes(',') ? result.slice(result.indexOf(',') + 1) : result
+          resolve({ filename: file.name, content: base64, size: file.size })
+        }
+        reader.onerror = () => reject(new Error(`Could not read ${file.name}`))
+        reader.readAsDataURL(file)
+      })
+    try {
+      const added = await Promise.all(Array.from(files).map(read))
+      setMailFiles((prev) => [...prev, ...added])
+    } catch (err) {
+      setMailStatus(err instanceof Error ? err.message : 'Could not attach a file')
+      setMailTone('error')
+    }
+  }
+
+  const sendEmail = async () => {
+    const recipients = mailTo.split(/[,\n;]+/).map((s) => s.trim()).filter(Boolean)
+    if (!recipients.length) { setMailStatus('Add at least one recipient.'); setMailTone('error'); return }
+    if (!mailSubject.trim() || !mailHeading.trim() || !mailBody.trim()) {
+      setMailStatus('Subject, heading and message are all required.'); setMailTone('error'); return
+    }
+    if (!window.confirm(`Send this email to ${recipients.length} recipient${recipients.length === 1 ? '' : 's'} from noreply@scmpedia.org?`)) return
+    setMailBusy(true); setMailStatus(''); setMailTone('default')
+    try {
+      const res = await fetch('/api/admin/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+        body: JSON.stringify({
+          to: recipients,
+          subject: mailSubject.trim(),
+          heading: mailHeading.trim(),
+          subheading: mailSubheading.trim(),
+          body: mailBody,
+          cta: mailCtaLabel.trim() && mailCtaUrl.trim() ? { label: mailCtaLabel.trim(), url: mailCtaUrl.trim() } : null,
+          attachments: mailFiles.map((f) => ({ filename: f.filename, content: f.content })),
+        }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok && res.status !== 207) throw new Error(body?.error || 'Could not send the email')
+      setMailStatus(body.message || 'Sent.')
+      setMailTone(res.status === 207 ? 'error' : 'success')
+      if (res.status === 200) {
+        setMailTo(''); setMailSubject(''); setMailHeading(''); setMailSubheading('')
+        setMailBody(''); setMailCtaLabel(''); setMailCtaUrl(''); setMailFiles([])
+      }
+    } catch (err) {
+      setMailStatus(err instanceof Error ? err.message : 'Could not send the email')
+      setMailTone('error')
+    } finally {
+      setMailBusy(false)
     }
   }
 
@@ -1168,6 +1282,22 @@ function AdminApp() {
                     {backgroundLoading ? `${entries.length.toLocaleString()} loaded so far…` : 'Loaded and searchable'}
                   </div>
                 </button>
+                <button className="stat" onClick={() => setView('users')}>
+                  <div className="stat-label">Premium subscribers</div>
+                  <div className="stat-value">{subStats ? subStats.premiumTotal : '—'}</div>
+                  <div className="stat-note">
+                    {subStats
+                      ? `${subStats.premiumTotal - subStats.compTotal} paid · ${subStats.compTotal} comp`
+                      : 'Loading…'}
+                  </div>
+                </button>
+                <button className="stat" onClick={() => setView('students')}>
+                  <div className="stat-label">Student premium</div>
+                  <div className="stat-value">{subStats ? subStats.studentPremiumTotal : '—'}</div>
+                  <div className="stat-note">
+                    {students.length} verified student{students.length === 1 ? '' : 's'}
+                  </div>
+                </button>
                 <button className="stat" onClick={() => setView('students')}>
                   <div className="stat-label">Verified students</div>
                   <div className="stat-value">{students.length}</div>
@@ -1537,6 +1667,108 @@ function AdminApp() {
           <div className="helper">Admin changes save directly to the server. Download the UTF-8 CSV when you want a backup copy.</div>
         </section>
           </div>
+          )}
+
+          {view === 'email' && (
+            <div className="compose-grid">
+              <section className="panel">
+                <div className="panel-title">Message</div>
+
+                <div className="field-label">To (comma or new line separated)</div>
+                <textarea
+                  className="textarea"
+                  style={{ minHeight: 58 }}
+                  value={mailTo}
+                  onChange={(e) => setMailTo(e.target.value)}
+                  placeholder="name@example.com, another@example.com"
+                />
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ fontSize: 12, padding: '6px 10px' }}
+                    onClick={() => setMailTo(students.map((s) => s.email).filter(Boolean).join(', '))}
+                    disabled={!students.length}
+                  >
+                    Fill all students ({students.length})
+                  </button>
+                  {mailTo && (
+                    <button type="button" className="btn btn-secondary" style={{ fontSize: 12, padding: '6px 10px' }} onClick={() => setMailTo('')}>
+                      Clear
+                    </button>
+                  )}
+                </div>
+
+                <div className="field-label">Subject</div>
+                <input className="input" style={{ width: '100%' }} value={mailSubject} onChange={(e) => setMailSubject(e.target.value)} placeholder="Subject line" />
+
+                <div className="field-label">Heading (green banner)</div>
+                <input className="input" style={{ width: '100%' }} value={mailHeading} onChange={(e) => setMailHeading(e.target.value)} placeholder="e.g. You're all set, Emmanuel" />
+
+                <div className="field-label">Subheading (optional)</div>
+                <input className="input" style={{ width: '100%' }} value={mailSubheading} onChange={(e) => setMailSubheading(e.target.value)} placeholder="One short line under the heading" />
+
+                <div className="field-label">Message</div>
+                <textarea
+                  className="textarea"
+                  style={{ minHeight: 180 }}
+                  value={mailBody}
+                  onChange={(e) => setMailBody(e.target.value)}
+                  placeholder={'Hi there,\n\nWrite your letter here. Leave a blank line between paragraphs. Wrap **text** in double asterisks for bold.'}
+                />
+                <div className="helper">Blank line = new paragraph. **double asterisks** = bold.</div>
+
+                <div className="field-label">Button (optional)</div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <input className="input" style={{ flex: '1 1 140px' }} value={mailCtaLabel} onChange={(e) => setMailCtaLabel(e.target.value)} placeholder="Button label" />
+                  <input className="input" style={{ flex: '2 1 200px' }} value={mailCtaUrl} onChange={(e) => setMailCtaUrl(e.target.value)} placeholder="https://www.scmpedia.org/auth" />
+                </div>
+
+                <div className="field-label">Attachments (images, PDFs, docs — under ~3.5 MB total)</div>
+                <label className="btn btn-secondary" style={{ margin: 0, display: 'inline-block' }}>
+                  Add files
+                  <input type="file" multiple hidden onChange={(e) => { void attachMailFiles(e.target.files); e.currentTarget.value = '' }} />
+                </label>
+                <div>
+                  {mailFiles.map((f, i) => (
+                    <span key={f.filename + i} className="chip">
+                      {f.filename} · {(f.size / 1024).toFixed(0)} KB
+                      <button type="button" onClick={() => setMailFiles((prev) => prev.filter((_, j) => j !== i))} aria-label="Remove">×</button>
+                    </span>
+                  ))}
+                </div>
+                {mailFiles.length > 0 && (
+                  <div className="helper">
+                    Total: {(mailFiles.reduce((s, f) => s + f.content.length, 0) / 1024 / 1024).toFixed(2)} MB encoded
+                  </div>
+                )}
+
+                {mailStatus && (
+                  <div className={`status ${mailTone === 'success' ? 'success' : mailTone === 'error' ? 'error' : ''}`} style={{ marginTop: 14 }}>
+                    {mailStatus}
+                  </div>
+                )}
+
+                <div style={{ marginTop: 16 }}>
+                  <button className="btn btn-primary" onClick={() => void sendEmail()} disabled={mailBusy}>
+                    {mailBusy ? 'Sending…' : 'Send email'}
+                  </button>
+                </div>
+              </section>
+
+              <section className="panel" style={{ padding: 0, overflow: 'hidden' }}>
+                <div className="panel-title" style={{ padding: '16px 16px 0' }}>Live preview</div>
+                <div className="mail-preview" style={{ margin: 12, marginTop: 10, position: 'static' }}>
+                  <iframe
+                    title="Email preview"
+                    srcDoc={previewEmailHtml({ heading: mailHeading, subheading: mailSubheading, body: mailBody, ctaLabel: mailCtaLabel, ctaUrl: mailCtaUrl })}
+                  />
+                </div>
+                <div className="helper" style={{ padding: '0 16px 16px' }}>
+                  Sends from <strong>noreply@scmpedia.org</strong> · replies go to support@scmpedia.org
+                </div>
+              </section>
+            </div>
           )}
 
           {view === 'pricing' && (

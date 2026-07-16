@@ -18,27 +18,42 @@ export type StudentRecord = {
 
 export type CustomUniversity = { name: string; count: number }
 
+export type SubscriberStats = {
+  totalUsers: number
+  premiumTotal: number        // every active-premium account (paid or comped)
+  studentPremiumTotal: number // active premium AND a verified student
+  compTotal: number           // admin-granted comps (subset of premiumTotal)
+}
+
 // Walk every auth user (paged) and pull out those who completed the student
 // verification popup (fields live in user_metadata as student_* keys). Also
 // aggregates the free-typed university names so new schools can be promoted
 // into src/data/universities.ts.
-export async function collectStudents(service: SupabaseClient): Promise<{ students: StudentRecord[]; customUniversities: CustomUniversity[] }> {
+export async function collectStudents(service: SupabaseClient): Promise<{ students: StudentRecord[]; customUniversities: CustomUniversity[]; stats: SubscriberStats }> {
   const students: StudentRecord[] = []
   const customCounts = new Map<string, number>()
+  const stats: SubscriberStats = { totalUsers: 0, premiumTotal: 0, studentPremiumTotal: 0, compTotal: 0 }
   const perPage = 200
   for (let page = 1; page <= 50; page++) {
     const { data, error } = await service.auth.admin.listUsers({ page, perPage })
     if (error) throw new Error(`Could not list users: ${error.message}`)
     const users = data?.users || []
     for (const u of users) {
+      stats.totalUsers += 1
       const meta = (u.user_metadata || {}) as Record<string, unknown>
-      const university = String(meta.student_university || '').trim()
-      const indexNumber = String(meta.student_index_number || '').trim()
-      if (!university || !indexNumber) continue
-      const isCustom = Boolean(meta.student_university_custom)
       const subscription = (u.app_metadata as Record<string, any> | undefined)?.scmpedia_subscription
       const subExpires = typeof subscription?.expires_at === 'string' ? subscription.expires_at : ''
       const subActive = subscription?.tier === 'premium' && (!subExpires || new Date(subExpires).getTime() > Date.now())
+      const university = String(meta.student_university || '').trim()
+      const indexNumber = String(meta.student_index_number || '').trim()
+      const isStudent = Boolean(university && indexNumber)
+      if (subActive) {
+        stats.premiumTotal += 1
+        if (subscription?.source === 'admin') stats.compTotal += 1
+        if (isStudent) stats.studentPremiumTotal += 1
+      }
+      if (!isStudent) continue
+      const isCustom = Boolean(meta.student_university_custom)
       students.push({
         id: u.id,
         email: u.email || '',
@@ -61,5 +76,5 @@ export async function collectStudents(service: SupabaseClient): Promise<{ studen
   const customUniversities = [...customCounts.entries()]
     .map(([name, count]) => ({ name, count }))
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
-  return { students, customUniversities }
+  return { students, customUniversities, stats }
 }

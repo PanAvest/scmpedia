@@ -26,8 +26,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     auth: { persistSession: false, autoRefreshToken: false },
   })
   try {
-    const { students, customUniversities } = await collectStudents(service)
-    res.status(200).json({ students, customUniversities })
+    const { students, customUniversities, stats } = await collectStudents(service)
+    res.status(200).json({ students, customUniversities, stats })
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : 'Could not load students' })
   }
