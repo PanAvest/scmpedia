@@ -304,6 +304,15 @@ const VIEWS: { id: AdminView; label: string; title: string; sub: string; masterO
   },
 ]
 
+type FinanceSummary = {
+  currency: string
+  scmpedia: { gross: number; fees: number; net: number; count: number; byPlan: Record<string, { count: number; gross: number; fees: number }> }
+  account: { gross: number; fees: number; net: number; count: number }
+  feeRatePct: number
+  mode: 'live' | 'test' | 'unknown'
+  truncated: boolean
+}
+
 type SubscriberStats = {
   totalUsers: number
   premiumTotal: number
@@ -405,6 +414,9 @@ function AdminApp() {
   const [myPassword, setMyPassword] = useState('')
   const [students, setStudents] = useState<StudentRow[]>([])
   const [subStats, setSubStats] = useState<SubscriberStats | null>(null)
+  const [finance, setFinance] = useState<FinanceSummary | null>(null)
+  const [financeLoading, setFinanceLoading] = useState(false)
+  const [financeError, setFinanceError] = useState('')
   const [customUnis, setCustomUnis] = useState<{ name: string; count: number }[]>([])
   const [studentsLoading, setStudentsLoading] = useState(false)
   const [studentsStatus, setStudentsStatus] = useState('')
@@ -641,6 +653,21 @@ function AdminApp() {
     } finally {
       setLoading(false)
       setBackgroundLoading(false)
+    }
+  }
+
+  const loadFinance = async () => {
+    setFinanceLoading(true)
+    setFinanceError('')
+    try {
+      const res = await fetch('/api/admin/finance', { headers: { Authorization: `Bearer ${adminToken}` } })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body?.error || 'Could not load Paystack figures')
+      setFinance(body.finance || null)
+    } catch (err) {
+      setFinanceError(err instanceof Error ? err.message : 'Could not load Paystack figures')
+    } finally {
+      setFinanceLoading(false)
     }
   }
 
@@ -1069,6 +1096,8 @@ function AdminApp() {
     if (!authed) return
     if (view === 'users' && !users.length && !usersLoading) void loadUsers()
     if (view === 'universities' && !uniAdditions.length) void loadUniversities()
+    // Paystack reconciliation is a live API pull — load it the first time the Overview opens.
+    if (view === 'overview' && !finance && !financeLoading && !financeError) void loadFinance()
   }, [authed, view])
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -1414,6 +1443,79 @@ function AdminApp() {
                     </table>
                   </div>
                 </section>
+              )}
+
+              {/* ---- Paystack settlement ---- */}
+              <div className="section-label">
+                Paystack settlement{financeLoading ? ' · checking Paystack…' : ''}
+                <button
+                  className="btn btn-secondary"
+                  style={{ fontSize: 11, padding: '4px 8px', marginLeft: 10 }}
+                  onClick={() => void loadFinance()}
+                  disabled={financeLoading}
+                >
+                  Refresh
+                </button>
+              </div>
+              {financeError && <div className="helper" style={{ color: 'var(--error, #b91c1c)' }}>{financeError}</div>}
+              {finance && (
+                <>
+                  <div className="income-grid">
+                    <div className="income-card" style={{ background: 'var(--surface)' }}>
+                      <div className="income-label">Paystack account total{finance.mode === 'test' ? ' (test)' : ''}</div>
+                      <div className="income-value">{cedis(finance.account.gross)}</div>
+                      <div className="income-sub">{finance.account.count} payments · all products</div>
+                    </div>
+                    <div className="income-card student">
+                      <div className="income-label">SCMpedia gross</div>
+                      <div className="income-value">{cedis(finance.scmpedia.gross)}</div>
+                      <div className="income-sub">{finance.scmpedia.count} subscription payments</div>
+                    </div>
+                    <div className="income-card pro">
+                      <div className="income-label">Paystack fees</div>
+                      <div className="income-value">−{cedis(finance.scmpedia.fees)}</div>
+                      <div className="income-sub">{finance.feeRatePct.toFixed(2)}% of SCMpedia gross</div>
+                    </div>
+                    <div className="income-card total">
+                      <div className="income-label">Net settled to you</div>
+                      <div className="income-value">{cedis(finance.scmpedia.net)}</div>
+                      <div className="income-sub">after Paystack fees</div>
+                    </div>
+                  </div>
+
+                  <section className="panel" style={{ marginTop: 16, background: 'var(--surface)' }}>
+                    <div className="panel-title">How to read these numbers</div>
+                    <div style={{ fontSize: 13, lineHeight: 1.7, color: 'var(--text-sub)' }}>
+                      <p style={{ margin: '0 0 8px' }}>
+                        <strong style={{ color: 'var(--text-main)' }}>Paystack account total ({cedis(finance.account.gross)})</strong> is the figure on your Paystack
+                        dashboard. This account is shared across everything you sell — courses, ebooks and SCMpedia —
+                        so it is always larger than SCMpedia alone.
+                      </p>
+                      <p style={{ margin: '0 0 8px' }}>
+                        <strong style={{ color: 'var(--text-main)' }}>SCMpedia gross ({cedis(finance.scmpedia.gross)})</strong> is only the subscription payments
+                        (tagged <code>product: scmpedia-premium</code>). The difference,{' '}
+                        <strong style={{ color: 'var(--text-main)' }}>{cedis(finance.account.gross - finance.scmpedia.gross)}</strong>, is your other products.
+                      </p>
+                      <p style={{ margin: '0 0 8px' }}>
+                        <strong style={{ color: 'var(--text-main)' }}>Paystack fees ({cedis(finance.scmpedia.fees)}, {finance.feeRatePct.toFixed(2)}%)</strong> are what
+                        Paystack keeps per transaction. <strong style={{ color: 'var(--text-main)' }}>Net settled ({cedis(finance.scmpedia.net)})</strong> is what
+                        actually reaches your bank for SCMpedia.
+                      </p>
+                      {subStats && Math.abs(subStats.revenue.total - finance.scmpedia.gross) > 0.01 && (
+                        <p style={{ margin: '8px 0 0', color: 'var(--text-main)' }}>
+                          Note: SCMpedia recorded {cedis(subStats.revenue.total)} locally vs {cedis(finance.scmpedia.gross)} on Paystack
+                          — a {cedis(Math.abs(subStats.revenue.total - finance.scmpedia.gross))} gap, usually payments that reached Paystack
+                          but were not written to the local table (e.g. before it existed, or a missed webhook).
+                        </p>
+                      )}
+                      {finance.mode === 'test' && (
+                        <p style={{ margin: '8px 0 0', color: 'var(--error, #b91c1c)' }}>
+                          This is Paystack <strong>test</strong> data (the server is using a test key). Live figures appear once the live key is in use.
+                        </p>
+                      )}
+                    </div>
+                  </section>
+                </>
               )}
 
               {/* ---- Subscribers ---- */}
