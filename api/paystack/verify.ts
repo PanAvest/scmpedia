@@ -66,7 +66,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // price edit between init and verify can't reject an already-paid customer.
   // Fall back to the current plan amount for older/in-flight references.
   const expectedAmount = Number(metadata.amount) > 0 ? Number(metadata.amount) : plan?.amount
-  if (!plan || metadata.user_id !== userData.user.id || Number(payment.data.amount) !== expectedAmount) {
+  if (
+    !plan ||
+    metadata.user_id !== userData.user.id ||
+    Number(payment.data.amount) !== expectedAmount ||
+    String(payment.data.currency || '').toUpperCase() !== 'GHS'
+  ) {
     res.status(400).json({ error: 'Payment does not match this subscription' })
     return
   }

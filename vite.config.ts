@@ -10,6 +10,7 @@ import { listUsersReport, deleteUsers as deleteUsersCore, setPremium as setPremi
 import { loadUniversityAdditions, addUniversity as addUniversityCore, deleteUniversity as deleteUniversityCore } from './api/_universities'
 import { hasEmailConfig, sendComposed } from './api/_email'
 import { collectPaystackFinance, hasPaystackConfig } from './api/_finance'
+import { currencyForCountry, loadCurrencyRates } from './api/_currency'
 
 // Supabase's client builds a realtime client (needs a global WebSocket) at construction.
 // Node < 22 has none, and the dev middleware never opens a realtime channel, so a harmless
@@ -973,7 +974,12 @@ export default defineConfig(({ mode }) => {
                   return
                 }
                 const expectedAmount = Number(payment.data.metadata?.amount) > 0 ? Number(payment.data.metadata?.amount) : plan?.amount
-                if (!plan || payment.data.metadata?.user_id !== userData.user.id || Number(payment.data.amount) !== expectedAmount) {
+                if (
+                  !plan ||
+                  payment.data.metadata?.user_id !== userData.user.id ||
+                  Number(payment.data.amount) !== expectedAmount ||
+                  String(payment.data.currency || '').toUpperCase() !== 'GHS'
+                ) {
                   res.statusCode = 400
                   res.setHeader('Content-Type', 'application/json')
                   res.end(
@@ -1031,6 +1037,41 @@ export default defineConfig(({ mode }) => {
                 )
               }
             })
+          })
+
+          server.middlewares.use('/api/location', (req, res) => {
+            if (req.method !== 'GET') {
+              res.statusCode = 405
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify({ error: 'Method not allowed' }))
+              return
+            }
+            const rawCountry = req.headers['x-vercel-ip-country']
+            const country = String(Array.isArray(rawCountry) ? rawCountry[0] : rawCountry || '').trim().toUpperCase() || null
+            res.statusCode = 200
+            res.setHeader('Content-Type', 'application/json')
+            res.setHeader('Cache-Control', 'private, no-store, max-age=0')
+            res.end(JSON.stringify({ country, currency: currencyForCountry(country), detected: Boolean(country) }))
+          })
+
+          server.middlewares.use('/api/currency', async (req, res) => {
+            if (req.method !== 'GET') {
+              res.statusCode = 405
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify({ error: 'Method not allowed' }))
+              return
+            }
+            try {
+              const payload = await loadCurrencyRates()
+              res.statusCode = 200
+              res.setHeader('Content-Type', 'application/json')
+              res.setHeader('Cache-Control', 'public, max-age=300')
+              res.end(JSON.stringify(payload))
+            } catch (error) {
+              res.statusCode = 502
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify({ error: error instanceof Error ? error.message : 'Exchange rates are temporarily unavailable.' }))
+            }
           })
 
           server.middlewares.use('/api/plans', async (req, res) => {

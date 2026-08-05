@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Sun, Moon, Bell, Menu, X, Crown, ChevronDown } from 'lucide-react'
 import { Logo } from './Logo'
+import { CurrencySelector } from './currency/CurrencySelector'
 import type { User } from '@supabase/supabase-js'
 
 interface AppHeaderProps {
@@ -197,6 +198,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
         {/* Right Controls */}
         <div className="app-header-actions hide-mobile">
+          <CurrencySelector compact />
+
           {/* Theme toggle — dark mode is a premium feature */}
           <button
             onClick={() => { if (darkLocked) onOpenPricing(); else setDarkMode(!darkMode) }}
@@ -394,28 +397,29 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           )}
         </div>
 
-        {/* Mobile Menu Toggle */}
-        <button
-          className="hide-desktop"
-          onClick={() => setMobileOpen((o) => !o)}
-          aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
-          aria-expanded={mobileOpen}
-          style={{
-            width: 40,
-            height: 40,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderRadius: 8,
-            border: '1px solid var(--border)',
-            background: 'var(--surface)',
-            color: 'var(--text-main)',
-            cursor: 'pointer',
-            marginLeft: 'auto',
-          }}
-        >
-          {mobileOpen ? <X size={20} /> : <Menu size={20} />}
-        </button>
+        {/* Mobile currency + menu */}
+        <div className="hide-desktop" style={{ marginLeft: 'auto', alignItems: 'center', gap: 8 }}>
+          <CurrencySelector compact />
+          <button
+            onClick={() => setMobileOpen((o) => !o)}
+            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={mobileOpen}
+            style={{
+              width: 40,
+              height: 40,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: 8,
+              border: '1px solid var(--border)',
+              background: 'var(--surface)',
+              color: 'var(--text-main)',
+              cursor: 'pointer',
+            }}
+          >
+            {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile Menu */}
