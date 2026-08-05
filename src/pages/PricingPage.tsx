@@ -3,6 +3,7 @@ import { Check, X, Crown, Zap, GraduationCap } from 'lucide-react'
 import { StudentVerifyModal } from '../components/StudentVerifyModal'
 import { CurrencySelector } from '../components/currency/CurrencySelector'
 import { useCurrency } from '../components/currency/CurrencyProvider'
+import { BASE_CURRENCY } from '../currency'
 
 interface PricingPageProps {
   isPremium: boolean
@@ -152,7 +153,8 @@ const hasStudentInfo = (user: unknown) => {
 
 export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe, onSignIn, user, checkingOut = null, error = '' }) => {
   const { displayCurrency, formatFromGhs, loading: currencyLoading, error: currencyError, rateAvailable } = useCurrency()
-  const money = (amountGhs: number) => `${formatFromGhs(amountGhs)} ${displayCurrency}`
+  const money = (amountGhs: number) =>
+    displayCurrency === BASE_CURRENCY ? formatFromGhs(amountGhs) : `${formatFromGhs(amountGhs)} ${displayCurrency}`
   const [annual, setAnnual] = useState(true)
   const [verifyOpen, setVerifyOpen] = useState(false)
   const [pendingPlan, setPendingPlan] = useState<string | null>(null)
