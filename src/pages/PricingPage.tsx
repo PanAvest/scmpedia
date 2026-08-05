@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { Check, X, Crown, Zap, GraduationCap } from 'lucide-react'
 import { StudentVerifyModal } from '../components/StudentVerifyModal'
+import { CurrencySelector } from '../components/currency/CurrencySelector'
+import { useCurrency } from '../components/currency/CurrencyProvider'
 
 interface PricingPageProps {
   isPremium: boolean
@@ -30,10 +32,6 @@ type Plan = {
   missing: string[]
 }
 
-const CURRENCY = 'GH₵'
-
-// 5 → "GH₵5", 4.1666 → "GH₵4.17"
-const money = (n: number) => `${CURRENCY}${Number.isInteger(n) ? n : n.toFixed(2)}`
 // Yearly discount vs. paying monthly for 12 months, as a rounded percentage.
 const savingsPct = (monthly: number, annual: number) =>
   monthly > 0 ? Math.max(0, Math.round((1 - annual / (monthly * 12)) * 100)) : 0
@@ -153,6 +151,8 @@ const hasStudentInfo = (user: unknown) => {
 }
 
 export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe, onSignIn, user, checkingOut = null, error = '' }) => {
+  const { displayCurrency, formatFromGhs } = useCurrency()
+  const money = (amountGhs: number) => `${formatFromGhs(amountGhs)} ${displayCurrency}`
   const [annual, setAnnual] = useState(true)
   const [verifyOpen, setVerifyOpen] = useState(false)
   const [pendingPlan, setPendingPlan] = useState<string | null>(null)
@@ -230,7 +230,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe
           <div className="pp-overlay-card">
             <span className="pp-spinner pp-spinner-lg" aria-hidden />
             <div className="pp-overlay-title">Connecting to Paystack…</div>
-            <div className="pp-overlay-sub">Hold on — taking you to secure checkout.</div>
+            <div className="pp-overlay-sub">Your secure checkout will be charged in Ghana cedis (GHS).</div>
           </div>
         </div>
       )}
@@ -279,6 +279,18 @@ export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe
               Save {maxSavings}%
             </span>
           </button>
+        </div>
+
+        <div className="pricing-currency-panel">
+          <div style={{ textAlign: 'left' }}>
+            <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--text-main)' }}>
+              Prices shown in {displayCurrency}
+            </div>
+            <div style={{ marginTop: 2, fontSize: 11, color: 'var(--text-sub)', lineHeight: 1.35 }}>
+              Frankfurter display estimate · Paystack always charges GHS
+            </div>
+          </div>
+          <CurrencySelector compact />
         </div>
       </div>
 
@@ -642,6 +654,19 @@ export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe
           font-weight: 600;
           text-align: center;
         }
+        .pricing-currency-panel {
+          width: min(100%, 410px);
+          margin: 18px auto 0;
+          padding: 10px 12px 10px 15px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+          border: 1px solid rgba(182,84,55,.2);
+          border-radius: 12px;
+          background: var(--card-bg);
+          box-shadow: var(--shadow-sm);
+        }
 
         /* 3 cards stack straight to a single centred column to avoid an orphan card. */
         @media (max-width: 900px) {
@@ -666,6 +691,10 @@ export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe
             min-width: 0 !important;
             padding-left: 16px !important;
             padding-right: 16px !important;
+          }
+          .pricing-currency-panel {
+            align-items: flex-start;
+            gap: 10px;
           }
         }
       `}</style>

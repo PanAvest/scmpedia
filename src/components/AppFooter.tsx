@@ -2,6 +2,7 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Crown } from 'lucide-react'
 import { Logo } from './Logo'
+import { CurrencySelector } from './currency/CurrencySelector'
 
 const FOOTER_LINKS = {
   Product: [
@@ -160,6 +161,12 @@ export const AppFooter: React.FC<AppFooterProps> = ({ onOpenPricing, isPremium =
                   <SocialIcon icon={s.icon} />
                 </a>
               ))}
+            </div>
+            <div style={{ marginTop: 2 }}>
+              <CurrencySelector showMeta />
+              <p style={{ fontSize: 11, color: 'var(--text-sub)', lineHeight: 1.5, margin: '8px 0 0', maxWidth: 260 }}>
+                Converted prices are estimates. Paystack checkout is always charged in Ghana cedis (GHS).
+              </p>
             </div>
           </div>
 

@@ -22,6 +22,7 @@ import { useSubscription } from './hooks/useSubscription'
 import { AUTO_READ_AI_KEY, DICTIONARY_MODE_KEY, THEME_KEY, recordDashboardSearch, termToSlug } from './utils'
 import type { SubscriptionPlan } from './types'
 import type { Entry } from './types'
+import { CurrencyProvider } from './components/currency/CurrencyProvider'
 import './styles/globals.css'
 
 const ResourcePage = lazy(() => import('./pages/ResourcePages').then((module) => ({ default: module.ResourcePage })))
@@ -442,8 +443,10 @@ function AppShell() {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <AppShell />
-    </BrowserRouter>
+    <CurrencyProvider>
+      <BrowserRouter>
+        <AppShell />
+      </BrowserRouter>
+    </CurrencyProvider>
   )
 }
