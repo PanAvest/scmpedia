@@ -36,7 +36,7 @@ export const CurrencySelector: React.FC<CurrencySelectorProps> = ({ compact = fa
       {showMeta && (
         <span className="scm-currency-meta">
           {error
-            ? 'Live rates unavailable · showing GHS'
+            ? 'Live rates temporarily unavailable'
             : loading
               ? 'Loading Frankfurter rates…'
               : `Frankfurter rates${asOf ? ` · ${asOf}` : ''}`}
