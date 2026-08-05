@@ -151,7 +151,7 @@ const hasStudentInfo = (user: unknown) => {
 }
 
 export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe, onSignIn, user, checkingOut = null, error = '' }) => {
-  const { displayCurrency, formatFromGhs } = useCurrency()
+  const { displayCurrency, formatFromGhs, loading: currencyLoading, error: currencyError, rateAvailable } = useCurrency()
   const money = (amountGhs: number) => `${formatFromGhs(amountGhs)} ${displayCurrency}`
   const [annual, setAnnual] = useState(true)
   const [verifyOpen, setVerifyOpen] = useState(false)
@@ -287,7 +287,12 @@ export const PricingPage: React.FC<PricingPageProps> = ({ isPremium, onSubscribe
               Prices shown in {displayCurrency}
             </div>
             <div style={{ marginTop: 2, fontSize: 11, color: 'var(--text-sub)', lineHeight: 1.35 }}>
-              Frankfurter display estimate · Paystack always charges GHS
+              {!rateAvailable && currencyLoading
+                ? `Loading live ${displayCurrency} rate…`
+                : !rateAvailable && currencyError
+                  ? `Live ${displayCurrency} rate temporarily unavailable`
+                  : 'Frankfurter display estimate'}{' '}
+              · Paystack always charges GHS
             </div>
           </div>
           <CurrencySelector compact />

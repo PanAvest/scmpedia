@@ -18,9 +18,19 @@ export const SUPPORTED_CURRENCIES = [
 
 export type CurrencyCode = (typeof SUPPORTED_CURRENCIES)[number]['code']
 export type CurrencyRates = Partial<Record<CurrencyCode, number>>
+export type CompleteCurrencyRates = Record<CurrencyCode, number>
 
 export const isCurrencyCode = (value: unknown): value is CurrencyCode =>
   typeof value === 'string' && SUPPORTED_CURRENCIES.some((currency) => currency.code === value)
+
+export const hasCompleteCurrencyRates = (value: unknown): value is CompleteCurrencyRates => {
+  if (!value || typeof value !== 'object') return false
+  const rates = value as CurrencyRates
+  return SUPPORTED_CURRENCIES.every(({ code }) => {
+    const rate = rates[code]
+    return typeof rate === 'number' && Number.isFinite(rate) && rate > 0
+  })
+}
 
 export const formatCurrency = (amount: number, currency: CurrencyCode) =>
   new Intl.NumberFormat('en', {

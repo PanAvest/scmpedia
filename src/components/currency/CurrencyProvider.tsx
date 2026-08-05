@@ -1,5 +1,12 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { BASE_CURRENCY, formatCurrency, isCurrencyCode, type CurrencyCode, type CurrencyRates } from '../../currency'
+import {
+  BASE_CURRENCY,
+  formatCurrency,
+  hasCompleteCurrencyRates,
+  isCurrencyCode,
+  type CurrencyCode,
+  type CurrencyRates,
+} from '../../currency'
 
 type CurrencyContextValue = {
   currency: CurrencyCode
@@ -8,6 +15,7 @@ type CurrencyContextValue = {
   asOf: string | null
   loading: boolean
   error: boolean
+  rateAvailable: boolean
   setCurrency: (currency: CurrencyCode) => void
   formatFromGhs: (amountGhs: number) => string
 }
@@ -24,6 +32,36 @@ const CACHE_LIFETIME_MS = 12 * 60 * 60 * 1000
 
 const CurrencyContext = createContext<CurrencyContextValue | null>(null)
 
+const wait = (duration: number, signal: AbortSignal) =>
+  new Promise<void>((resolve, reject) => {
+    const timeout = window.setTimeout(resolve, duration)
+    signal.addEventListener(
+      'abort',
+      () => {
+        window.clearTimeout(timeout)
+        reject(new DOMException('Aborted', 'AbortError'))
+      },
+      { once: true },
+    )
+  })
+
+const fetchCurrencyRates = async (signal: AbortSignal) => {
+  let lastError: unknown = new Error('Rates unavailable')
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const response = await fetch('/api/currency', { cache: 'no-store', signal })
+      const payload = (await response.json()) as { rates?: unknown; asOf?: string | null }
+      if (!response.ok || !hasCompleteCurrencyRates(payload.rates)) throw new Error('Rates unavailable')
+      return { rates: payload.rates, asOf: payload.asOf || null }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') throw error
+      lastError = error
+      if (attempt < 2) await wait(500 * (attempt + 1), signal)
+    }
+  }
+  throw lastError
+}
+
 export const CurrencyProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
   const [currency, setCurrencyState] = useState<CurrencyCode>(BASE_CURRENCY)
   const [rates, setRates] = useState<CurrencyRates>({ GHS: 1 })
@@ -33,6 +71,7 @@ export const CurrencyProvider: React.FC<React.PropsWithChildren> = ({ children }
   const userChoseCurrencyRef = useRef(false)
 
   useEffect(() => {
+    let active = true
     let hasFreshCache = false
     const savedCurrency = localStorage.getItem(PREFERENCE_KEY)
     const hasSavedPreference = isCurrencyCode(savedCurrency)
@@ -42,7 +81,7 @@ export const CurrencyProvider: React.FC<React.PropsWithChildren> = ({ children }
       const storedRates = localStorage.getItem(RATES_KEY)
       if (storedRates) {
         const cached = JSON.parse(storedRates) as CachedRates
-        if (cached.rates?.GHS === 1 && Date.now() - cached.savedAt < CACHE_LIFETIME_MS) {
+        if (hasCompleteCurrencyRates(cached.rates) && Date.now() - cached.savedAt < CACHE_LIFETIME_MS) {
           hasFreshCache = true
           setRates(cached.rates)
           setAsOf(cached.asOf)
@@ -58,7 +97,7 @@ export const CurrencyProvider: React.FC<React.PropsWithChildren> = ({ children }
       fetch('/api/location', { cache: 'no-store', signal: controller.signal })
         .then(async (response) => {
           const payload = (await response.json()) as { currency?: unknown }
-          if (!response.ok || !isCurrencyCode(payload.currency) || userChoseCurrencyRef.current) return
+          if (!active || !response.ok || !isCurrencyCode(payload.currency) || userChoseCurrencyRef.current) return
           setCurrencyState(payload.currency)
           localStorage.setItem(PREFERENCE_KEY, payload.currency)
         })
@@ -67,26 +106,31 @@ export const CurrencyProvider: React.FC<React.PropsWithChildren> = ({ children }
         })
     }
 
-    fetch('/api/currency', { signal: controller.signal })
-      .then(async (response) => {
-        const payload = (await response.json()) as { rates?: CurrencyRates; asOf?: string | null }
-        if (!response.ok || !payload.rates) throw new Error('Rates unavailable')
-        const nextRates = { ...payload.rates, GHS: 1 }
+    fetchCurrencyRates(controller.signal)
+      .then((payload) => {
+        if (!active) return
+        const nextRates = payload.rates
         setRates(nextRates)
-        setAsOf(payload.asOf || null)
+        setAsOf(payload.asOf)
         setError(false)
         localStorage.setItem(
           RATES_KEY,
-          JSON.stringify({ rates: nextRates, asOf: payload.asOf || null, savedAt: Date.now() }),
+          JSON.stringify({ rates: nextRates, asOf: payload.asOf, savedAt: Date.now() }),
         )
       })
       .catch((fetchError: unknown) => {
+        if (!active) return
         if (fetchError instanceof DOMException && fetchError.name === 'AbortError') return
         setError(!hasFreshCache)
       })
-      .finally(() => setLoading(false))
+      .finally(() => {
+        if (active) setLoading(false)
+      })
 
-    return () => controller.abort()
+    return () => {
+      active = false
+      controller.abort()
+    }
   }, [])
 
   const setCurrency = useCallback((nextCurrency: CurrencyCode) => {
@@ -95,15 +139,20 @@ export const CurrencyProvider: React.FC<React.PropsWithChildren> = ({ children }
     localStorage.setItem(PREFERENCE_KEY, nextCurrency)
   }, [])
 
-  const displayCurrency = rates[currency] == null ? BASE_CURRENCY : currency
+  const displayCurrency = currency
+  const rateAvailable = currency === BASE_CURRENCY || rates[currency] != null
   const formatFromGhs = useCallback(
-    (amountGhs: number) => formatCurrency(amountGhs * (rates[currency] ?? 1), displayCurrency),
-    [currency, displayCurrency, rates],
+    (amountGhs: number) => {
+      if (amountGhs === 0) return formatCurrency(0, currency)
+      const rate = rates[currency]
+      return rate == null ? '—' : formatCurrency(amountGhs * rate, currency)
+    },
+    [currency, rates],
   )
 
   const value = useMemo(
-    () => ({ currency, displayCurrency, rates, asOf, loading, error, setCurrency, formatFromGhs }),
-    [currency, displayCurrency, rates, asOf, loading, error, setCurrency, formatFromGhs],
+    () => ({ currency, displayCurrency, rates, asOf, loading, error, rateAvailable, setCurrency, formatFromGhs }),
+    [currency, displayCurrency, rates, asOf, loading, error, rateAvailable, setCurrency, formatFromGhs],
   )
 
   return <CurrencyContext.Provider value={value}>{children}</CurrencyContext.Provider>
