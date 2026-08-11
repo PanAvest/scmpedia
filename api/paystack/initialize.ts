@@ -7,6 +7,7 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SU
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_ANON_KEY
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY
+const PAYSTACK_CALLBACK_URL = process.env.PAYSTACK_CALLBACK_URL || 'https://scmpedia.org/paystack/callback'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -63,7 +64,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  const origin = String(req.headers.origin || `https://${req.headers.host}`)
   const response = await fetch('https://api.paystack.co/transaction/initialize', {
     method: 'POST',
     headers: {
@@ -74,7 +74,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       amount: plan.amount,
       email: userData.user.email,
       currency: 'GHS',
-      callback_url: origin,
+      callback_url: PAYSTACK_CALLBACK_URL,
       metadata: {
         user_id: userData.user.id,
         plan: planId,

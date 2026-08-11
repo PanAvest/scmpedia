@@ -37,6 +37,7 @@ export default defineConfig(({ mode }) => {
   const adminPass = env.SCMPEDIA_ADMIN_PASS
   const adminSecret = env.ADMIN_SESSION_SECRET || env.SUPABASE_SERVICE_ROLE_KEY || adminPass
   const paystackSecretKey = env.PAYSTACK_SECRET_KEY
+  const paystackCallbackUrl = env.PAYSTACK_CALLBACK_URL || 'http://localhost:5173/paystack/callback'
   const base64Url = (value: string | Buffer) =>
     Buffer.from(value)
       .toString('base64')
@@ -856,7 +857,7 @@ export default defineConfig(({ mode }) => {
                     amount: plan.amount,
                     email: userData.user.email,
                     currency: 'GHS',
-                    callback_url: 'http://localhost:5173/',
+                    callback_url: paystackCallbackUrl,
                     metadata: {
                       user_id: userData.user.id,
                       plan: planId,
