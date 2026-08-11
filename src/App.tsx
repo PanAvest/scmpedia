@@ -11,6 +11,7 @@ import { SettingsPage } from './pages/SettingsPage'
 import { DictionaryModePage } from './pages/DictionaryModePage'
 import { TermPage } from './pages/TermPage'
 import { LegalPage } from './pages/LegalPage'
+import { PaystackCallbackPage } from './pages/PaystackCallbackPage'
 import type { ResourcePageProps } from './pages/ResourcePages'
 import { isEmailConfirmCallback } from './supabase'
 import { useAuth } from './hooks/useAuth'
@@ -252,6 +253,20 @@ function AppShell() {
             }
           />
           <Route path="/auth/reset" element={<AuthPage />} />
+
+          <Route
+            path="/paystack/callback"
+            element={
+              <PaystackCallbackPage
+                authLoading={auth.loading}
+                signedIn={Boolean(auth.user)}
+                verifying={subscription.verifying}
+                isPremium={subscription.isPremium}
+                error={subscription.error}
+                onRetry={subscription.retryVerification}
+              />
+            }
+          />
 
           <Route
             path="/pricing"

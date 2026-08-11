@@ -1,4 +1,4 @@
-import { createHmac } from 'crypto'
+import { createHmac, timingSafeEqual } from 'crypto'
 import { createClient } from '@supabase/supabase-js'
 import type { VercelRequest, VercelResponse } from '../vercel-types'
 import { loadPlan } from '../_plans.js'
@@ -29,7 +29,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const bodyText = rawBody(req.body)
   const expected = createHmac('sha512', PAYSTACK_SECRET_KEY).update(bodyText).digest('hex')
   const actual = String(req.headers['x-paystack-signature'] || '')
-  if (!actual || actual !== expected) {
+  const validSignature = /^[a-f0-9]{128}$/i.test(actual) && timingSafeEqual(Buffer.from(actual, 'hex'), Buffer.from(expected, 'hex'))
+  if (!validSignature) {
     res.status(401).json({ error: 'Invalid webhook signature' })
     return
   }
@@ -65,7 +66,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const paidExpiry = addDays(plan.duration_days)
-  const { data: userData } = await admin.auth.admin.getUserById(userId)
+  const { data: userData, error: userError } = await admin.auth.admin.getUserById(userId)
+  if (userError || !userData.user) {
+    res.status(200).json({ received: true, ignored: true })
+    return
+  }
   // Keep the later end date; preserve a lifetime admin comp as lifetime.
   const existingSub = (userData.user?.app_metadata as Record<string, any> | undefined)?.scmpedia_subscription
   const existingExpiry = typeof existingSub?.expires_at === 'string' ? existingSub.expires_at : ''
@@ -75,7 +80,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     : existingActive && existingExpiry && new Date(existingExpiry).getTime() > new Date(paidExpiry).getTime()
       ? existingExpiry
       : paidExpiry
-  await admin.from('scmpedia_payments').upsert(
+  const { error: paymentError } = await admin.from('scmpedia_payments').upsert(
     {
       reference,
       user_id: userId,
@@ -89,8 +94,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     },
     { onConflict: 'reference' },
   )
+  if (paymentError) {
+    res.status(500).json({ error: 'Could not record payment' })
+    return
+  }
 
-  await admin.auth.admin.updateUserById(userId, {
+  const { error: updateError } = await admin.auth.admin.updateUserById(userId, {
     app_metadata: {
       ...(userData.user?.app_metadata || {}),
       scmpedia_subscription: {
@@ -102,6 +111,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
     },
   })
+  if (updateError) {
+    res.status(500).json({ error: 'Could not activate subscription' })
+    return
+  }
 
   res.status(200).json({ received: true })
 }

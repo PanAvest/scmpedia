@@ -1,7 +1,9 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import type { User } from '@supabase/supabase-js'
 import type { SubscriptionState, SubscriptionPlan } from '../types'
 import { formatSubscriptionDate, getPlanLabel, FREE_DAILY_LIMIT, readFreeUsage } from '../utils'
+
+const PENDING_PAYSTACK_REFERENCE_KEY = 'scmpedia-pending-paystack-reference'
 
 const getSubscriptionFromUser = (user: User | null): SubscriptionState => {
   const subscription = user?.app_metadata?.scmpedia_subscription
@@ -32,6 +34,7 @@ export function useSubscription(auth: AuthLike) {
   const [checkingOut, setCheckingOut] = useState<SubscriptionPlan | null>(null)
   const [verifying, setVerifying] = useState(false)
   const [error, setError] = useState('')
+  const automaticVerificationRef = useRef('')
 
   useEffect(() => {
     if (override && (!auth.user || derived.tier === 'premium')) setOverride(null)
@@ -40,7 +43,7 @@ export function useSubscription(auth: AuthLike) {
   const state: SubscriptionState = override ?? derived
 
   const verifyReference = useCallback(async (reference: string) => {
-    if (!auth.session?.access_token) return
+    if (!auth.session?.access_token) return false
     setVerifying(true)
     setError('')
     try {
@@ -56,22 +59,51 @@ export function useSubscription(auth: AuthLike) {
       if (!response.ok) throw new Error(body?.error || 'Could not verify payment')
       await auth.refreshUser()
       setOverride({ tier: 'premium', plan: body.plan, expiresAt: body.expiresAt })
+      return true
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not verify payment')
+      return false
     } finally {
       setVerifying(false)
     }
   }, [auth])
 
   useEffect(() => {
-    const reference = new URLSearchParams(window.location.search).get('reference')
+    const params = new URLSearchParams(window.location.search)
+    const callbackReference = params.get('reference') || params.get('trxref') || ''
+    if (callbackReference) sessionStorage.setItem(PENDING_PAYSTACK_REFERENCE_KEY, callbackReference)
+    const reference = callbackReference || sessionStorage.getItem(PENDING_PAYSTACK_REFERENCE_KEY) || ''
     if (!reference || !auth.session?.access_token) return
-    void verifyReference(reference).finally(() => {
+    if (automaticVerificationRef.current === reference) return
+    automaticVerificationRef.current = reference
+    void verifyReference(reference).then((verified) => {
+      if (!verified) return
+      sessionStorage.removeItem(PENDING_PAYSTACK_REFERENCE_KEY)
       const url = new URL(window.location.href)
       url.searchParams.delete('reference')
+      url.searchParams.delete('trxref')
       window.history.replaceState({}, '', url.toString())
     })
   }, [auth.session?.access_token, verifyReference])
+
+  const retryVerification = useCallback(async () => {
+    const params = new URLSearchParams(window.location.search)
+    const reference = params.get('reference') || params.get('trxref') || sessionStorage.getItem(PENDING_PAYSTACK_REFERENCE_KEY) || ''
+    if (!reference) {
+      setError('Missing Paystack payment reference.')
+      return false
+    }
+    automaticVerificationRef.current = reference
+    const verified = await verifyReference(reference)
+    if (verified) {
+      sessionStorage.removeItem(PENDING_PAYSTACK_REFERENCE_KEY)
+      const url = new URL(window.location.href)
+      url.searchParams.delete('reference')
+      url.searchParams.delete('trxref')
+      window.history.replaceState({}, '', url.toString())
+    }
+    return verified
+  }, [verifyReference])
 
   const subscribe = async (plan: SubscriptionPlan) => {
     if (!auth.user || !auth.session?.access_token) {
@@ -124,6 +156,7 @@ export function useSubscription(auth: AuthLike) {
     verifying,
     error,
     subscribe,
+    retryVerification,
     statusText,
     freeSearchesLeft,
     paidUntil,
